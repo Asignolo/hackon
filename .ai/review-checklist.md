@@ -1,36 +1,366 @@
-# Standalone Module Review Checklist
+# Code Review Checklist — Full Reference
 
-Apply this checklist in addition to the installed `om-code-review` checklist whenever a diff changes module elements under `src/modules/**`, module activation in `src/modules.ts`, or a discovered page/API/widget/search/AI surface. Review the complete affected vertical slice, not only the edited file. The installed `customers` module is the reference pattern; copy its contracts, not its optional business surfaces or source code.
+Apply every applicable section based on which files changed. Skip sections that don't apply to the diff.
 
-## Complete module and discovery
+## 1. Architecture & Module Independence
 
-- A new app module has a stable namespaced ID, is activated in `src/modules.ts` with `{ id, from: '@app' }`, and runs `yarn generate`; generated files are inspected but never hand-edited.
-- A user-facing backend module is reachable from the main sidebar through its list page `page.meta.ts`: localized `pageTitleKey` and `pageGroupKey`, stable priority/order/icon/breadcrumb, `requireAuth`, and the matching `requireFeatures`. A deliberately hidden or deep-link-only page uses `navHidden` with a stated reason.
-- Unless the brief explicitly excludes an operation, every new editable entity ships connected list/create/view-or-edit/delete flows. Its `DataTable` exposes server filter/search, an obvious localized add action, a linked view/edit row action, and guarded delete; its `CrudForm` returns to the reachable list. Route, entity, search, `DataTable` `extensionTableId`, `CrudForm` entity ID, API enricher, widget spot, ACL, event, and command IDs are stable and aligned.
-- Add only surfaces the brief uses. Do not require unrelated `customers` capabilities such as analytics, vector search, notifications, workflows, or AI unless the changed module actually implements them.
+- [ ] No direct ORM relationships between modules (use FK IDs, fetch separately)
+- [ ] No direct module-to-module function calls for side effects (use events)
+- [ ] No direct imports from other modules' business logic
+- [ ] Cross-module data uses extension entities declared in `data/extensions.ts`
+- [ ] Entity access: optional chaining for cross-module IDs — `(E as any).catalog?.catalog_product`
+- [ ] Optional integration is soft-optional: a module that only sometimes runs alongside a peer resolves the peer's service inside `try/catch` (a `tryResolve` helper) and degrades gracefully when absent — never an unconditional `container.resolve('<peerService>')` or a hard `requires` on an optional peer; the optional consumer owns the glue (subscriber / enricher / widget), not the upstream module
+- [ ] Entity IDs resolved at runtime via `getEntityIds()`, not at import time
+- [ ] All queries on tenant-scoped entities filter by `organization_id` AND `tenant_id`
+- [ ] No cross-tenant data leaks in API responses
+- [ ] Cross-module customer/host references are resolved under trusted tenant + organization scope and persist only scalar IDs plus intentional snapshots — no duplicate local identity and no cross-module ORM relation
+- [ ] Services resolved via DI (Awilix) — never `new` directly
+- [ ] No hardcoded module-specific logic in `setup-app.ts`
+- [ ] Code placed in correct location (core features in `packages/`, app-specific in `apps/mercato/src/modules/`)
+- [ ] No code added directly in `apps/mercato/src/` outside of `modules/`
+- [ ] `@open-mercato/shared` has zero domain dependencies — no imports from `@open-mercato/core`
 
-## Data, commands, API, and safety
+## 2. Security & Authentication
 
-- Editable scoped entities use UUIDs, snake_case storage, tenant/org and standard timestamp/soft-delete columns, plus `updated_at`; migrations and the module snapshot contain only intended changes, and `yarn db:generate` is rerun as a no-op probe without applying migrations.
-- Input validators cover every query/body trust boundary. Public request/OpenAPI schemas never accept or require runtime `tenantId`/`organizationId`; handlers derive scope from trusted context and ignore same-named payload fields. Anonymous public business intake uses an explicit trusted tenant+organization binding; missing, partial, or ambiguous binding fails closed, and no path selects or persists the first/oldest active tenant or organization. API routes use per-method auth/feature metadata, `makeCrudRoute`, scoped ORM keys, a separate `openApi` export, stable response keys including `updatedAt`, and `indexer: { entityType }` where searchable.
-- Domain writes go through commands. Each declared create/update/delete/action command independently reaches its required guard, merges the guard result's `modifiedPayload` into the validated input and revalidates it before command dispatch, and reaches its lock/transaction and undo seams; helper vocabulary elsewhere in the module is not evidence for that command. Custom actions prove the complete optimistic-lock path together: the client sends that record's version, the server enforces it, and the client surfaces the 409 conflict with a real retry path. Multi-phase entity/relation/custom-field changes use `withAtomicFlush(..., { transaction: true })` on one EntityManager; command actions keep events, cache invalidation, indexing, queues, and external effects after commit.
-- Availability/uniqueness decisions that race use a database constraint, lock, compare-and-swap, or one atomic claim seam; never a read/check followed by an unguarded create. Idempotency queries and database uniqueness include tenant+organization for scoped records. Concurrent contenders have one deterministic winner and an idempotent retry returns the original outcome.
-- When cache or queued work changes, verify typed DI/`createModuleQueue` usage, tenant+organization keys/payloads, tag-complete forward and undo invalidation, enqueue-after-commit or a durable outbox, discovered worker metadata, idempotent retry-safe handlers, bounded concurrency, and observable terminal failure.
-- Undo reads the stored payload through `extractUndoPayload`, re-authorizes/re-scopes, is retry-safe, and emits symmetric undo effects. Create undo removes or soft-deletes the created row; delete undo restores it. Custom-field writes capture before/after snapshots, restore through `buildCustomFieldResetMap`, and keep matching cache/index aliases in `emitCrudSideEffects` and `emitCrudUndoSideEffects`.
-- Cross-module CRM/host identities are resolved through an installed public service/command/query contract under trusted tenant+organization scope and stored as scalar IDs plus intentional snapshots—never a private installed entity import, direct cross-module ORM query/relation, or duplicate local identity. Every later lookup/mutation repeats the trusted scope predicates.
-- ACL feature IDs are namespaced and dependency-aware; `setup.ts` grants appropriate defaults and keeps all hooks/seeds idempotent. UI visibility never replaces server authorization, wildcard-aware ACL, tenant/org filters, or record ownership.
+- [ ] All inputs validated with zod schemas in `data/validators.ts`
+- [ ] TypeScript types derived from zod via `z.infer<typeof schema>` (no manual interface duplication)
+- [ ] No `any` types — use zod + `z.infer`, narrow with runtime checks
+- [ ] Every API endpoint declares auth guards (`requireAuth`, `requireRoles`, `requireFeatures`)
+- [ ] Passwords hashed with bcryptjs (cost >= 10)
+- [ ] No credentials logged or included in error responses
+- [ ] Auth endpoints return minimal error messages (no "email not found" vs "wrong password" distinction)
+- [ ] `findWithDecryption`/`findOneWithDecryption` used instead of raw `em.find`/`em.findOne`
+- [ ] `tenantId` and `organizationId` supplied to decryption helpers
+- [ ] No hand-rolled AES/KMS — use `TenantDataEncryptionService`
+- [ ] GDPR-relevant fields update encryption defaults in `src/modules/entities/lib/encryptionDefaults.ts`
+- [ ] No sensitive fields (passwords, tokens, SSNs, bank accounts) exposed in search indexes
+- [ ] `fieldPolicy.excluded` defined for sensitive fields in search config
+- [ ] `fieldPolicy.hashOnly` used for PII needing exact-match but not fuzzy search
+- [ ] No sensitive data cached without encryption
 
-## Encryption, custom fields, search, and extension hosts
+## 3. Data Integrity & ORM
 
-- Sensitive fields are declared in `defaultEncryptionMaps`. Reads use `findWithDecryption`, `findOneWithDecryption`, or `findAndCountWithDecryption` with both scoped query filters and the decryption scope; responses, logs, events, exports, cache keys, and indexes do not expose ciphertext or plaintext secrets.
-- Equality lookup uses an explicitly approved hash-only sibling populated by `TenantDataEncryptionService`; direct queries use `lookupHashCandidates(value)` from `@open-mercato/shared/lib/encryption/aes` (or `hashForLookup(value)` only where the installed write contract requires one keyed value), never raw SHA-256 for low-entropy PII. New or changed encryption maps have isolated runtime evidence that reconciliation registered the map and the real write path stored ciphertext. `search.ts` uses a stable entity ID, safe `fieldPolicy`, and `aclFeatures` naming the owning module's view feature(s) so global search can authorize reads per entity; searchable CRUD writes index after commit, bulk paths reindex deterministically, vector sources have `checksumSource`, token results have `formatResult`, and tests do not wait with arbitrary sleeps.
-- `CrudForm` uses shared helpers, `initialValues.updatedAt`, localized fields/groups/errors, `collectCustomFieldValues`/`entityIds`, explicit null clearing, and conflict surfacing. `DataTable` owns pagination/loading/empty/error/export and uses stable column/action/row-action IDs plus `extensionTableId`.
-- An intentional extensible API host declares an aligned colon-form `enrichers` entity ID. UI injection spots, widgets, interceptors, guards, enrichers, component handles, and menu entries keep stable IDs and demonstrate the complete render/read/save/reload/clear or execute/undo path they claim to support.
-- When AI behavior is requested, use the installed AI framework's discovered agent/tool surfaces rather than a bespoke model client. Tools declare non-empty feature gates, validate inputs, remove transport-only session tokens, handle expired sessions, return serializable data, and route mutations through the same scoped commands, confirmation, optimistic-lock, audit, undo, and post-commit contracts as the API/UI.
+- [ ] No hand-written migrations — entities updated, `yarn db:generate` used
+- [ ] When entities changed, corresponding generated migration file is included in the diff
+- [ ] UUID primary keys with `defaultRaw: 'gen_random_uuid()'`
+- [ ] Standard columns present: `id`, `created_at`, `updated_at`, `organization_id`, `tenant_id`
+- [ ] Soft delete via `deleted_at` (not hard delete for historical records)
+- [ ] Table names: plural snake_case
+- [ ] Column names: snake_case
+- [ ] Junction tables for many-to-many relationships
+- [ ] Explicit foreign keys (no implicit ORM resolution across modules)
+- [ ] `withAtomicFlush` used when mutating entities across phases that include queries
+- [ ] Scalar changes flushed BEFORE relation syncs that query on same `EntityManager`
+- [ ] No `em.find`/`em.findOne` between scalar mutations and `em.flush()` without `withAtomicFlush`
+- [ ] Transactions are atomic — all-or-nothing semantics
 
-## Design system, i18n, and proof
+## 4. API Routes
 
-- Every rendered page follows the design system: shared layout/form/table/control primitives, semantic tokens, no raw replacement controls or hard-coded palette/arbitrary Tailwind values, and no manual dark-mode fork.
-- Visible copy lives in module `i18n/<locale>.json` and is read with the installed translation helpers; `translations.ts` is reserved for translatable entity fields. Every literal module-owned UI/navigation key resolves to a non-empty base-locale value and in every sibling locale the module emits. Locale generation/sync is refreshed when keys change, and generated-code review treats emitted locale JSON as inert source evidence.
-- Pages preserve server-rendered shells and small client islands, do not pull route-specific heavy code into global providers, and cover responsive layouts, keyboard/focus behavior, labels, accessible announcements, loading, empty, error, permission-denied, validation, conflict, success, and destructive confirmation states.
-- Focused tests cover allowed/denied/wildcard ACL, two scopes, malformed input, current/stale version, custom-field save/reload/clear, injected atomic rollback, undo/retry, encrypted read/redaction, search deletion/reindex convergence, and extension-host round trips as applicable. Concurrency-sensitive commands execute two contenders and deterministic retry. Standalone Jest files import their globals from `@jest/globals` when the app `tsconfig` does not provide them, and the focused runner must discover and execute the file.
+- [ ] `openApi` exported for documentation generation
+- [ ] `metadata` exported with auth guard declarations
+- [ ] `makeCrudRoute` used with `indexer: { entityType }` for query index coverage
+- [ ] Zod validation on all request inputs
+- [ ] Tenant scoping applied in all queries
+- [ ] Public request/OpenAPI schemas do not accept or require runtime `tenantId` / `organizationId`; handlers derive scope from trusted context and ignore same-named payload fields
+- [ ] `apiCall`/`apiCallOrThrow` used — no raw `fetch`
+- [ ] `readJsonSafe(response, fallback)` for JSON parsing — no `.json().catch()`
+- [ ] CRUD operations use `createCrud`/`updateCrud`/`deleteCrud`
+- [ ] Local validation errors thrown via `createCrudFormError(message, fieldErrors?)`
+- [ ] `pageSize` <= 100 for list endpoints
+- [ ] Export handler functions (`GET`, `POST`, `PUT`, `DELETE`) matching HTTP method
+
+## 5. Events
+
+- [ ] Events declared in the emitting module's `events.ts`
+- [ ] `createModuleEvents()` used with `as const` for type safety
+- [ ] Event fields include `id` (required), `label` (required), `category`
+- [ ] `yarn generate` run after creating/modifying `events.ts`
+- [ ] No undeclared events emitted
+- [ ] Subscribers export `metadata` with `{ event, persistent?, id? }`
+- [ ] One side effect per subscriber file
+- [ ] Persistent subscribers are idempotent (may be retried)
+- [ ] Ephemeral subscribers used only for real-time UI updates and cache invalidation
+
+## 6. Commands & Undo/Redo
+
+- [ ] All write operations implemented as commands via `registerCommand`
+- [ ] Multi-step operations use compound commands
+- [ ] Every command is undoable with before/after snapshots
+- [ ] Each declared create/update/delete/action command independently reaches its required lock/transaction and undo seams; helper names elsewhere in the module are not evidence for that command
+- [ ] Create undo removes or soft-deletes the created record, while delete undo restores it; event/audit side effects match the resulting lifecycle state
+- [ ] `extractUndoPayload()` used from `@open-mercato/shared/lib/commands/undo.ts`
+- [ ] Custom field snapshots captured in `snapshot.custom`
+- [ ] Undo restores via `buildCustomFieldResetMap(before.custom, after.custom)`
+- [ ] `buildLog()` loads snapshots via forked `EntityManager` or `refresh: true`
+- [ ] Side effects (`emitCrudSideEffects`) called OUTSIDE `withAtomicFlush`
+- [ ] Both `emitCrudSideEffects` and `emitCrudUndoSideEffects` include `indexer: { entityType, cacheAliases }`
+- [ ] Availability/uniqueness decisions that race use a database constraint, lock, compare-and-swap, or one atomic claim seam; no read/check followed by an unguarded create
+- [ ] Idempotency retries return the original outcome and concurrent contenders have a deterministic single winner
+
+## 7. Search Configuration
+
+- [ ] `search.ts` created for every module with searchable entities
+- [ ] Exports `searchConfig: SearchModuleConfig`
+- [ ] `checksumSource` included in every `buildSource` return
+- [ ] `fieldPolicy.excluded` defined for sensitive fields
+- [ ] `fieldPolicy.hashOnly` defined for PII fields (email, phone, tax_id)
+- [ ] `formatResult` defined for every entity using tokens strategy
+- [ ] No encrypted/sensitive fields in `buildSource` text output
+- [ ] Entity ID format matches `module:entity_name` exactly
+- [ ] `SearchService` used for direct search, `SearchIndexer` for config-aware indexing
+
+## 8. Cache
+
+- [ ] Resolved via DI: `container.resolve('cache')` — never raw Redis/SQLite
+- [ ] Scoped to tenant: `tenantId` in keys or `runWithCacheTenant()`
+- [ ] Tag-based invalidation for CRUD side effects via `cache.deleteByTags([...])`
+- [ ] Every write operation lists which cache tags it invalidates
+- [ ] Nested data declares invalidation chains (child change invalidates parent cache)
+- [ ] No stale cross-tenant data possible
+- [ ] No sensitive data cached without encryption
+
+## 9. Queue & Workers
+
+- [ ] Workers are idempotent — duplicate execution MUST NOT corrupt data
+- [ ] `metadata` exported with `{ queue, id?, concurrency? }`
+- [ ] Concurrency <= 20
+- [ ] I/O-bound: concurrency 5-10; CPU-bound: 1-2; database-heavy: 3-5
+- [ ] Works with both `local` and `async` strategies
+- [ ] Tenant-wide or organization-optional jobs use an explicitly installed system-scope contract; ordinary jobs carry trusted tenant + organization and never infer scope from payload records
+
+## 10. Module Setup
+
+- [ ] `defaultRoleFeatures` in `setup.ts` mirrors features from `acl.ts`
+- [ ] Lifecycle hooks: `onTenantCreated`, `seedDefaults`, `seedExamples` as needed
+- [ ] All hooks are idempotent — re-running MUST NOT create duplicates
+- [ ] No hardcoded module-specific logic in `setup-app.ts`
+- [ ] No direct imports of another module's seed functions
+- [ ] `getEntityIds()` used at runtime for cross-module lookups
+
+## 11. Custom Fields & Entities
+
+- [ ] Custom entities declared in `ce.ts` under `entities[].fields`
+- [ ] Generated IDs referenced via `E.<module>.<entity>`
+- [ ] `collectCustomFieldValues()` used in form submission
+- [ ] `splitCustomFieldPayload`, `normalizeCustomFieldValues`, `normalizeCustomFieldResponse` from `@open-mercato/shared`
+- [ ] DSL helpers used: `defineLink`, `entityId`, `cf.*` from `@open-mercato/shared/modules/dsl`
+
+## 12. UI & Backend Pages
+
+### Forms
+- [ ] `CrudForm` used for all create/edit flows — never custom forms
+- [ ] Dialog forms use `embedded={true}`
+- [ ] Zod schema drives validation, field errors via `createCrudFormError`
+- [ ] `fields` and `groups` in memoized helpers
+- [ ] `entityIds` passed when custom fields involved
+- [ ] `FormHeader` and `FormFooter` from `@open-mercato/ui/backend/forms`
+
+### Tables
+- [ ] `DataTable` used for all list views — never manual tables
+- [ ] Column truncation: `meta.truncate` and `meta.maxWidth` set where needed
+- [ ] `RowActions` with stable `id` values (`edit`, `open`, `delete`)
+- [ ] `rowClickActionIds` configured if needed
+- [ ] `pageSize` <= 100
+- [ ] Exports: `buildCrudExportUrl` + `exportOptions` on `DataTable`
+
+### Feedback & States
+- [ ] `flash()` for all user feedback — never `alert()` or custom toast
+- [ ] `LoadingMessage` and `ErrorMessage` from `@open-mercato/ui/backend/detail`
+- [ ] `TabEmptyState` for empty but healthy sections
+- [ ] `Notice` (compact/variant) for inline hints and warnings
+
+### Keyboard & UX
+- [ ] Every dialog: `Cmd/Ctrl+Enter` submit, `Escape` cancel
+- [ ] `FormHeader mode="detail"` for view pages, `mode="edit"` for CrudForm pages
+
+## 13. i18n & Translations
+
+- [ ] No hardcoded user-facing strings
+- [ ] Client-side: `useT()` from `@open-mercato/shared/lib/i18n/context`
+- [ ] Server-side: `resolveTranslations()` from `@open-mercato/shared/lib/i18n/server`
+- [ ] Translation keys in module locale files
+- [ ] Notification strings use `<module>.notifications.*` keys
+
+## 14. Naming Conventions
+
+- [ ] Module folders: plural, snake_case (exceptions: `auth`, `example`)
+- [ ] Module `id`: matches folder name (plural, snake_case)
+- [ ] JS/TS identifiers: camelCase
+- [ ] Database tables: plural snake_case
+- [ ] Database columns: snake_case
+- [ ] ACL features: `<module>.<entity>.<action>`
+- [ ] Event IDs: `<module>.<entity>.<past_tense_verb>`
+- [ ] No one-letter variable names
+
+## 15. Code Quality
+
+- [ ] No `any` types introduced
+- [ ] No `unknown` or `any` exported from shared packages
+- [ ] Narrow, typed interfaces exported from shared packages
+- [ ] Functional, data-first utilities preferred over classes
+- [ ] Boolean parsing: `parseBooleanToken`/`parseBooleanWithDefault`
+- [ ] No added docstrings/comments/annotations on unchanged code
+- [ ] Self-documenting code — no inline comments needed
+- [ ] Imports use correct package paths (see AGENTS.md import table)
+
+## 16. Notifications
+
+- [ ] Types declared in `notifications.ts` with `notificationTypes: NotificationTypeDefinition[]`
+- [ ] Event subscribers emit notifications on domain events
+- [ ] Client renderers in `notifications.client.ts`
+- [ ] Components in `widgets/notifications/`
+- [ ] Translation keys: `<module>.notifications.*`
+- [ ] `expiresAfterHours` set appropriately
+
+## 17. Widget Injection
+
+- [ ] Widgets declared in `widgets/injection/`
+- [ ] Mapped via `widgets/injection-table.ts`
+- [ ] Metadata in colocated `*.meta.ts` files
+- [ ] Spot IDs follow convention: `crud-form:<entityId>`, `data-table:<tableId>`, `admin.page:<path>`
+
+## 18. AI Tools (MCP)
+
+- [ ] `requiredFeatures` set for RBAC enforcement — never empty
+- [ ] Zod schemas for `inputSchema` — never raw JSON Schema
+- [ ] Handler returns serializable objects
+- [ ] `moduleId` matches module's `id` field
+- [ ] `_sessionToken` deleted from args before passing to handler
+- [ ] `null` return from token lookup handled — return SESSION_EXPIRED
+
+## 19. Generated Files & Build
+
+- [ ] Files in `apps/mercato/.mercato/generated/` never edited manually
+- [ ] `yarn generate` run after adding/modifying module files
+- [ ] No imports from generated files in packages (only app bootstrap imports)
+- [ ] Project still builds after changes (`yarn build`)
+- [ ] Template parity check passes: `yarn template:sync` (for `apps/mercato/src/{app,modules}` vs `packages/create-app/template/src/{app,modules}`)
+- [ ] If template drift exists (especially app layout/routes), reviewer asked whether to sync and, if approved, applied `yarn template:sync:fix`
+
+## 20. Testing Coverage
+
+- [ ] Changed behavior is covered by unit tests and/or integration tests
+- [ ] High-risk changes (auth, tenant isolation, payments, workflows, undo/redo, eventing) include integration tests
+- [ ] Tests validate both happy path and key failure/edge cases
+- [ ] Standalone Jest files import `describe` / `it` or `test` / `expect` / `jest` from `@jest/globals` when the app `tsconfig` does not provide Jest globals, and the focused test command discovers and executes them
+- [ ] Concurrency-sensitive commands have an executable two-contender test plus deterministic-retry assertion; lifecycle tests distinguish create-undo from delete-undo
+- [ ] New API behavior is covered by route-level integration tests
+- [ ] Missing test coverage is explicitly called out in review findings with proposed test files/cases
+
+## 21. Backward Compatibility (Critical)
+
+Every item below refers to `BACKWARD_COMPATIBILITY.md` (linked from root `AGENTS.md`). A violation is **Critical** unless the deprecation protocol is fully followed.
+
+### Convention Files & Auto-Discovery
+- [ ] No convention file renamed or removed (`index.ts`, `acl.ts`, `setup.ts`, `ce.ts`, `search.ts`, `events.ts`, `translations.ts`, `notifications.ts`, `di.ts`, `cli.ts`, etc.)
+- [ ] No convention file export name renamed (e.g., `features`, `setup`, `searchConfig`, `eventsConfig`, `translatableFields`)
+- [ ] No auto-discovery directory convention changed (routing algorithm for `frontend/`, `backend/`, `api/`, `subscribers/`, `workers/`)
+
+### Type Interfaces
+- [ ] No required fields removed from public types (`Module`, `ModuleSetupConfig`, `EventDefinition`, `EntityExtension`, `CustomFieldDefinition`, `InjectionWidgetMetadata`, `InjectionWidgetComponentProps`, `WidgetInjectionEventHandlers`, `SearchModuleConfig`, `NotificationTypeDefinition`, `DashboardWidgetMetadata`, `DashboardWidgetComponentProps`, `OpenApiRouteDoc`, `McpToolDefinition`, `WorkerMeta`, `PageMetadata`)
+- [ ] No required field types narrowed (e.g., `string | null` changed to `string`)
+- [ ] No existing optional fields removed from public types
+
+### Function Signatures
+- [ ] No required parameters removed or reordered on public functions (`createModuleEvents`, `makeCrudRoute`, `findWithDecryption`, `findOneWithDecryption`, `entityId`, `defineLink`, `defineFields`, `cf.*`, `lazyDashboardWidget`, `registerMcpTool`, `apiCall`, `apiCallOrThrow`, `useT`, `resolveTranslations`, `collectCustomFieldValues`, `flash`, `parseBooleanToken`, `parseBooleanWithDefault`, `createCrudOpenApiFactory`)
+- [ ] No return type changed in a breaking way
+- [ ] New parameters added as optional only (no required params added to existing functions)
+
+### Event IDs
+- [ ] No existing event ID renamed (IDs in any module's `events.ts`)
+- [ ] No existing event ID removed
+- [ ] No existing event payload fields removed (may add optional fields)
+- [ ] Deprecated events still emitted during bridge period alongside replacement
+
+## 22. Specs Filename Hygiene
+
+- [ ] New or renamed spec files use `{YYYY-MM-DD}-{slug}.md`
+- [ ] Legacy numbered spec files are normalized instead of copied forward into new work
+- [ ] No two spec files in `.ai/specs` or `.ai/specs/enterprise` resolve to the same normalized `{YYYY-MM-DD}-{slug}.md` target
+- [ ] Filename references/links updated after any normalization
+
+### Widget Injection Spot IDs
+- [ ] No existing spot ID renamed or removed
+- [ ] No spot ID context/data type changed in a breaking way (may add optional fields)
+- [ ] Wildcard spots (`crud-form:*`, `data-table:*`) still match as documented
+
+### API Routes
+- [ ] No existing API route URL removed or renamed
+- [ ] No HTTP method changed for existing operations
+- [ ] No fields removed from existing response schemas (may add new fields)
+- [ ] Deprecated routes marked `deprecated: true` in `openApi` and kept functional
+
+### Database Schema
+- [ ] No existing table or column renamed
+- [ ] No existing column removed (soft-deprecate: stop writing, keep column)
+- [ ] No column type narrowed (e.g., `text` → `varchar(50)`)
+- [ ] Standard columns preserved (`id`, `created_at`, `updated_at`, `deleted_at`, `is_active`, `organization_id`, `tenant_id`)
+- [ ] New columns have defaults (non-breaking addition)
+
+### DI Service Names
+- [ ] No existing DI registration key renamed
+- [ ] No existing service interface changed in a breaking way
+
+### ACL Feature IDs
+- [ ] No existing feature ID renamed (stored in DB role configs)
+- [ ] No feature ID removed without data migration for existing role configs
+
+### Notification Type IDs
+- [ ] No existing `type` string renamed on `NotificationTypeDefinition`
+- [ ] No existing notification type removed
+
+### Import Paths
+- [ ] No documented public import path removed without re-export bridge + `@deprecated`
+- [ ] Moved modules re-exported from old path
+
+### CLI Commands
+- [ ] No existing CLI command or required flag renamed/removed
+
+### Generated Files
+- [ ] No generated file export names changed
+- [ ] No required fields removed from `BootstrapData`
+
+### Deprecation Protocol (when changing any of the above)
+- [ ] `@deprecated` JSDoc added with migration guidance and target removal version
+- [ ] Bridge provided (re-export, alias, or dual-emit) for at least one minor version
+- [ ] Documented in UPGRADE_NOTES.md
+- [ ] Spec in `.ai/specs/` with "Migration & Backward Compatibility" section
+
+## 23. Observability & Error Reporting
+
+- [ ] Every new `catch` that does anything other than rethrow — persists a row, sets a `failed` status, dead-letters an item, returns a fallback — also reaches `reportError`, directly or through a chokepoint that does (`integrationLogService.write` at `level: 'error'`, the queue failure paths). `logger.error` alone is NOT reporting: no span exception, no `om.errors` sample, no fingerprint
+- [ ] Every `reportError` call passes a `code`: a stable, enumerated `module.reason` token, never an interpolated string (it is a metric label and the backend's grouping key — ids belong in `attributes`). A `code` reaching a chokepoint from outside the framework is narrowed with `groupableCode(value, fallback)`, never trusted
+- [ ] Reporting is wrapped where it sits on a durable write path, so a telemetry fault degrades to a warning instead of failing the caller
+- [ ] No PII, credentials or record payloads in the reported message or attributes (`integration_logs.payload` never leaves the database)
+- [ ] `packages/core` and other non-telemetry packages reach the funnel via `getTelemetryRuntime()?.reportError(...)`, never by importing `@open-mercato/telemetry`
+- [ ] No sampling, throttling or suppression added inside `reportError` — volume control belongs to the collector and the backend
+
+## 24. Anti-Pattern Checklist
+
+Flag any of these patterns as violations:
+
+| Anti-Pattern | Severity | Fix |
+|---|---|---|
+| Removed/renamed event ID without deprecation bridge | Critical | Keep old ID, emit both, deprecate after one minor version |
+| Removed/renamed widget spot ID | Critical | Keep old spot ID, add new one additively |
+| Removed field from API response schema | Critical | Keep field (set to null/default if no longer meaningful), deprecate |
+| Renamed/removed DB column or table | Critical | Keep old column, add new one, backfill, deprecate old |
+| Removed/renamed public type field or function param | Critical | Add `@deprecated` alias, keep old signature |
+| Removed public import path without re-export | Critical | Re-export from old path with `@deprecated` |
+| Contract surface change without spec + migration section | Critical | Create spec with "Migration & Backward Compatibility" section |
+| Direct ORM relationships between modules | Critical | Use FK IDs, fetch separately |
+| Missing `organization_id` filter on tenant queries | Critical | Add tenant scoping |
+| Raw `em.find`/`em.findOne` without decryption | High | Use `findWithDecryption` |
+| Missing `openApi` export on API route | High | Add OpenAPI spec export |
+| Missing `metadata` export on subscriber/worker | High | Add metadata with required fields |
+| Raw `fetch` in UI code | High | Use `apiCall`/`apiCallOrThrow` |
+| Custom form instead of `CrudForm` | Medium | Refactor to use `CrudForm` |
+| Custom table instead of `DataTable` | Medium | Refactor to use `DataTable` |
+| `any` type | Medium | Use zod + `z.infer` |
+| Hardcoded user-facing string | Medium | Use i18n translation key |
+| Hand-written migration | Medium | Delete and run `yarn db:generate` |
+| Behavior change without unit/integration test coverage | High | Add focused unit/integration tests for changed paths |
+| `alert()` or custom toast | Medium | Use `flash()` |
+| One-letter variable name | Low | Use descriptive name |
+| Inline comment on self-explanatory code | Low | Remove comment |
+| Added docstring on unchanged function | Low | Remove docstring |

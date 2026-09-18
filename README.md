@@ -1,65 +1,60 @@
 # hackon
 
-Aplikacja Open Mercato **0.7.0**, utworzona z oficjalnego presetu **Classic**.
-Zawiera pełny zestaw modułów startera i konfigurację pracy z Codexem (`AGENTS.md`, `.ai/`).
+Aplikacja oparta na kodzie monorepo [Open Mercato](https://github.com/open-mercato/open-mercato), pobranym z gałęzi `develop` 18 września 2026 r.
 
-## Wymagania
+- Wersja źródeł: `0.8.0`.
+- Commit upstream: `83330e271e0da0e0ae8ed4dd4d83369735cc06e6`.
+- Aplikacja: `apps/mercato`.
+- Pakiety frameworka: `packages/*`; aplikacja korzysta z `workspace:*`, zamiast gotowych pakietów npm 0.7.0.
+- Historia i zdalne repozytorium projektu pozostają w `Asignolo/hackon`.
 
-- Node.js 24 (`nvm use`)
-- Yarn 4.17.1 (przez Corepack)
-- Docker z Docker Compose
+## Orkiestracja agentów
 
-## Pierwsze uruchomienie
+W `apps/mercato/src/modules.ts` domyślnie włączono:
+
+```dotenv
+OM_ENABLE_ENTERPRISE_MODULES=true
+OM_ENABLE_ENTERPRISE_MODULES_AGENTS=true
+```
+
+Aktywuje to `agent_orchestrator`, `agent_examples` oraz bazowe moduły enterprise: `record_locks` i `system_status_overlays`. SSO i security zachowują własne, domyślnie wyłączone przełączniki.
+
+Zmienne środowiskowe mają pierwszeństwo przed domyślnymi wartościami kodu. Po skopiowaniu upstreamowego `apps/mercato/.env.example` ustaw obie powyższe wartości na `true`, ponieważ upstreamowy przykład ma je wyłączone.
+
+## Instalacja i budowanie
+
+Wymagane: Node.js 24 i Yarn 4.17.1 przez Corepack.
 
 ```bash
-git clone https://github.com/Asignolo/hackon.git
-cd hackon
 nvm use
 corepack enable
 yarn install --immutable
-cp .env.example .env
-```
-
-W `.env` ustaw własne `JWT_SECRET`, `AUTH_SECRET` i `TENANT_DATA_ENCRYPTION_FALLBACK_KEY`.
-Dla każdego klucza wygeneruj osobną wartość: `openssl rand -hex 32`.
-Ustaw też `POSTGRES_DB=hackon` i nazwę bazy `hackon` w `DATABASE_URL`.
-Hasło PostgreSQL musi być takie samo w `POSTGRES_PASSWORD` i `DATABASE_URL`.
-
-```bash
-docker compose up -d --wait postgres redis meilisearch
-yarn setup
-```
-
-`yarn setup` przygotowuje bazę, konta i przykładowe dane, a następnie uruchamia aplikację.
-Domyślny adres: <http://localhost:3000>.
-Lokalne konto demonstracyjne: `superadmin@acme.com`, hasło `secret`.
-To konfiguracja deweloperska; przed udostępnieniem aplikacji zmień dane dostępowe.
-
-## Kolejne uruchomienia
-
-```bash
-docker compose up -d --wait postgres redis meilisearch
-yarn dev
-```
-
-Po sklonowaniu możesz zainstalować umiejętności agenta poleceniem `yarn install-skills`.
-Pliki `.env`, zależności, dane usług i wygenerowane pliki pozostają lokalne.
-
-## Porty przy kilku aplikacjach
-
-Jeśli domyślne porty są zajęte, ustaw w `.env` wolne `POSTGRES_PORT`,
-`REDIS_PORT` i `MEILISEARCH_PORT`, a następnie dostosuj `DATABASE_URL` oraz
-opcjonalne `REDIS_URL`, `MEILISEARCH_HOST` i `MEILISEARCH_API_KEY`.
-Port aplikacji ustaw jako `PORT`, a jej adres jako `APP_URL` i `NEXT_PUBLIC_APP_URL`.
-Dla ekranu startowego można przekazać `OM_DEV_SPLASH_PORT` przed `yarn dev`.
-
-## Sprawdzenie projektu
-
-```bash
-yarn generate
-yarn typecheck
-yarn lint
-yarn ds:check
-yarn test --runInBand
 yarn build
 ```
+
+`yarn build` buduje lokalne pakiety, generuje rejestry modułów, ponownie buduje pakiety z rejestrami i tworzy produkcyjną aplikację Next.js.
+
+Lokalna konfiguracja aplikacji znajduje się w `apps/mercato/.env`; konfiguracja usług Docker pozostaje w głównym `.env`. Pliki te są ignorowane przez Git.
+
+## Uruchomienie
+
+```bash
+docker compose up -d --wait postgres redis meilisearch
+yarn start
+```
+
+Zachowano dotychczasowy `docker-compose.yml` i nazwy wolumenów. Dane usług nie są przenoszone ani resetowane podczas budowania.
+
+Samo zbudowanie nie aktualizuje schematu istniejącej bazy 0.7.0 ani nie przygotowuje tabel nowo włączonych modułów. Przed użyciem aplikacji z tą bazą należy osobno sprawdzić i zastosować migracje. Wykonywanie agentów wymaga również konfiguracji dostawcy AI; agenci OpenCode wymagają usługi OpenCode.
+
+## Wynik weryfikacji (2026-09-18)
+
+`yarn install --immutable` oraz pełne `yarn build` zakończyły się kodem 0 pod Node.js 24.16.0 (lokalnie). Zbudowano 38 pakietów, rejestry zawierają `agent_orchestrator` i `agent_examples`, a aplikacja przeszła kontrolę TypeScript i build produkcyjny.
+
+Naprawiono generator OpenAPI: importy JSON z pakietów są dołączane do jego kodu, zamiast trafiać do Node.js bez wymaganych atrybutów. Dokumentacja zawiera 637 ścieżek, 455 operacji ze schematami żądań i 1059 operacji ze schematami odpowiedzi. Wszystkie 11 testów generatora przechodzi, w tym test regresji sprawdzający schematy i ich odświeżanie po zmianie danych JSON. Ostrzeżenie o alternatywnej ścieżce manifestu agentów dotyczy wariantu standalone; monorepo ma właściwy manifest w pakiecie enterprise.
+
+Istniejące pliki lokalne pozostają w głównym `storage/`; aplikacja korzysta z dowiązania `apps/mercato/storage -> ../../storage` (lokalnego, ignorowanego przez Git).
+
+## Aktualizacja lokalnej bazy (2026-09-18)
+
+Zastosowano wszystkie 43 oczekujące migracje do lokalnej bazy `hackon` i odświeżono indeksy słowników klientów, słowników ogólnych oraz definicji workflow. Kopia sprzed aktualizacji znajduje się w `.backups/2026-09-18-before-develop-migrations/before-migration.dump` (ignorowana przez Git). Aplikację uruchomiono ponownie na porcie 3001.

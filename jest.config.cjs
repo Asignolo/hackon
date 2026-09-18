@@ -1,42 +1,58 @@
 /** @type {import('jest').Config} */
-// Unit-test config for a standalone Open Mercato app.
-// Integration tests run through Playwright (`yarn test:integration:ephemeral`)
-// and are excluded here.
-// `create-mercato-app` skips `__tests__`/`__integration__` while copying the
-// template, so a freshly scaffolded app owns no test files until you write one.
+const base = require('./jest.config.base.cjs')
+const isGitHubActions = process.env.GITHUB_ACTIONS === 'true'
+
 module.exports = {
+  ...base,
   testEnvironment: 'node',
-  testTimeout: 30000,
-  passWithNoTests: true,
-  rootDir: '.',
-  roots: ['<rootDir>/src'],
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
+  watchman: false,
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
   moduleNameMapper: {
-    '^@/\\.mercato/(.*)$': '<rootDir>/.mercato/$1',
-    '^@/(.*)$': '<rootDir>/src/$1',
-    '^#generated/(.*)$': '<rootDir>/.mercato/generated/$1',
+    '^#generated/(.*)$': '<rootDir>/packages/core/generated/$1',
+    '^@/generated/(.*)$': '<rootDir>/generated/$1',
+    '^@/lib/(.*)$': '<rootDir>/packages/shared/src/lib/$1',
+    '^@/types/(.*)$': '<rootDir>/packages/shared/src/types/$1',
+    '^@/modules/dsl$': '<rootDir>/packages/shared/src/modules/dsl.ts',
+    '^@/modules/registry$': '<rootDir>/packages/shared/src/modules/registry.ts',
+    '^@open-mercato/core/generated/(.*)$': '<rootDir>/packages/core/generated/$1',
+    '^@open-mercato/core/(.*)$': '<rootDir>/packages/core/src/$1',
+    '^@open-mercato/content/(.*)$': '<rootDir>/packages/content/src/$1',
+    '^@open-mercato/cli/(.*)$': '<rootDir>/packages/cli/src/$1',
+    '^@open-mercato/events/(.*)$': '<rootDir>/packages/events/src/$1',
+    '^@open-mercato/cache/(.*)$': '<rootDir>/packages/cache/src/$1',
+    '^@open-mercato/cache$': '<rootDir>/packages/cache/src/index.ts',
+    '^@open-mercato/queue/worker$': '<rootDir>/packages/queue/src/worker/runner.ts',
+    '^@open-mercato/queue/(.*)$': '<rootDir>/packages/queue/src/$1',
+    '^@open-mercato/queue$': '<rootDir>/packages/queue/src/index.ts',
+    '^@open-mercato/search/(.*)$': '<rootDir>/packages/search/src/$1',
+    '^@open-mercato/search$': '<rootDir>/packages/search/src/index.ts',
+    '^@open-mercato/ai-assistant/(.*)$': '<rootDir>/packages/ai-assistant/src/$1',
+    '^@open-mercato/ai-assistant$': '<rootDir>/packages/ai-assistant/src/index.ts',
+    '^@open-mercato/shared/(.*)$': '<rootDir>/packages/shared/src/$1',
+    '^@open-mercato/ui/(.*)$': '<rootDir>/packages/ui/src/$1',
+    '^@/\\.mercato/generated/(.*)$': '<rootDir>/apps/mercato/.mercato/generated/$1',
+    '^@/generated/(.*)$': '<rootDir>/apps/mercato/.mercato/generated/$1',
+    '^@/(.*)$': '<rootDir>/apps/mercato/src/$1',
+    '^@tests/(.*)$': '<rootDir>/tests/$1',
   },
-  // `@open-mercato/shared/lib/commands` pulls in ESM-only MikroORM, whose
-  // `import.meta.resolve` cannot be parsed as CommonJS. The local transformer
-  // strips those usages before delegating to ts-jest; without it every command,
-  // entity, or data-engine test fails to load.
   transform: {
     '^.+\\.(t|j)sx?$': [
       '<rootDir>/scripts/jest-mikroorm-transformer.cjs',
       {
         tsconfig: {
           jsx: 'react-jsx',
-          module: 'commonjs',
-          moduleResolution: 'node',
-          esModuleInterop: true,
-          allowJs: true,
-          isolatedModules: true,
         },
-        diagnostics: false,
       },
     ],
   },
-  transformIgnorePatterns: ['/node_modules/(?!(@open-mercato|@mikro-orm|@tanstack/react-table|@tanstack/table-core|@tanstack/react-store|@tanstack/store)/)'],
-  testPathIgnorePatterns: ['/node_modules/', '/.next/', '/.mercato/', '/.ai/qa/'],
+  transformIgnorePatterns: [
+    'node_modules/(?!(@mikro-orm)/)',
+  ],
+  testMatch: ['**/__tests__/**/*.test.(ts|tsx)'],
+  setupFiles: ['<rootDir>/jest.setup.ts'],
+  setupFilesAfterEnv: ['<rootDir>/jest.dom.setup.ts'],
+  collectCoverageFrom: ['src/**/*.(ts|tsx)', '!src/modules/**/migrations/**'],
+  reporters: isGitHubActions
+    ? [['github-actions', { silent: false }], 'summary']
+    : ['default'],
 }

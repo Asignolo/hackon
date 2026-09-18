@@ -1,29 +1,8 @@
-import '@testing-library/jest-dom/jest-globals'
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret'
+process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgres://user:pass@localhost:5432/mercato_test'
 
-class ResizeObserverStub implements ResizeObserver {
-  disconnect(): void {}
-
-  observe(_target: Element, _options?: ResizeObserverOptions): void {}
-
-  unobserve(_target: Element): void {}
-}
-
-if (typeof globalThis.ResizeObserver === 'undefined') {
-  globalThis.ResizeObserver = ResizeObserverStub
-}
-
-if (typeof Element !== 'undefined' && typeof Element.prototype.scrollIntoView !== 'function') {
-  Element.prototype.scrollIntoView = () => undefined
-}
-
-if (typeof Element !== 'undefined' && typeof Element.prototype.hasPointerCapture !== 'function') {
-  Element.prototype.hasPointerCapture = () => false
-}
-
-if (typeof Element !== 'undefined' && typeof Element.prototype.setPointerCapture !== 'function') {
-  Element.prototype.setPointerCapture = () => undefined
-}
-
-if (typeof Element !== 'undefined' && typeof Element.prototype.releasePointerCapture !== 'function') {
-  Element.prototype.releasePointerCapture = () => undefined
-}
+// Note: Bootstrap is NOT called here because it imports modules.generated.ts
+// which eagerly loads all UI components with ESM dependencies that Jest cannot parse.
+// Tests that need bootstrap should:
+// 1. Call bootstrap() directly in their test file, OR
+// 2. Mock the specific registration functions they need
