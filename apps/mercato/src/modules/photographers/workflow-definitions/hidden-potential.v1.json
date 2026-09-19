@@ -1,0 +1,507 @@
+{
+  "workflowId": "photographers.hidden_potential",
+  "workflowName": "Opiekun nowego fotografa — Ukryty potencjał (szkielet v1)",
+  "version": 1,
+  "enabled": false,
+  "description": "Nieaktywny szkielet docelowego procesu. Brak wyzwalaczy, implementacji kroków, automatycznych decyzji i wysyłki. Rozgałęzienia opisują zamierzony proces; reguły ich wyboru nie są jeszcze podłączone. Nie włączać tej wersji.",
+  "metadata": {
+    "category": "photographers",
+    "tags": [
+      "skeleton",
+      "not-implemented"
+    ],
+    "icon": "workflow"
+  },
+  "definition": {
+    "steps": [
+      {
+        "stepId": "start",
+        "stepName": "Wejście: fotograf bez zamówień",
+        "stepType": "START",
+        "description": "Identyfikatory rejestracji i oceny → przygotowanie CRM. Brak zamówień jest założeniem wejściowym, bez potwierdzenia i terminu ważności.",
+        "_editorPosition": {
+          "x": 600,
+          "y": 0
+        }
+      },
+      {
+        "stepId": "prepare",
+        "stepName": "Przygotowanie osoby i szansy",
+        "stepType": "AUTOMATED",
+        "description": "registrationId → RegistrationCrmResult: ready, photographerId, personId, dealId. Podłączenie: photographers.registration.prepare_crm; ponownie wykorzystać istniejące rekordy. evaluationId, evaluatedAt i rulesVersion należą do kontekstu oceny.",
+        "_editorPosition": {
+          "x": 600,
+          "y": 240
+        }
+      },
+      {
+        "stepId": "o1",
+        "stepName": "O1 — odczyt portfolio",
+        "stepType": "AUTOMATED",
+        "description": "Rejestracja: portfolio, imię, nazwisko, e-mail → odczyt i ślady z pochodzeniem. Docelowy identyfikator w specyfikacji: photographers.portfolio_reader. agent_examples.portfolio_reader_o1 to inny identyfikator; jego kontrakt i własny workflow nie są dostępne w tym checkout. Podłączenie wymaga ich potwierdzenia.",
+        "_editorPosition": {
+          "x": 600,
+          "y": 480
+        }
+      },
+      {
+        "stepId": "o2",
+        "stepName": "O2 — dalsze poszukiwania",
+        "stepType": "AUTOMATED",
+        "description": "photographers.trace_finder: registrationId, firstName, lastName, email, opcjonalne portfolioRaw → research: status, candidates (url, kind, name, evidence, sourceUrl), summary, issues. Aktualny przyrost O2 nie wymaga O1; szuka po e-mailu, bez Apify i rejestrów. Przyszły adapter zapisze niepotwierdzonych kandydatów jako tracesSnapshotSchema. Docelowe rozszerzenie O2 z wynikiem O1 pozostaje niepodłączone.",
+        "_editorPosition": {
+          "x": 600,
+          "y": 720
+        }
+      },
+      {
+        "stepId": "identity",
+        "stepName": "Przypisanie śladów",
+        "stepType": "AUTOMATED",
+        "description": "Ślady i porównania źródeł → potwierdzone ślady albo konkretna niepewna propozycja przypisania. Kontrakt: traceEvidenceSchema / tracesSnapshotSchema. Wielu nierozstrzygniętych kandydatów lub brak dopasowania pozostaje niepotwierdzony; bez pustej decyzji człowieka.",
+        "_editorPosition": {
+          "x": 600,
+          "y": 960
+        }
+      },
+      {
+        "stepId": "identity_review",
+        "stepName": "Człowiek — przypisanie śladu",
+        "stepType": "AUTOMATED",
+        "description": "Konkretna propozycja → decyzja Caseload. Akceptacja dopuszcza wyłącznie wskazany ślad; odrzucenie pomija jego akcje i zachowuje inne potwierdzone ślady. Przyszłe podłączenie: natywna propozycja, disposition i oczekiwanie na sygnał; bez osobnej kolejki.",
+        "_editorPosition": {
+          "x": 1100,
+          "y": 1200
+        }
+      },
+      {
+        "stepId": "accepted",
+        "stepName": "Zestaw dopuszczonych śladów",
+        "stepType": "AUTOMATED",
+        "description": "Rozstrzygnięcia przypisania → tracesSnapshotSchema utrwalony jako materiał. Tylko potwierdzone ślady trafiają do badania. Brak użytecznych śladów prowadzi do obserwacji; brak danych nie jest flagą.",
+        "_editorPosition": {
+          "x": 600,
+          "y": 1480
+        }
+      },
+      {
+        "stepId": "fork",
+        "stepName": "Badanie równoległe A2 / A3 / R1",
+        "stepType": "PARALLEL_FORK",
+        "description": "Odwołanie do potwierdzonych śladów i jedna data evaluatedAt → trzy niezależne gałęzie. Każda utrwala swój wynik; brak wspólnych mutacji kontekstu.",
+        "_editorPosition": {
+          "x": 600,
+          "y": 1720
+        },
+        "config": {
+          "joinStepId": "join"
+        }
+      },
+      {
+        "stepId": "a2",
+        "stepName": "A2 — media społecznościowe",
+        "stepType": "AUTOMATED",
+        "description": "Potwierdzone konta → researchFactSchema (owner: social), status odczytu i źródła. Podłączenie: photographers.social_researcher. Apify MVP nie dostarcza postów ani engagement; brak nie może udawać zera.",
+        "_editorPosition": {
+          "x": 100,
+          "y": 1980
+        }
+      },
+      {
+        "stepId": "a3",
+        "stepName": "A3 — portfolio i obecność w sieci",
+        "stepType": "AUTOMATED",
+        "description": "Potwierdzone portfolio, strona, galeria, Maps → researchFactSchema (owner: portfolio): kategoria, galeria, druk, aktualność, opinie. Podłączenie: photographers.portfolio_researcher i narzędzia odczytu konkretnych źródeł.",
+        "_editorPosition": {
+          "x": 600,
+          "y": 1980
+        }
+      },
+      {
+        "stepId": "r1",
+        "stepName": "R1 — rejestry działalności",
+        "stepType": "AUTOMATED",
+        "description": "Potwierdzone identyfikatory rejestrowe → researchFactSchema (owner: registry): działalność, PKD, VAT. Przyszła zarejestrowana funkcja workflow; nie ponawia ustalania tożsamości i nie korzysta z Apify do rejestrów.",
+        "_editorPosition": {
+          "x": 1100,
+          "y": 1980
+        }
+      },
+      {
+        "stepId": "join",
+        "stepName": "Scalenie gałęzi",
+        "stepType": "PARALLEL_JOIN",
+        "description": "Zakończenie A2, A3 i R1 → komplet odwołań do trzech wyników. Czeka także na kontrolowaną niedostępność gałęzi; nie zastępuje jej fikcyjnym sukcesem.",
+        "_editorPosition": {
+          "x": 600,
+          "y": 2260
+        },
+        "config": {
+          "forkStepId": "fork"
+        }
+      },
+      {
+        "stepId": "merge",
+        "stepName": "Walidacja faktów",
+        "stepType": "AUTOMATED",
+        "description": "Trzy wyniki i tracesRef → factsSnapshotSchema, braki i sprzeczności. Nowe niepotwierdzone ślady pozostają kandydatami do następnej oceny. Surowe dane zostają w szyfrowanych materiałach; workflow przenosi odwołania.",
+        "_editorPosition": {
+          "x": 600,
+          "y": 2500
+        }
+      },
+      {
+        "stepId": "score",
+        "stepName": "Punktacja i propozycja etapu",
+        "stepType": "AUTOMATED",
+        "description": "factsRef, evaluatedAt i rulesVersion → scoreSnapshotSchema: punkty, uzasadnienie, flagi, suggestedAction. Miejsce przyszłych reguł deterministycznych; żadnych reguł ani wartości punktowych nie wdrożono w szkielecie.",
+        "_editorPosition": {
+          "x": 600,
+          "y": 2740
+        }
+      },
+      {
+        "stepId": "disposition",
+        "stepName": "Dalsze postępowanie — polityka propozycji",
+        "stepType": "AUTOMATED",
+        "description": "Wynik reguł → propozycja i pełna polityka platformy. Flaga zawsze wymaga człowieka; produktowy/komercyjny bez flag kieruje do obserwacji niezależnie od punktów. Pozostałe: poniżej 60 obserwacja, od 60 kwalifikacja. Punkty nie są pewnością.",
+        "_editorPosition": {
+          "x": 600,
+          "y": 2980
+        }
+      },
+      {
+        "stepId": "review",
+        "stepName": "Człowiek — dalsze postępowanie",
+        "stepType": "AUTOMATED",
+        "description": "Propozycja zatrzymana przez flagę lub politykę → Caseload: obserwacja, dopuszczenie kontaktu, jawne zamknięcie albo odrzucenie propozycji. Wyjątek kontaktu mimo flagi wymaga waiverSnapshotSchema i uzasadnienia; nie usuwa flagi.",
+        "_editorPosition": {
+          "x": 1100,
+          "y": 3240
+        }
+      },
+      {
+        "stepId": "observe",
+        "stepName": "Obserwacja i następny termin",
+        "stepType": "AUTOMATED",
+        "description": "Brak użytecznych śladów lub zatwierdzona obserwacja → historia i wyliczony termin kolejnej oceny. Miejsce przyszłej komendy CRM; bez harmonogramu i automatycznego ponowienia w tej partii.",
+        "_editorPosition": {
+          "x": -400,
+          "y": 3510
+        }
+      },
+      {
+        "stepId": "message",
+        "stepName": "A4 — przygotowanie wiadomości",
+        "stepType": "AUTOMATED",
+        "description": "Zatwierdzona kwalifikacja, factsRef i dozwolone dowody → messageSnapshotSchema w szyfrowanym materiale. Podłączenie: photographers.message_writer oraz adapter propozycji alwaysAsk: true. Bez wysyłki.",
+        "_editorPosition": {
+          "x": 600,
+          "y": 3510
+        }
+      },
+      {
+        "stepId": "close",
+        "stepName": "Jawne zamknięcie — przegrana z powodem",
+        "stepType": "AUTOMATED",
+        "description": "Wybrana i zatwierdzona opcja close_lost z powodem → przyszła komenda CRM i historia. Tylko jawny wybór zamyka szansę; flaga ani odrzucenie propozycji nie oznaczają przegranej.",
+        "_editorPosition": {
+          "x": 1600,
+          "y": 3510
+        }
+      },
+      {
+        "stepId": "rejected",
+        "stepName": "Odrzucona propozycja — bez jej akcji",
+        "stepType": "AUTOMATED",
+        "description": "Odrzucenie całej propozycji postępowania → zapis decyzji w evaluationSummarySchema, bez wykonania jej akcji i bez zmiany aktualnego etapu szansy.",
+        "_editorPosition": {
+          "x": 2100,
+          "y": 3510
+        }
+      },
+      {
+        "stepId": "message_review",
+        "stepName": "Człowiek — decyzja o wiadomości",
+        "stepType": "AUTOMATED",
+        "description": "Utrwalona treść i propozycja → zawsze decyzja w Caseload: zatwierdź, popraw i zatwierdź albo odrzuć. Brak automatycznej zgody. Przyszłe podłączenie natywnego oczekiwania; treść nie trafia do kontekstu workflow.",
+        "_editorPosition": {
+          "x": 600,
+          "y": 3790
+        }
+      },
+      {
+        "stepId": "record",
+        "stepName": "Zapis zatwierdzonej treści",
+        "stepType": "AUTOMATED",
+        "description": "Zatwierdzona rewizja messageSnapshotSchema i decyzja → przyszły zapis CRM oraz historia. Zatwierdzenie szkicu nie jest dowodem wysłania; żadna wysyłka nie jest podłączona.",
+        "_editorPosition": {
+          "x": 100,
+          "y": 4060
+        }
+      },
+      {
+        "stepId": "skip",
+        "stepName": "Brak kontaktu — zapisz decyzję",
+        "stepType": "AUTOMATED",
+        "description": "Odrzucony szkic → docelowo powrót z etapu Do kontaktu do obserwacji i adnotacja o decyzji, bez wysyłki. Nie zamyka szansy jako przegranej. Zapis decyzji i zmiana etapu będą podłączone osobnym przyrostem; w szkielecie nie ma skutków CRM.",
+        "_editorPosition": {
+          "x": 1100,
+          "y": 4060
+        }
+      },
+      {
+        "stepId": "end",
+        "stepName": "Historia i zakończenie oceny",
+        "stepType": "END",
+        "description": "Odwołania do materiałów, runów i decyzji → evaluationSummarySchema. Zakończenie oceny nie oznacza zamknięcia szansy ani wysłania wiadomości.",
+        "_editorPosition": {
+          "x": 600,
+          "y": 4420
+        }
+      }
+    ],
+    "transitions": [
+      {
+        "transitionId": "start_prepare_0",
+        "fromStepId": "start",
+        "toStepId": "prepare",
+        "transitionName": "",
+        "trigger": "manual"
+      },
+      {
+        "transitionId": "prepare_o1_1",
+        "fromStepId": "prepare",
+        "toStepId": "o1",
+        "transitionName": "",
+        "trigger": "manual"
+      },
+      {
+        "transitionId": "o1_o2_2",
+        "fromStepId": "o1",
+        "toStepId": "o2",
+        "transitionName": "Także bez wyniku O1",
+        "trigger": "manual"
+      },
+      {
+        "transitionId": "o2_identity_3",
+        "fromStepId": "o2",
+        "toStepId": "identity",
+        "transitionName": "",
+        "trigger": "manual"
+      },
+      {
+        "transitionId": "identity_identity_review_4",
+        "fromStepId": "identity",
+        "toStepId": "identity_review",
+        "transitionName": "Konkretna niepewna propozycja",
+        "trigger": "manual"
+      },
+      {
+        "transitionId": "identity_accepted_5",
+        "fromStepId": "identity",
+        "toStepId": "accepted",
+        "transitionName": "Rozstrzygnięte; nierozstrzygnięte pozostają poza badaniem",
+        "trigger": "manual"
+      },
+      {
+        "transitionId": "identity_review_accepted_6",
+        "fromStepId": "identity_review",
+        "toStepId": "accepted",
+        "transitionName": "Akceptacja wskazanego śladu",
+        "trigger": "manual"
+      },
+      {
+        "transitionId": "identity_review_accepted_7",
+        "fromStepId": "identity_review",
+        "toStepId": "accepted",
+        "transitionName": "Odrzucenie: tylko pozostałe potwierdzone ślady",
+        "trigger": "manual"
+      },
+      {
+        "transitionId": "accepted_observe_8",
+        "fromStepId": "accepted",
+        "toStepId": "observe",
+        "transitionName": "Brak użytecznych śladów",
+        "trigger": "manual"
+      },
+      {
+        "transitionId": "accepted_fork_9",
+        "fromStepId": "accepted",
+        "toStepId": "fork",
+        "transitionName": "Są potwierdzone ślady",
+        "trigger": "manual"
+      },
+      {
+        "transitionId": "fork_a2_10",
+        "fromStepId": "fork",
+        "toStepId": "a2",
+        "transitionName": "Media",
+        "trigger": "auto"
+      },
+      {
+        "transitionId": "fork_a3_11",
+        "fromStepId": "fork",
+        "toStepId": "a3",
+        "transitionName": "Portfolio i WWW",
+        "trigger": "auto"
+      },
+      {
+        "transitionId": "fork_r1_12",
+        "fromStepId": "fork",
+        "toStepId": "r1",
+        "transitionName": "Rejestry",
+        "trigger": "auto"
+      },
+      {
+        "transitionId": "a2_join_13",
+        "fromStepId": "a2",
+        "toStepId": "join",
+        "transitionName": "",
+        "trigger": "manual"
+      },
+      {
+        "transitionId": "a3_join_14",
+        "fromStepId": "a3",
+        "toStepId": "join",
+        "transitionName": "",
+        "trigger": "manual"
+      },
+      {
+        "transitionId": "r1_join_15",
+        "fromStepId": "r1",
+        "toStepId": "join",
+        "transitionName": "",
+        "trigger": "manual"
+      },
+      {
+        "transitionId": "join_merge_16",
+        "fromStepId": "join",
+        "toStepId": "merge",
+        "transitionName": "",
+        "trigger": "manual"
+      },
+      {
+        "transitionId": "merge_score_17",
+        "fromStepId": "merge",
+        "toStepId": "score",
+        "transitionName": "",
+        "trigger": "manual"
+      },
+      {
+        "transitionId": "score_disposition_18",
+        "fromStepId": "score",
+        "toStepId": "disposition",
+        "transitionName": "",
+        "trigger": "manual"
+      },
+      {
+        "transitionId": "disposition_review_19",
+        "fromStepId": "disposition",
+        "toStepId": "review",
+        "transitionName": "Flaga lub zatrzymanie przez politykę",
+        "trigger": "manual"
+      },
+      {
+        "transitionId": "disposition_observe_20",
+        "fromStepId": "disposition",
+        "toStepId": "observe",
+        "transitionName": "Zatwierdzona obserwacja",
+        "trigger": "manual"
+      },
+      {
+        "transitionId": "disposition_message_21",
+        "fromStepId": "disposition",
+        "toStepId": "message",
+        "transitionName": "Zatwierdzona kwalifikacja",
+        "trigger": "manual"
+      },
+      {
+        "transitionId": "review_observe_22",
+        "fromStepId": "review",
+        "toStepId": "observe",
+        "transitionName": "Obserwacja",
+        "trigger": "manual"
+      },
+      {
+        "transitionId": "review_message_23",
+        "fromStepId": "review",
+        "toStepId": "message",
+        "transitionName": "Dopuszczony kontakt; mimo flagi z uzasadnieniem",
+        "trigger": "manual"
+      },
+      {
+        "transitionId": "review_close_24",
+        "fromStepId": "review",
+        "toStepId": "close",
+        "transitionName": "Świadome zamknięcie z powodem",
+        "trigger": "manual"
+      },
+      {
+        "transitionId": "review_rejected_25",
+        "fromStepId": "review",
+        "toStepId": "rejected",
+        "transitionName": "Odrzuć propozycję; zachowaj etap",
+        "trigger": "manual"
+      },
+      {
+        "transitionId": "message_message_review_26",
+        "fromStepId": "message",
+        "toStepId": "message_review",
+        "transitionName": "Każda treść wymaga człowieka",
+        "trigger": "manual"
+      },
+      {
+        "transitionId": "message_review_record_27",
+        "fromStepId": "message_review",
+        "toStepId": "record",
+        "transitionName": "Zatwierdź / popraw i zatwierdź",
+        "trigger": "manual"
+      },
+      {
+        "transitionId": "message_review_skip_28",
+        "fromStepId": "message_review",
+        "toStepId": "skip",
+        "transitionName": "Odrzuć wiadomość",
+        "trigger": "manual"
+      },
+      {
+        "transitionId": "observe_end_29",
+        "fromStepId": "observe",
+        "toStepId": "end",
+        "transitionName": "",
+        "trigger": "manual"
+      },
+      {
+        "transitionId": "close_end_30",
+        "fromStepId": "close",
+        "toStepId": "end",
+        "transitionName": "",
+        "trigger": "manual"
+      },
+      {
+        "transitionId": "rejected_end_31",
+        "fromStepId": "rejected",
+        "toStepId": "end",
+        "transitionName": "",
+        "trigger": "manual"
+      },
+      {
+        "transitionId": "record_end_32",
+        "fromStepId": "record",
+        "toStepId": "end",
+        "transitionName": "Bez wysyłki",
+        "trigger": "manual"
+      },
+      {
+        "transitionId": "skip_end_33",
+        "fromStepId": "skip",
+        "toStepId": "end",
+        "transitionName": "",
+        "trigger": "manual"
+      }
+    ],
+    "triggers": [],
+    "interpolation": "strict"
+  }
+}
