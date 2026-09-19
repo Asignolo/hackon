@@ -33,7 +33,7 @@ Postać portfolio będąca samą nazwą profilu bez adresu, na przykład „jank
 _Unikaj_: handle, uchwyt, login, nick
 
 **Kotwica**:
-Jedna z czterech informacji z rejestracji, od których odkrycie zaczyna: imię, nazwisko, e-mail, portfolio. Nic innego nie jest kotwicą; NIP, miasto, telefon to wyniki odkrycia, nie jego początek.
+Jedna z czterech informacji z rejestracji, od których odkrycie zaczyna: imię, nazwisko, e-mail, portfolio. Jedyne dane, których nie musieliśmy szukać, bo wpisał je sam fotograf; dlatego kotwica jest sędzią tożsamości przy potwierdzaniu śladów. NIP, miasto, telefon to wyniki odkrycia, nie kotwice.
 _Unikaj_: punkt startowy, seed, źródło, dane wejściowe
 
 **Poszlaka**:

@@ -93,7 +93,16 @@ Caseload jest jedyną kolejką dla człowieka. Tablica lejka pokazuje stan całe
 
 ### 6.1 Kotwice
 
-Dokładnie cztery, wszystkie z rejestracji: imię, nazwisko, e-mail, portfolio. NIP, miasto, telefon to wyniki odkrycia, nie jego początek.
+Kotwica to punkt, którego nie musieliśmy szukać, bo dał go sam fotograf. Dokładnie cztery, wszystkie z rejestracji: imię, nazwisko, e-mail, portfolio. Nic innego. NIP, miasto, telefon to wyniki odkrycia, nie jego początek: trzeba je dopiero znaleźć, więc mogą być cudze.
+
+Cztery pojęcia odkrycia obok siebie:
+
+- **Kotwica**: to, co *mamy* na starcie. Jedyne informacje, co do których nie ma wątpliwości, że dotyczą tej osoby, bo wpisała je własną ręką.
+- **Ślad**: to, co *znajdujemy*: konto, strona, wpis w rejestrze.
+- **Poszlaka**: to, co *pomaga potwierdzić* kandydata na ślad.
+- **Dowód**: *dlaczego ufamy* śladowi.
+
+Każda ścieżka odkrycia zaczyna się od kotwicy i do niej wraca przy potwierdzaniu: wpis CEIDG jest pewny tylko, gdy nazwisko z wpisu zgadza się z nazwiskiem z rejestracji. Kotwica jest sędzią tożsamości, bo jako jedyna nie pochodzi z wyszukiwania. Kotwica może też sama wskazać ślad bez szukania: portfolio `instagram.com/nowak.foto` daje od razu ślad pewny z dowodem „adres podany w rejestracji”. Dlatego portfolio jest najmocniejszą kotwicą.
 
 Rozkład pola portfolio w bazie (7215 wpisów): adres na Instagramie 29%, sama nazwa konta 24%, adres na Facebooku 24%, własna domena 15%, śmieć 4%, inna platforma 3%, system galerii 1%.
 
