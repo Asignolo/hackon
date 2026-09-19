@@ -12,12 +12,31 @@ describe('InMemoryAgentRunSessionStore', () => {
     expect(await store.resolveActiveAgentId('sess_unknown')).toBeNull()
   })
 
+  it('resolves the run together with its authoritative tenant scope', async () => {
+    const store = new InMemoryAgentRunSessionStore()
+    await store.open({ sessionToken: 'sess_scope', agentId: 'demo.agent', runId: 'run-a', ...base })
+    await expect(store.resolveActiveRunContext('sess_scope')).resolves.toEqual({
+      runId: 'run-a',
+      tenantId: 't',
+      organizationId: 'o',
+    })
+  })
+
   it('completeOutcome is single-shot: completed → already_completed; missing → not_found', async () => {
     const store = new InMemoryAgentRunSessionStore()
     await store.open({ sessionToken: 'sess_b', agentId: 'demo.agent', ...base })
     expect(await store.completeOutcome('sess_b', { x: 1 })).toBe('completed')
     expect(await store.completeOutcome('sess_b', { x: 2 })).toBe('already_completed')
     expect(await store.completeOutcome('sess_missing', { x: 1 })).toBe('not_found')
+  })
+
+  it('stops resolving active run and agent context immediately after completion', async () => {
+    const store = new InMemoryAgentRunSessionStore()
+    await store.open({ sessionToken: 'sess_completed', agentId: 'demo.agent', runId: 'run-a', ...base })
+    await store.completeOutcome('sess_completed', { done: true })
+    await expect(store.resolveActiveAgentId('sess_completed')).resolves.toBeNull()
+    await expect(store.resolveActiveRunId('sess_completed')).resolves.toBeNull()
+    await expect(store.resolveActiveRunContext('sess_completed')).resolves.toBeNull()
   })
 
   it('readOutcome reports done only after completion, and never overwrites the captured outcome', async () => {

@@ -171,7 +171,7 @@ Domyślne limity produkcyjne:
 | współbieżność globalna / proces | 4 | 8 |
 | współbieżność per tenant | 2 | 4 |
 
-Wartości z env mogą jedynie obniżyć lub podnieść wartość do twardej granicy skompilowanej w kodzie. Model nie kontroluje limitu kosztu ani timeoutu. `maxTotalChargeUsd` jest przekazywane Actorowi, gdy wspiera go model pay-per-event. Dla pay-per-result provider wylicza rezerwację `maxItems * catalogUnitCostCeiling`; brak rozpoznanego modelu cenowego lub wykryta zmiana ceny/schematu blokuje run.
+Wartości z env mogą jedynie obniżyć lub podnieść wartość do twardej granicy skompilowanej w kodzie. Model nie kontroluje limitu kosztu ani timeoutu. `maxTotalChargeUsd` jest przekazywane Actorowi, gdy wspiera go model pay-per-event. Brak obsługiwanego katalogowego modelu cenowego blokuje run. Health check nie wykrywa zmian cennika ani schematu; ich kontrola należy do procedury aktualizacji katalogu, a wykonanie zachowuje limity kosztu i walidację wyniku.
 
 Paid egress działa fail closed, gdy `rateLimiterService` jest niedostępny, wyłączony lub zgłasza degradację. W instalacji wieloprocesowej wymagany jest współdzielony backend Redis; pamięciowy limiter jest dozwolony tylko dla jednego procesu i developmentu. Lease współbieżności ma TTL `deadline + 30 s` i jest zwalniany w `finally`.
 
@@ -180,8 +180,8 @@ Paid egress działa fail closed, gdy `rateLimiterService` jest niedostępny, wy�
 - Definicja credentials zawiera wyłącznie sekret `apiToken`, tenant-wide (`userId: null`).
 - `preset.ts` może zapisać token z `OM_INTEGRATION_APIFY_API_TOKEN` dla jawnie wskazanych tenant/org; nie loguje wartości i nie nadpisuje istniejących credentials bez `--force`.
 - CLI: `yarn mercato integration_apify configure-from-env --tenant <id> --org <id> [--force]`.
-- Health check tworzy krótkotrwałego klienta i wykonuje uwierzytelnione `user().get()` oraz równoległą walidację dostępności katalogowych Actorów/buildów. Nie uruchamia płatnych Actorów.
-- Health check ma deadline 10 s i zwraca wyłącznie sanitizowany status: `healthy`, `invalid_credentials`, `catalog_unavailable`, `schema_mismatch` lub `upstream_unavailable`.
+- Health check wykonuje wyłącznie jedno uwierzytelnione `user().get()`, bez retry, z timeoutem HTTP 3 s i limitem odpowiedzi 256 KiB. Nie pobiera metadanych Actorów/buildów ani nie uruchamia płatnych Actorów.
+- Health check ma awaryjny deadline 10 s i zwraca sanitizowany wynik: `healthy`, `invalid_credentials` albo `upstream_unavailable`. Potwierdza token i łączność, nie zgodność schematów/cenników. Kontrola katalogu pozostaje w procedurze aktualizacji przypiętych buildów; limity kosztów wykonania pozostają bez zmian.
 
 ## 📝 Data Model
 
@@ -499,7 +499,7 @@ Logi używają `createLogger`/child logger. Nie zawierają tokenu, pełnego raw 
 - provider rozwiązuje wyłącznie tenant-wide credential (`userId: null`);
 - `requiredFeatures` ukrywa/odrzuca tools bez `integration_apify.research`, w tym wildcard matching;
 - brak aktywnego `AgentRun` i mismatch session scope zatrzymują wywołanie przed klientem Apify;
-- health check: success, 401, 403, timeout, missing actor/build i schema mismatch;
+- health check: success, brak tokenu, 401/403, 429/500, timeout, brak poprawnej odpowiedzi użytkownika oraz gwarancja braku wywołań Actor/build;
 - mocked Apify transport potwierdza exact build, bounded input, `maxItems`, deadline i brak drugiego POST;
 - cleanup korzysta tylko z storage IDs danego runu i nie wpływa na inny run;
 - auto-discovery po `yarn generate`, MCP listing i jedno wywołanie przez Agent Orchestrator smoke fixture;
@@ -536,7 +536,7 @@ Jeśli PR dotknie renderowanego UI lub istniejącego Marketplace UI okaże się 
 - **Severity:** High
 - **Likelihood:** Medium
 - **Affected area:** cost ceilings, dostępność tools
-- **Mitigation:** katalogowy model ceny, `maxItems`, `maxTotalChargeUsd` dla PPE, health/catalog verification, PR i canary dla zmiany buildu.
+- **Mitigation:** katalogowy model ceny, `maxItems`, `maxTotalChargeUsd` dla PPE, kontrola katalogu przy aktualizacji, PR i canary dla zmiany buildu. Health check sprawdza wyłącznie token i łączność.
 - **Residual risk:** zewnętrzny cennik może zmienić się pomiędzy kontrolami; lokalny budget jest limitem ryzyka, nie gwarancją rozliczeniową Apify.
 
 ### Risk: schema drift i błędna interpretacja danych
@@ -738,6 +738,11 @@ Dokładne nazwy plików mogą zostać dopasowane do generatora i konwencji najbl
 - [x] Publiczna instalacja providera jest odróżniona od twardej zależności wykonawczej jego płatnych tools od Agent Orchestratora.
 
 ## Changelog
+
+### 2026-09-19 — Hackathon connection check simplification
+
+- Na wyraźne polecenie użytkownika usunięto audyt czterech Actorów z testu połączenia. Jedynym zapytaniem jest `user().get()`; zdrowy status nie jest już certyfikacją katalogu/cennika.
+- Cofnięto zwiększenie limitu odpowiedzi do 2 MiB, zachowano 256 KiB, dodano test braku wywołań Actor/build. Nie zmieniono ACL, tenant scoping, przypiętych buildów ani limitów płatnego wykonania.
 
 ### 2026-09-19 — Initial skeleton
 

@@ -1,0 +1,159 @@
+{
+  "schemaVersion": 1,
+  "status": "partial",
+  "stopReason": "search_exhausted",
+  "portfolio": {
+    "kind": "account_name",
+    "originalValue": "margografia",
+    "normalizedValue": "margografia",
+    "resolvedUrl": "https://margografia.pl/",
+    "status": "resolved"
+  },
+  "links": [
+    {
+      "type": "website",
+      "originalUrl": "https://margografia.pl/",
+      "url": "https://margografia.pl/",
+      "confidence": "confirmed",
+      "approvalRequired": true,
+      "sources": [
+        {
+          "url": "https://margografia.pl/",
+          "method": "page_read",
+          "evidence": "Strona główna zawiera adres email margografia@gmail.com, telefon i opis działalności fotograficznej (silny most tożsamości)."
+        }
+      ]
+    },
+    {
+      "type": "contact",
+      "originalUrl": "https://margografia.pl/",
+      "url": "https://margografia.pl/",
+      "confidence": "confirmed",
+      "approvalRequired": true,
+      "sources": [
+        {
+          "url": "https://margografia.pl/",
+          "method": "page_read",
+          "evidence": "Strona główna wyświetla kontakt: margografia@gmail.com oraz numer telefonu +48 663 968 744."
+        }
+      ]
+    },
+    {
+      "type": "instagram",
+      "originalUrl": "https://www.instagram.com/margografia",
+      "url": "https://www.instagram.com/margografia",
+      "confidence": "confirmed",
+      "approvalRequired": true,
+      "sources": [
+        {
+          "url": "https://margografia.pl/",
+          "method": "page_link",
+          "evidence": "Link do profilu Instagram (https://www.instagram.com/margografia) widoczny na stronie margografia.pl."
+        }
+      ]
+    },
+    {
+      "type": "facebook",
+      "originalUrl": "https://www.facebook.com/margografia/",
+      "url": "https://www.facebook.com/margografia/",
+      "confidence": "confirmed",
+      "approvalRequired": true,
+      "sources": [
+        {
+          "url": "https://margografia.pl/",
+          "method": "page_link",
+          "evidence": "Link do profilu Facebook widoczny na stronie margografia.pl."
+        },
+        {
+          "url": "https://www.facebook.com/margografia",
+          "method": "search_result",
+          "evidence": "Wynik wyszukiwania pokazuje stronę Facebook z tym samym emailem (snippet wskazuje margografia@gmail.com i numer telefonu)."
+        }
+      ]
+    }
+  ],
+  "nip": [
+    {
+      "originalValue": "8111738687",
+      "value": "8111738687",
+      "checksumValid": true,
+      "confidence": "confirmed",
+      "approvalRequired": false,
+      "sources": [
+        {
+          "url": "https://panoramafirm.pl/mazowieckie,zwole%C5%84ski,mostki,62/margografia_malgorzata_mordzinska-astpbl_jac.html",
+          "method": "page_read",
+          "evidence": "PanoramaFirm publikuje NIP 8111738687 dla 'Margografia' i podaje adres email margografia@gmail.com oraz lokalizację Mostki."
+        }
+      ]
+    }
+  ],
+  "city": [
+    {
+      "value": "Mostki",
+      "confidence": "probable",
+      "approvalRequired": true,
+      "sources": [
+        {
+          "url": "https://panoramafirm.pl/mazowieckie,zwole%C5%84ski,mostki,62/margografia_malgorzata_mordzinska-astpbl_jac.html",
+          "method": "page_read",
+          "evidence": "Katalog PanoramaFirm wskazuje siedzibę \"Margografia\" w miejscowości Mostki (26-700)."
+        }
+      ]
+    }
+  ],
+  "coverage": {
+    "website": "found",
+    "contact": "found",
+    "instagram": "found",
+    "facebook": "found",
+    "google_maps": "not_found",
+    "nip": "found"
+  },
+  "approvalRequired": true,
+  "attempts": [
+    {
+      "tool": "web_search",
+      "target": "\"margografia@gmail.com\"",
+      "outcome": "found",
+      "detail": "Wyszukiwanie zwróciło margografia.pl, profil Facebook i wpisy katalogowe (PanoramaFirm) z adresem email."
+    },
+    {
+      "tool": "web_fetch",
+      "target": "https://margografia.pl/",
+      "outcome": "opened",
+      "detail": "Strona otwarta i odczytana: publikowany jest email margografia@gmail.com, telefon +48 663 968 744 oraz linki do Facebook i Instagram."
+    },
+    {
+      "tool": "web_fetch",
+      "target": "https://www.instagram.com/margografia",
+      "outcome": "opened",
+      "detail": "Profil Instagram zwrócony, ale zawartość była truncatowana (js-shell); link do konta widoczny na stronie głównej."
+    },
+    {
+      "tool": "web_search",
+      "target": "\"Małgorzata Słowik\" fotograf Google Maps",
+      "outcome": "found",
+      "detail": "Wyszukiwanie zwróciło wyniki dla osób o tej samej nazwie, brak jednoznacznego wpisu Google Maps przypisanego do tej działalności."
+    },
+    {
+      "tool": "web_search",
+      "target": "\"Margografia\" Google Maps",
+      "outcome": "found",
+      "detail": "Wyszukiwanie zwróciło katalogi i wpisy (m.in. KRS/firmowe listingi) ale nie obserwowano bezpośredniego odnośnika Google Maps/place link."
+    },
+    {
+      "tool": "web_fetch",
+      "target": "https://panoramafirm.pl/mazowieckie,zwole%C5%84ski,mostki,62/margografia_malgorzata_mordzinska-astpbl_jac.html",
+      "outcome": "opened",
+      "detail": "Odczytano wpis katalogowy: widoczny email margografia@gmail.com, telefon, NIP 8111738687 i lokalizacja Mostki (26-700)."
+    },
+    {
+      "tool": "run_skill_script",
+      "target": "validate_nip 8111738687",
+      "outcome": "found",
+      "detail": "Helper validate_nip zwrócił wartość znormalizowaną 8111738687 i checksumValid: true."
+    }
+  ],
+  "summary": "Znaleziono stronę firmową margografia.pl, która publicznie publikuje adres e-mail margografia@gmail.com (zgodny z rejestracją) oraz linki do Facebook i Instagram — to mocny most tożsamości dla kont społecznościowych i strony (confidence: confirmed). Katalog PanoramaFirm pod tym samym adresem e‑mail publikuje NIP 8111738687 (checksumValid: true) i lokalizację Mostki (26-700). Istnieje rozbieżność nazwisk: rejestracja pod Słowik, wpis katalogowy i niektóre bazy pokazują Małgorzatę Mordzińską — to potencjalny konflikt wymagający weryfikacji. Google Maps nie został znaleziony w przeprowadzonych wyszukiwaniach. ApprovalRequired ustawione na true ze względu na niejednoznaczność tożsamości (różne nazwiska); NIP jest zweryfikowany (checksum ok) i dołączyłem go jako potwierdzony kandydat."
+}

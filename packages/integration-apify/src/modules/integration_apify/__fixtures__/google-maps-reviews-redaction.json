@@ -1,0 +1,14 @@
+{
+  "placeId": "ChIJ12345678901234567890123",
+  "title": "Open Mercato Lab",
+  "totalScore": 4.8,
+  "reviewsCount": 12,
+  "stars": 5,
+  "text": "Helpful team.",
+  "publishedAtDate": "2026-09-01T10:00:00.000Z",
+  "responseFromOwnerText": "Thank you.",
+  "name": "Reviewer Identity",
+  "reviewerId": "private-reviewer-id",
+  "reviewerUrl": "https://example.invalid/reviewer",
+  "reviewerPhotoUrl": "https://example.invalid/avatar"
+}

@@ -1,0 +1,6 @@
+{
+  "integration_apify.provider.label": "Apify-Recherche",
+  "integration_apify.research": "Kostenpflichtige Apify-Recherche zu öffentlichen Unternehmensdaten ausführen",
+  "integration_apify.status.invalidCredentials": "Apify hat die konfigurierten Anmeldedaten abgelehnt.",
+  "integration_apify.status.upstreamUnavailable": "Apify ist vorübergehend nicht verfügbar."
+}

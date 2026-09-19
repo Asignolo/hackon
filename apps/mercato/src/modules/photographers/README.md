@@ -1,5 +1,32 @@
 # Photographer source submissions
 
+## O2 — Apify link research
+
+In `/backend/playground`, select `O2 — Apify link research`
+(`photographers.apify_link_researcher_o2`) and paste O1's result. It accepts the
+data object with `links`, the complete `{ kind: "research", data }` envelope,
+or `{ o1: <data> }`. Run it to fetch Instagram, Facebook and Google Maps data.
+This is a standalone Playground agent; it does not automatically start after O1.
+
+O2 uses the existing four `integration_apify` tools. Its output contains a result
+per attempted tool, the original attribution flags, skipped targets and a Polish
+summary. `resultJson` preserves each entire normalized provider response, including
+missing fields, diagnostics and actor run IDs. Conflicting links are skipped;
+probable/unconfirmed links retain their uncertainty after research.
+
+The Apify integration must be configured, enabled, have a recent successful health
+check, and the caller must have `integration_apify.research`. Existing provider
+quotas apply: defaults allow only two $0.25 reservations per run. Maps place needs
+a $0.50 per-call limit; even with the maximum $1 run budget, the global $0.50
+reservation allows only two calls. O2 reports budget exhaustion and does not retry.
+See `packages/integration-apify/docs/operations.md` for configuration.
+
+Agent source: `agents/apify_link_researcher_o2/`. `SAMPLE.json` contains the supplied
+O1 result for Margografia, including Instagram and Facebook links. Running this
+sample can start paid Apify calls; use `{ "links": [] }` for a no-target smoke check.
+Rebuild package dependencies, run `yarn generate`, and restart
+OpenCode after changing the agent files.
+
 This app-local module stores the original registration data in one table,
 `photographers_raw_data`. It has no portfolio fetcher, analysis, update, or
 delete endpoint. Multiple submissions from the same email/customer are allowed;
