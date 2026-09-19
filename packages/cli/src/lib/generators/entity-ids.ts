@@ -3,6 +3,7 @@ import path from 'node:path'
 import ts from 'typescript-js'
 import { VariableDeclarationKind } from 'ts-morph'
 import type { PackageResolver, ModuleEntry } from '../resolver'
+import { discoverModulesInPackage } from '../module-package'
 import { MODULE_CODE_EXTENSIONS } from './scanner'
 import {
   toVar,
@@ -137,6 +138,17 @@ function parseGeneratedEntityFieldsFile(filePath: string): string[] {
 function resolveExistingFile(candidates: string[]): string | null {
   for (const candidate of candidates) {
     if (fs.existsSync(candidate)) return candidate
+  }
+  return null
+}
+
+function resolveEntityDefinitionFile(moduleRoot: string): string | null {
+  for (const directory of ['data', 'db']) {
+    const base = path.join(moduleRoot, directory)
+    for (const basename of ['entities.override', 'entities', 'schema']) {
+      const filePath = resolveConventionFile(base, basename)
+      if (filePath) return filePath
+    }
   }
   return null
 }
@@ -340,6 +352,7 @@ export async function generateEntityIds(options: EntityIdsOptions): Promise<Gene
   const groupedModulesDict: Record<GroupKey, Record<string, string>> = {}
 
   const fieldsByGroup: Record<GroupKey, Record<string, EntityFieldMap>> = {}
+  const packageFieldsByGroup: Record<GroupKey, Record<string, EntityFieldMap>> = {}
 
   for (const entry of entries) {
     const modId = entry.id
@@ -391,16 +404,10 @@ export async function generateEntityIds(options: EntityIdsOptions): Promise<Gene
 
     // Build dictionaries
     modulesDict[modId] = modId
-    groupedModulesDict[group] = groupedModulesDict[group] || {}
-    groupedModulesDict[group][modId] = modId
-
     consolidated[modId] = consolidated[modId] || {}
-    grouped[group] = grouped[group] || {}
-    grouped[group][modId] = grouped[group][modId] || {}
 
     for (const en of entityNames) {
       consolidated[modId][en] = `${modId}:${en}`
-      grouped[group][modId][en] = `${modId}:${en}`
     }
 
     // Parse entity fields from TypeScript source
@@ -409,6 +416,38 @@ export async function generateEntityIds(options: EntityIdsOptions): Promise<Gene
       : parseEntityFieldsFromFile(filePath!, exportNames)
     fieldsByGroup[group] = fieldsByGroup[group] || {}
     fieldsByGroup[group][modId] = entityFieldMap
+  }
+
+  if (resolver.isMonorepo()) {
+    const packages = resolver.discoverPackages().sort((left, right) => left.name.localeCompare(right.name))
+    for (const packageInfo of packages) {
+      const group: GroupKey = packageInfo.name
+      const packageModules = discoverModulesInPackage(packageInfo.path)
+        .sort((left, right) => left.moduleId.localeCompare(right.moduleId))
+
+      for (const packageModule of packageModules) {
+        const modId = packageModule.moduleId
+        groupedModulesDict[group] = groupedModulesDict[group] || {}
+        groupedModulesDict[group][modId] = modId
+
+        const filePath = resolveEntityDefinitionFile(path.join(packageInfo.modulesPath, modId))
+        if (!filePath) continue
+
+        const exportNames = parseExportedClassNamesFromFile(filePath)
+        const entityNames = exportNames
+          .map((className) => toSnake(className))
+          .filter((entityName, index, all) => all.indexOf(entityName) === index)
+
+        grouped[group] = grouped[group] || {}
+        grouped[group][modId] = {}
+        for (const entityName of entityNames) {
+          grouped[group][modId][entityName] = `${modId}:${entityName}`
+        }
+
+        packageFieldsByGroup[group] = packageFieldsByGroup[group] || {}
+        packageFieldsByGroup[group][modId] = parseEntityFieldsFromFile(filePath, exportNames)
+      }
+    }
   }
 
   // Write consolidated output
@@ -444,7 +483,7 @@ export async function generateEntityIds(options: EntityIdsOptions): Promise<Gene
   })
 
   // Write per-group outputs
-  const groups = Object.keys(grouped) as GroupKey[]
+  const groups = Object.keys(grouped).sort((left, right) => left.localeCompare(right)) as GroupKey[]
   for (const g of groups) {
     if (!resolver.isMonorepo() && g !== '@app') {
       continue
@@ -481,7 +520,7 @@ export async function generateEntityIds(options: EntityIdsOptions): Promise<Gene
     writeTrackedFile(out, src, result)
 
     const fieldsRoot = path.join(pkgOutputDir, 'entities')
-    const fieldsByModule = fieldsByGroup[g] || {}
+    const fieldsByModule = packageFieldsByGroup[g] || {}
     const combined: EntityFieldMap = {}
     for (const mId of Object.keys(fieldsByModule)) {
       const mMap = fieldsByModule[mId]
