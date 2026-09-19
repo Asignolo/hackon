@@ -121,6 +121,19 @@ call — prefer it over a fetch per result.
 (the default) escalates to the browser tier only when the plain read classifies as
 a JavaScript shell.
 
+For HTTP HTML reads, the result also includes optional `links` entries with
+`url`, `originalHref`, and `text`, extracted from the source HTML including
+navigation, footer and icon anchors. Relative links resolve against the final
+page URL and its HTML base. These are observed links, not visited destinations
+or evidence of identity. The MCP tool filters them through the same domain policy.
+`linksTruncated: true` means the inventory is incomplete (including when policy
+removed entries). Missing `links` means extraction is unavailable, for example
+with a legacy browser adapter or non-HTML response; it does not mean no links exist.
+Output is bounded to 200 links, 2,048 characters per URL/href and 300 per label.
+
+Firecrawl can supply content through its search adapter. The current `web_fetch`
+path uses HTTP and the browser tier; it does not invoke Firecrawl's scrape method.
+
 Both are read-only. `web_search` needs the `agent_orchestrator.web_search` ACL
 feature; `web_fetch` needs that **and** `agent_orchestrator.web_fetch`, so a tenant
 can be granted discovery without arbitrary URL retrieval.

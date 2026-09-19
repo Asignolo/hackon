@@ -3,7 +3,7 @@
   "workflowName": "Opiekun nowego fotografa — Ukryty potencjał (szkielet v1)",
   "version": 1,
   "enabled": false,
-  "description": "Nieaktywny szkielet docelowego procesu. Brak wyzwalaczy, implementacji kroków, automatycznych decyzji i wysyłki. Rozgałęzienia opisują zamierzony proces; reguły ich wyboru nie są jeszcze podłączone. Nie włączać tej wersji.",
+  "description": "Nieaktywny szkielet docelowego procesu z podłączoną konfiguracją O1. Przygotowanie wejścia O1 i pozostałe kroki nie są wdrożone. Brak wyzwalaczy, automatycznych decyzji i wysyłki. Rozgałęzienia opisują zamierzony proces; reguły ich wyboru nie są jeszcze podłączone. Nie włączać tej wersji.",
   "metadata": {
     "category": "photographers",
     "tags": [
@@ -36,9 +36,34 @@
       },
       {
         "stepId": "o1",
-        "stepName": "O1 — odczyt portfolio",
+        "stepName": "O1 — odkrywanie źródeł",
         "stepType": "AUTOMATED",
-        "description": "Rejestracja: portfolio, imię, nazwisko, e-mail → odczyt i ślady z pochodzeniem. Docelowy identyfikator w specyfikacji: photographers.portfolio_reader. agent_examples.portfolio_reader_o1 to inny identyfikator; jego kontrakt i własny workflow nie są dostępne w tym checkout. Podłączenie wymaga ich potwierdzenia.",
+        "description": "agent_examples.portfolio_reader_o1: originalPortfolio, registrationEmail, firstName i lastName z kontekstu → research w context.o1: strona, kontakt, Instagram, Facebook, Google Maps, NIP i miasto ze źródłami oraz pewnością. O1 jest read-only; approvalRequired nie tworzy propozycji ani zadania Caseload. Przygotowanie czterech pól z rejestracji przez wcześniejszy krok i dalsze przetwarzanie wyniku pozostają niepodłączone.",
+        "activities": [
+          {
+            "activityId": "o1_discovery",
+            "activityName": "O1 — odkrywanie źródeł",
+            "activityType": "INVOKE_AGENT",
+            "config": {
+              "agentId": "agent_examples.portfolio_reader_o1",
+              "input": {
+                "originalPortfolio": "{{context.originalPortfolio}}",
+                "registrationEmail": "{{context.registrationEmail}}",
+                "firstName": "{{context.firstName}}",
+                "lastName": "{{context.lastName}}"
+              },
+              "onResult": {
+                "alwaysAsk": true
+              },
+              "outputMapping": {
+                "o1": "data"
+              }
+            }
+          }
+        ],
+        "signalConfig": {
+          "signalName": "agent_orchestrator.proposal.ready"
+        },
         "_editorPosition": {
           "x": 600,
           "y": 480

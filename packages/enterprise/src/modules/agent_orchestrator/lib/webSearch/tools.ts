@@ -1,4 +1,9 @@
 import { z } from 'zod'
+import {
+  MAX_PAGE_LINKS,
+  MAX_PAGE_LINK_TEXT_LENGTH,
+  resolvePageLink,
+} from '@open-mercato/web-research/extract/links'
 import type { AiToolDefinition, McpToolContext } from '@open-mercato/ai-assistant/modules/ai_assistant/lib/types'
 import {
   chargeAdapterCalls,
@@ -193,7 +198,7 @@ export const webFetchTool: AiToolDefinition = {
   name: WEB_FETCH_TOOL_ID,
   displayName: 'Web fetch',
   description:
-    'Retrieve a single public http(s) URL and return its readable text (size-capped). Read-only; prefer web_search with includeContent when you have not chosen a page yet.',
+    'Retrieve a single public http(s) URL and return its readable text and, when available, source HTML links including navigation and footer links (size-capped). Links are observed hrefs, not fetched or verified destinations. Missing links means extraction was unavailable; linksTruncated means the list is incomplete. Read-only; prefer web_search with includeContent when you have not chosen a page yet.',
   inputSchema: webFetchInput,
   requiredFeatures: [WEB_SEARCH_FEATURE, WEB_FETCH_FEATURE],
   isMutation: false,
@@ -238,7 +243,21 @@ export const webFetchTool: AiToolDefinition = {
           error: `domain not allowed after redirect: ${finalHost ?? outcome.page.url}`,
         }
       }
-      return { ok: true as const, ...outcome.page }
+      const page = outcome.page
+      if (page.links === undefined) return { ok: true as const, ...page }
+      const links = page.links.slice(0, MAX_PAGE_LINKS).flatMap((link) => {
+        const url = resolvePageLink(link.url, page.url)
+        const linkHost = url ? hostnameOf(url) : null
+        if (!url || !linkHost || !isHostAllowed(linkHost, settings.guardrails)) return []
+        if (!resolvePageLink(link.originalHref, page.url)) return []
+        return [{ url, originalHref: link.originalHref, text: link.text.slice(0, MAX_PAGE_LINK_TEXT_LENGTH) }]
+      })
+      return {
+        ok: true as const,
+        ...page,
+        links,
+        linksTruncated: page.linksTruncated === true || links.length !== page.links.length,
+      }
     } finally {
       await disposeQuietly(engine)
     }

@@ -1,14 +1,20 @@
-# Defining an Agent Orchestrator agent in a new module
+# Defining Agent Orchestrator agents in a new module
 
-This module is a worked example of declaring a propose-only agent from a brand-new
-module. The agent here, `support.ticket_triage`, classifies a support ticket
-(researcher result, no tools).
+This module is a worked example of declaring propose-only agents from a brand-new
+module. It includes tool-free support triage, delegated batch triage, and the
+web-enabled O1 portfolio reader.
 
 ## What an agent is
 
-An Agent Orchestrator agent is authored in code with `defineAgent(...)`. It runs
-in object mode, validates its output against a Zod schema, and returns a typed
-`AgentResult`:
+Agent Orchestrator supports two authoring runtimes behind the same registry and
+run API:
+
+- a native agent authored in code with `defineAgent(...)`, validated against a
+  Zod schema;
+- a file-defined OpenCode agent authored under `agents/<folder>/` with
+  `AGENT.md`, `OUTCOME.md`, and an optional `SAMPLE.json`.
+
+Both return a typed `AgentResult`:
 
 - **researcher** — returns `data` (this example). Nothing is proposed.
 - **proposal** — returns a `proposal` (actions + confidence) that a human or a
@@ -16,10 +22,11 @@ in object mode, validates its output against a Zod schema, and returns a typed
   `agent_orchestrator/ai-agents.ts` (`deals.health_check`) for the proposal
   variant.
 
-Propose-only is structural: agents are declared read-only, so the runtime strips
-any mutation tool. An agent can only read and propose — never write directly.
+Propose-only is structural: native agents are declared read-only, while the
+file-agent loader rejects mutating or unknown tools and generates deny-by-default
+OpenCode permissions. An agent can only read and propose — never write directly.
 
-## Steps to add an agent in your own module
+## Steps to add a native agent in your own module
 
 1. **Result schema** — `data/validators.ts`. Wrap the payload in the AgentResult
    shape:
@@ -122,6 +129,66 @@ The whole tree stays propose-only: no agent writes.
 It delegates each ticket to `support.ticket_triage` in parallel and returns an
 aggregate (`total`, `urgentCount`, `items[]`).
 
+## O1 portfolio discovery
+
+`agent_examples.portfolio_reader_o1` is a file-defined OpenCode researcher. Its
+input contains exactly four registration fields (synthetic contract example):
+
+```json
+{
+  "originalPortfolio": "https://studio-fotograficzne.example",
+  "registrationEmail": "kontakt@studio-fotograficzne.example",
+  "firstName": "Osoba",
+  "lastName": "Testowa"
+}
+```
+
+It discovers exactly five types of starting links: **website, contact,
+Instagram, Facebook, Google Maps**, plus public NIP candidates and city clues.
+Each item includes source URLs, a short evidence paraphrase, discovery method,
+and `confirmed | probable | unconfirmed | conflict` identity confidence.
+Registration values are hints, never independently discovered facts.
+
+`links`, `nip`, and `city` are separate arrays. Each item has `approvalRequired`;
+confirmed items may continue independently, while uncertain/conflicting items
+wait for the owner. These research flags are consumed by the surrounding process:
+they do not create proposals or automatically invoke proposal disposition.
+
+An explicitly absent portfolio ends discovery without web calls. Missing NIP
+alone gives a partial result without requiring approval. `coverage`, `attempts`
+and `stopReason` distinguish completed searches from blocked/failed/unattempted
+checks. NIP checksum validation uses the pure sandboxed `validate_nip` helper;
+checksum validity does not establish ownership.
+
+The agent is read-only and uses `agent_orchestrator.web_search` plus
+`agent_orchestrator.web_fetch`. The caller therefore needs the Agent
+Orchestrator run permission and the default-off web-search/web-fetch grants. It
+may search public business directories and quoted email plus NIP. It does not
+query GUS/CEIDG/KRS/VAT, assess activity, scrape full profiles, invoke Apify or
+write customer data. The next stage chooses scraping tools from confirmed or
+explicitly approved links and performs deterministic registry lookups.
+
+Agent policy caps work at 10 searches, 15 fetches, depth two, five minutes and
+one agent-level transient retry within those caps. The existing runtime's default
+timeout is five minutes; deployment overrides and provider transport retries
+remain unchanged. No new hard per-agent egress or monetary quota is introduced.
+
+`web_fetch` now exposes optional `links` with `url`, `originalHref`, and `text`
+from source HTML, including footers/navigation, plus `linksTruncated`. Omitted
+links mean unavailable extraction. Firecrawl is still an adapter behind
+`web_search`; `web_fetch` does not route through Firecrawl scrape.
+
+For missing Google Maps links, O1 reserves up to two focused queries within the
+same search budget, using the full name and the observed brand/city. Organic
+search does not expose Google's business panel: an unsuccessful search means
+no link was found in the checked sources, not that no business listing exists.
+O1 never manufactures a Maps listing URL from a name or address.
+
+O1 is a file-defined OpenCode agent. Its source is
+`agents/portfolio_reader_o1/{AGENT.md,OUTCOME.md,SAMPLE.json,tools/}`. Run
+`yarn generate` after editing those files and restart the OpenCode service so it
+loads the generated agent definition.
+
 ## Try it
 
 Open **Backend → Agents → Support ticket triage → Open in playground** and run:
@@ -132,3 +199,18 @@ Open **Backend → Agents → Support ticket triage → Open in playground** and
 
 Expect a researcher result like
 `{ category: "billing", priority: "high", summary: "…" }`.
+
+For O1, open **Backend → Agents → O1 — Portfolio discovery → Open in playground**,
+use **Insert sample**, and run. The result is a `research` outcome whose `data`
+contains the classified portfolio, source-backed links/NIP/city, coverage,
+attempts, and review flags. `agents/portfolio_reader_o1/SAMPLE.json` holds the
+owner-provided manual test input (updated on 2026-09-19). Preserve it for future
+Playground tests; these registration hints are not verified findings. Automated
+research fixtures remain synthetic and do not send this sample to web providers.
+
+On another installation, run `yarn generate` and restart OpenCode. Configure
+Firecrawl through **Settings → Web search** with that installation's own key,
+then grant web-search access to the caller. Provider credentials and tenant
+settings are stored locally and are not included in Git. For discovery, the
+Firecrawl search adapter can return snippets without inline full-page content;
+O1 reads selected pages separately with `web_fetch`.

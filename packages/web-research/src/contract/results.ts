@@ -56,6 +56,12 @@ export type FetchRequest = {
  */
 export type PageVerdict = 'ok' | 'js-shell' | 'blocked' | 'empty'
 
+export type FetchedPageLink = {
+  readonly url: string
+  readonly originalHref: string
+  readonly text: string
+}
+
 export type FetchedPage = {
   readonly url: string
   readonly title: string | null
@@ -65,6 +71,8 @@ export type FetchedPage = {
   readonly truncated: boolean
   readonly renderedWith: 'http' | 'browser'
   readonly escalatedBecause?: PageVerdict
+  readonly links?: readonly FetchedPageLink[]
+  readonly linksTruncated?: boolean
 }
 
 export const searchRequestSchema = z.object({

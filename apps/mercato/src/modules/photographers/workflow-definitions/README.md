@@ -3,7 +3,8 @@
 `hidden-potential.v1.json` to wersjonowany dokument wejściowy istniejącego API
 `POST /api/workflows/definitions`, z identyfikatorem `photographers.hidden_potential`.
 Zawiera 24 kroki, 34 połączenia, nazwy, opisy wejścia/wyniku oraz pozycje w istniejącym
-edytorze Automatyzacji. Jest szkieletem autorskim, nie implementacją procesu.
+edytorze Automatyzacji. Krok O1 ma konfigurację wywołania istniejącego agenta;
+cały proces nadal pozostaje nieaktywnym szkieletem.
 
 ## Dostępność i bezpieczeństwo
 
@@ -11,7 +12,8 @@ Definicja ma `enabled: false` i `definition.triggers: []`. Silnik odmawia startu
 wyłączonej definicji także przy podaniu konkretnej wersji. Samo `lifecycle: draft`
 nie stanowi takiej blokady; dokument nie polega na tym polu.
 
-Żaden krok nie ma działań, funkcji, agentów, zadań, danych przykładowych ani wyników.
+Jedynie O1 ma aktywność `INVOKE_AGENT`. Pozostałe kroki nadal są miejscami
+przyszłego podłączenia, bez wykonywalnych działań i zadań.
 Wyjścia z niewdrożonych kroków mają `trigger: manual`, aby nie przechodziły
 samoczynnie. To techniczny stan niepodłączonego grafu, **nie dodatkowe decyzje
 biznesowe człowieka**. Trzy wyjścia z `PARALLEL_FORK` mają `auto`, czego wymaga
@@ -31,7 +33,7 @@ w inspektorze edytora. Dokument nie deklaruje nowego modelu danych.
 | Kroki | Istniejący kontrakt / przyszłe podłączenie |
 | --- | --- |
 | Wejście, przygotowanie | `photographers.registration.prepare_crm`, wejście `{ registrationId }`, wynik `RegistrationCrmResult` ze stanem `ready` i `photographerId`, `personId`, `dealId`. Rejestracja pozostaje niezmieniona; ponowienie wykorzystuje istniejącą osobę i szansę. |
-| O1 | Spec MVP wskazuje `photographers.portfolio_reader`: dane rejestracji i portfolio → odczyt i ślady. To docelowa deklaracja, nie potwierdzona implementacja. |
+| O1 | Podłączony `agent_examples.portfolio_reader_o1`: `originalPortfolio`, `registrationEmail`, `firstName`, `lastName` z kontekstu → wynik `research` pod `context.o1`. Przygotowanie wejścia z rejestracji i dalsze użycie wyniku pozostają niepodłączone. |
 | O2 | Dostępny przyrost `photographers.trace_finder`: `registrationId`, `firstName`, `lastName`, `email`, opcjonalne `portfolioRaw` → research `status`, `candidates` (`url`, `kind`, `name`, `evidence`, `sourceUrl`), `summary`, `issues`. Nie wymaga O1. Adapter do `tracesSnapshotSchema` i rozszerzenie o wynik O1 pozostają niepodłączone. |
 | Przypisanie, decyzja, dopuszczone ślady | `traceEvidenceSchema`, `tracesSnapshotSchema` i natywne propozycje Caseload. Odrzucony ślad nie trafia do badania; pozostałe potwierdzone mogą trafić. Brak konkretnej propozycji nie tworzy pustego zadania. |
 | A2 | `researchFactSchema`, `owner: social`; docelowo `photographers.social_researcher`. |
@@ -53,21 +55,32 @@ Brak zamówień jest założeniem wejściowym. Specyfikacja przewiduje identyfik
 `registrationId`, `photographerId`, `dealId`, `evaluationId`, `source`, `evaluatedAt`
 i `rulesVersion`; dane osobowe mają być odczytywane dopiero przez potrzebujący ich
 krok, a kontekst workflow ma przenosić bezpieczne odwołania do materiałów.
+Nie zmieniamy tego kontraktu przez globalny `contextSchema` z danymi osobowymi.
+Obecne podłączenie O1 oczekuje czterech jawnych wartości w kontekście testowym;
+odczyt rejestracji przez wcześniejszy krok `prepare`, przekazanie tych wartości
+oraz adapter wyniku do materiałów nadal wymagają implementacji przed włączeniem procesu.
 
 Pliki O2 pojawiły się równolegle podczas tej pracy; pozostają własnością drugiego
 dewelopera i nie zostały zmienione ani podłączone przez szkielet. Ich bieżący
 kontrakt pochodzi z `../agents/trace_finder/AGENT.md` i `OUTCOME.md`.
 
-### O1 i Apify — ustalenia dostępne 2026-09-19
+### O1 i Apify
 
-W checkout `1b1fb61c` ani w rejestrze agentów uruchomionej aplikacji nie znaleziono
-implementacji `photographers.portfolio_reader` ani `agent_examples.portfolio_reader_o1`.
-Specyfikacja Apify opisuje drugi identyfikator jako czytnik wskazanego URL portfolio
-z ogólnymi narzędziami WWW, lecz nie podaje kompletnego schematu jego wejścia/wyniku
-ani kontraktu własnego workflow. Nie da się na tej podstawie potwierdzić, czy O1
-obejmuje własny workflow. Nie utożsamiamy tych identyfikatorów i nie dodajemy
-`INVOKE_AGENT` ani `SUB_WORKFLOW` ze zgadywanym kontraktem. Właściciel O1 musi
-udostępnić identyfikator, wejście, OUTCOME i ewentualny workflow przed podłączeniem.
+O1 jest plikowym agentem OpenCode pod identyfikatorem
+`agent_examples.portfolio_reader_o1`. Jego `AGENT.md` i `OUTCOME.md` znajdują się
+w module `agent_examples`. Odkrywa stronę, kontakt, Instagram, Facebook i Google
+Maps oraz NIP i miasto, zachowując źródła i pewność przypisania. Nie aktualizuje
+CRM, nie uruchamia Apify ani nie odpytuje rejestrów podatników.
+
+Aktywność `INVOKE_AGENT` mapuje cztery pola o tych samych nazwach z głównego
+kontekstu, a `outputMapping: { "o1": "data" }` zachowuje cały wynik research.
+Wartość `data` jest ścieżką wyniku, nie wyrażeniem `{{...}}`.
+`onResult: { "alwaysAsk": true }` spełnia wymagany kontrakt aktywności;
+platforma pomija disposition dla wyniku `research`. Pola `approvalRequired`
+pozostają wskazówkami dla dalszego procesu i **nie tworzą propozycji ani zadań
+Caseload**. Niepewne pozycje nie stają się zatwierdzone przez samo ukończenie O1.
+Sygnał `agent_orchestrator.proposal.ready` obsługuje także powrót research z
+dedykowanego workera; jego nazwa nie oznacza, że O1 tworzy propozycję.
 
 Apify dostarczy narzędzia odczytu konkretnych profili Instagram, stron Facebook
 oraz miejsc/opinii Google Maps. Nie prowadzi procesu, nie wyszukuje fotografów
@@ -83,16 +96,28 @@ engagement. Te braki nie mogą zostać zastąpione fikcyjnymi wynikami.
 Definicja jest dostępna na liście Automatyzacji bez `ProcessDefinition`.
 Dlatego nie dodajemy teraz definicji procesu, jej wyzwalaczy ani połączenia
 z odbiorcą zdarzenia rejestracji. Nie zmieniamy `workflows.ts`, demo, konfiguracji
-CRM, istniejących definicji, uprawnień ani danych. Dokument JSON nie korzysta
+CRM ani uprawnień. Dokument JSON nie korzysta
 z auto-discovery i nie wymaga generatora, migracji ani przebudowania aplikacji.
 
 ## Weryfikacja
 
 Runner: local. Test `hidden-potential-skeleton.test.ts` sprawdza istniejący walidator
-API, rzeczywistą odmowę silnika `DEFINITION_DISABLED` przed zapisem oraz rozdział
-odrzucenia i świadomego zamknięcia. 3/3 testy i typecheck aplikacji przeszły.
-W działającym edytorze potwierdzono 24 węzły i 34 połączenia oraz odczytano
+API, rzeczywistą odmowę silnika `DEFINITION_DISABLED` przed zapisem, rozdział
+odrzucenia i świadomego zamknięcia, interpolację czterech wartości O1 oraz
+mapowanie research do `context.o1` z zachowaniem źródeł i wymogu akceptacji.
+Po podłączeniu O1: 5/5 testów przeszło.
+W pierwotnej weryfikacji edytora potwierdzono 24 węzły i 34 połączenia oraz odczytano
 `enabled: false`, `triggers: []`, wersję 1 i zero instancji.
 Test startu przez działające API nie został wykonany: automatyczna kontrola
 bezpieczeństwa odmówiła tej operacji z powodu ryzyka uruchomienia niekompletnego
 procesu przy niesprawnej blokadzie. Nie jest raportowany jako zaliczony.
+
+`POST /api/workflows/definitions/<UUID>/test-step` pozwala sprawdzić O1 w nadal
+wyłączonej definicji: przesłać `stepId: "o1"`, `activityType: "INVOKE_AGENT"`,
+rzeczywisty `config` odczytany z zapisanej definicji i syntetyczny `context`
+z czterema polami wejścia. Endpoint wykonuje tylko interpolację i mock:
+`simulated: true`, `invoked: false`, `kind: "would_invoke"`. Generyczne
+`wouldRequestDisposition: "human_review"` tego mocka nie jest decyzją o research
+O1. Endpoint nie uruchamia agenta; konfigurację badanego kroku trzeba przekazać w żądaniu.
+Rzeczywiste O1 testuje się osobno istniejącym Sandbox/Playground, bez włączania
+szkieletu i bez używania rzeczywistych danych rejestracyjnych.

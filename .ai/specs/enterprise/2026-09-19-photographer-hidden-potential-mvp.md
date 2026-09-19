@@ -152,7 +152,7 @@ Graf pokazuje logikę biznesową. Każda propozycja przechodzi pełną politykę
 
 | Krok | Wykonawca | Wejście → wynik |
 |---|---|---|
-| O1 | Agent OpenCode `photographers.portfolio_reader` | Surowe portfolio i dane osoby → rodzaj wpisu, odczyt portfolio, ślady z pochodzeniem. Nazwę konta sprawdza najpierw na Instagramie, potem na Facebooku. |
+| O1 | Agent OpenCode `agent_examples.portfolio_reader_o1` | `originalPortfolio`, `registrationEmail`, `firstName`, `lastName` → research: WWW, kontakt, Instagram, Facebook, Google Maps, kandydaci NIP i miasto, ze źródłami i pewnością. Krok `o1` w nieaktywnym szkielecie wywołuje agenta i mapuje `data` do `context.o1`; przygotowanie danych rejestracji przed tym krokiem pozostaje do wdrożenia. Szczegóły: [kontrakt O1](2026-09-19-o1-portfolio-reader-agent.md). |
 | O2 | Agent OpenCode `photographers.trace_finder` | Rejestracja i O1 → ślady ze strony/stopki, wyszukania e-maila i kandydatów rejestrowych. Brak wyniku O1 nie pomija O2. |
 | K1 | Kod domenowy i adapter propozycji | Porównania ze źródłami → potwierdzone ślady lub konkretna propozycja do decyzji; niepotwierdzone pozostają poza badaniem. |
 | A2 | Agent OpenCode `photographers.social_researcher` | Potwierdzone konta → liczby, daty, posty i informacja o druku. Wspólna funkcja liczy zaangażowanie i wzrost. |
