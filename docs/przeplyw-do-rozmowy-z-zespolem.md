@@ -19,7 +19,7 @@ flowchart TD
     POLICY["Ślad potwierdzony<br/>Propozycja tożsamości → polityka zatwierdzania"]
     HUMAN["Caseload · operator<br/>Zatwierdź, popraw lub odrzuć"]
     CAND["Ślad niepotwierdzony<br/>Zapisz kandydatów i powód; nie badaj"]
-    SET["Zbierz zaakceptowane ślady<br/>Pomiń odrzucone i nierozstrzygnięte"]
+    SET["Zbierz potwierdzone ślady dopuszczone do badania<br/>Pomiń odrzucone i nierozstrzygnięte"]
     ANY{"Czy jest co badać?"}
     RESEARCH["Badanie tylko po potwierdzonych śladach"]
     WAIT["Obserwowana<br/>Brak użytecznych śladów po wyczerpaniu poszukiwań<br/>Kolejna ocena za 180 dni"]
@@ -27,7 +27,7 @@ flowchart TD
     O1 -->|"Ślady lub zapis przyczyny ich braku"| O2
     REG -.->|"Imię, nazwisko, e-mail"| O2
     O1 -.->|"Portfolio wskazane przez fotografa"| K1
-    O2 -->|"Kandydaci + skąd + źródła"| K1
+    O2 -->|"Ślady do sprawdzenia + skąd"| K1
     K1 --> CLASS
     CLASS -->|"Potwierdzony"| POLICY
     CLASS -->|"Jeden kandydat, jeden zgodny ślad"| HUMAN
@@ -53,7 +53,7 @@ flowchart TD
     R1["R1 · Rejestry · kod<br/>Status działalności, data startu,<br/>NIP, PKD i VAT"]
     JOIN["Kod: zbierz wszystkie wyniki<br/>Sprawdź źródła, typy i sprzeczności<br/>Zapisz fakty oraz braki danych"]
     SCORE["Kod: zastosuj reguły punktowe<br/>Punkty do 100 + flagi + uzasadnienie"]
-    FLAG{"Potwierdzona flaga?"}
+    FLAG{"Czy jest flaga?"}
     REVIEW["Do weryfikacji → Caseload<br/>Operator decyduje o dalszym postępowaniu"]
     CATEGORY{"Produktowy i komercyjny?"}
     THRESHOLD{"Co najmniej 60 punktów?"}
