@@ -1,6 +1,5 @@
 /** @jest-environment node */
 
-import { metadata as attachmentsMetadata } from '../attachments/backend/storage/attachments/page.meta'
 import { metadata as rulesLogsMetadata } from '../business_rules/backend/logs/page.meta'
 import { metadata as rulesMetadata } from '../business_rules/backend/rules/page.meta'
 import { metadata as ruleSetsMetadata } from '../business_rules/backend/sets/page.meta'
@@ -41,7 +40,6 @@ import { metadata as workflowInstancesMetadata } from '../workflows/backend/inst
 import { metadata as workflowTasksMetadata } from '../workflows/backend/tasks/page.meta'
 
 const mainSidebarMetadata = [
-  ['attachments', attachmentsMetadata],
   ['rules logs', rulesLogsMetadata],
   ['rules', rulesMetadata],
   ['rule sets', ruleSetsMetadata],
