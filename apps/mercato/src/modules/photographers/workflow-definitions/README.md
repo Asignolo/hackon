@@ -3,8 +3,8 @@
 `hidden-potential.v1.json` to wersjonowany dokument wejściowy istniejącego API
 `POST /api/workflows/definitions`, z identyfikatorem `photographers.hidden_potential`.
 Zawiera 23 kroki, 33 połączenia, nazwy, opisy wejścia/wyniku oraz pozycje w istniejącym
-edytorze Automatyzacji. Krok O1 ma konfigurację wywołania istniejącego agenta;
-cały proces nadal pozostaje nieaktywnym szkieletem.
+edytorze Automatyzacji. Podłączony wycinek obejmuje przygotowanie rejestracji, wykonanie O1 w workerze
+i zapis śladów. Cały proces nadal pozostaje nieaktywnym szkieletem.
 
 ## Dostępność i bezpieczeństwo
 
@@ -12,16 +12,19 @@ Definicja ma `enabled: false` i `definition.triggers: []`. Silnik odmawia startu
 wyłączonej definicji także przy podaniu konkretnej wersji. Samo `lifecycle: draft`
 nie stanowi takiej blokady; dokument nie polega na tym polu.
 
-O1 ma aktywność `INVOKE_AGENT`. Na przejściu `o1_identity_2` podłączony jest
-adapter zapisu ukończonego wyniku O1; sam nie uruchamia agenta i odmawia pracy
-bez zgodnego przebiegu. Pozostałe kroki nadal czekają na implementację.
-Wyjścia z niewdrożonych kroków mają `trigger: manual`, aby nie przechodziły
-samoczynnie. To techniczny stan niepodłączonego grafu, **nie dodatkowe decyzje
-biznesowe człowieka**. Trzy wyjścia z `PARALLEL_FORK` mają `auto`, czego wymaga
-walidator platformy. Fork i join wskazują na siebie. Całość pozostaje wyłączona.
-Nazwy rozgałęzień opisują docelowe warunki, ale nie wykonują ich. Kroki opisujące
-Caseload również są tylko miejscami podłączenia jego natywnego mechanizmu
-propozycji, disposition i oczekiwania; nie tworzą równoległej kolejki zadań.
+Przejście start → prepare wywołuje `photographers.o1.prepare`, które przygotowuje
+CRM i zwraca tylko identyfikatory. Przejście prepare → o1 zleca pracę kolejce
+`photographers-portfolio-discovery`. Krok O1 czeka na sygnał `photographers.o1.ready`.
+Worker odczytuje oryginalne cztery pola rejestracji dopiero przed wywołaniem
+`agentRuntime.run`. Sygnał przekazuje `o1RunId`; przejście do identity wywołuje
+`photographers.o1.store_result`, zapisując materiał przed K1.
+
+Pozostałe kroki czekają na implementację. Ich wyjścia mają `trigger: manual`,
+co jest techniczną blokadą niepodłączonego grafu, nie dodatkową decyzją biznesową.
+Trzy wyjścia z `PARALLEL_FORK` mają `auto`, czego wymaga walidator platformy.
+Fork i join wskazują na siebie. Nazwy pozostałych rozgałęzień opisują docelowe
+warunki, ale ich nie wykonują. Caseload nadal wymaga podłączenia natywnych
+propozycji, disposition i oczekiwania.
 
 Nie włączać v1. Implementacja kolejnych etapów wymaga osobnych przyrostów,
 podłączenia rzeczywistych kontraktów i testów przed opublikowaniem wersji wykonawczej.
@@ -34,7 +37,7 @@ w inspektorze edytora. Dokument nie deklaruje nowego modelu danych.
 | Kroki | Istniejący kontrakt / przyszłe podłączenie |
 | --- | --- |
 | Wejście, przygotowanie | `photographers.registration.prepare_crm`, wejście `{ registrationId }`, wynik `RegistrationCrmResult` ze stanem `ready` i `photographerId`, `personId`, `dealId`. Rejestracja pozostaje niezmieniona; ponowienie wykorzystuje istniejącą osobę i szansę. |
-| O1 | Podłączony `agent_examples.portfolio_reader_o1`: `originalPortfolio`, `registrationEmail`, `firstName`, `lastName` z kontekstu → wynik `research` pod `context.o1`. Adapter `photographers.o1.store_result` zapisuje ślady przed krokiem identity. Przygotowanie wejścia z rejestracji i przekazanie `o1RunId` pozostają niepodłączone. |
+| O1 | Podłączony `agent_examples.portfolio_reader_o1`: oryginalne cztery pola odczytane z rejestracji → utrwalony `AgentRun` → `o1RunId` → adapter `photographers.o1.store_result`. Wynik `o1Result.result` zawiera tylko `runId`, `tracesRef` i status. |
 | Przypisanie, decyzja, dopuszczone ślady | `traceEvidenceSchema`, `tracesSnapshotSchema` i natywne propozycje Caseload. Odrzucony ślad nie trafia do badania; pozostałe potwierdzone mogą trafić. Brak konkretnej propozycji nie tworzy pustego zadania. |
 | A2 | `researchFactSchema`, `owner: social`; docelowo `photographers.social_researcher`. |
 | A3 | `researchFactSchema`, `owner: portfolio`; docelowo `photographers.portfolio_researcher`. |
@@ -56,9 +59,9 @@ Brak zamówień jest założeniem wejściowym. Specyfikacja przewiduje identyfik
 i `rulesVersion`; dane osobowe mają być odczytywane dopiero przez potrzebujący ich
 krok, a kontekst workflow ma przenosić bezpieczne odwołania do materiałów.
 Nie zmieniamy tego kontraktu przez globalny `contextSchema` z danymi osobowymi.
-Obecne podłączenie O1 oczekuje czterech jawnych wartości w kontekście testowym;
-odczyt rejestracji przez wcześniejszy krok `prepare`, przekazanie tych wartości
-oraz adapter wyniku do materiałów nadal wymagają implementacji przed włączeniem procesu.
+Wejście wycinka: `registrationId`, `evaluationId`, `evaluatedAt` i zaufana tożsamość
+wykonawcza. `o1Preparation.result` zawiera powiązania CRM i identyfikator wykonawcy.
+Oryginalny e-mail, portfolio, imię i nazwisko nie są kopiowane do kontekstu workflow.
 
 ### O1 — kontrakt adaptera wyjścia
 
@@ -83,12 +86,19 @@ kontroli NIP pozostają w opisie dowodu, aby K1 nie utracił informacji o ograni
 Niepełne odczyty, awarie i wyczerpany budżet nie oznaczają wyczerpania poszukiwań.
 Historyczny wynik `no_portfolio` również nie uprawnia do zakończenia odkrycia.
 
-Kontekst oceny musi dostarczyć `registrationId`, `photographerId`, `personId`,
-`dealId`, `evaluationId` i `evaluatedAt`. Bezpieczne przekazanie identyfikatora
-utrwalonego runu do `o1RunId` oraz przygotowanie wejścia nadal wymagają podłączenia.
-Sam adapter nie uruchamia agenta i nie włącza procesu. Istniejące testowe mapowanie
-`context.o1` pozostaje w szkielecie; nie stanowi produkcyjnego transportu materiału.
-Przed publikacją trzeba zastąpić je bezpiecznymi odwołaniami.
+Ślady są niezmiennym materiałem `kind: traces` w tabeli
+`photographers_evaluation_materials`. Kolumna `body` jest szyfrowana; rekord
+przechowuje zakres organizacji, identyfikator oceny i powiązania z rejestracją,
+osobą i szansą. `tracesRef` to identyfikator tego rekordu. Uprawniony odczyt przez
+`GET /api/photographers/evaluation-materials/:id` odszyfrowuje materiał i sprawdza
+jego integralność. Nie powstaje nowy ekran śladów ani potwierdzone pola profilu.
+
+Worker używa trwałego powiązania runu z workflow, krokiem `o1` i konkretnym
+`StepInstance`. Ponowny odbiór ukończonego runu nie uruchamia modelu ponownie.
+Ponowne dostarczenie po zakończeniu wycinka nie duplikuje materiału.
+Natywny rerun tworzący drugą próbę pozostaje odrzucany. Run przerwany twardym
+zatrzymaniem procesu, bez `completedAt`, wymaga osobnego odzyskania; ten przyrost
+nie odtwarza zdalnej sesji ani nie uruchamia jej ponownie w ciemno.
 
 Stary adapter O2 pozostaje wyłącznie mostem kompatybilności dla historycznych
 wyników. Nowy graf go nie wywołuje, a usunięta definicja agenta nie podlega odkrywaniu.
@@ -102,15 +112,11 @@ w module `agent_examples`. Odkrywa stronę, kontakt, Instagram, Facebook i Googl
 Maps oraz NIP i miasto, zachowując źródła i pewność przypisania. Nie aktualizuje
 CRM, nie uruchamia Apify ani nie odpytuje rejestrów podatników.
 
-Aktywność `INVOKE_AGENT` mapuje cztery pola o tych samych nazwach z głównego
-kontekstu, a `outputMapping: { "o1": "data" }` zachowuje cały wynik research.
-Wartość `data` jest ścieżką wyniku, nie wyrażeniem `{{...}}`.
-`onResult: { "alwaysAsk": true }` spełnia wymagany kontrakt aktywności;
-platforma pomija disposition dla wyniku `research`. Pola `approvalRequired`
-pozostają wskazówkami dla dalszego procesu i **nie tworzą propozycji ani zadań
-Caseload**. Niepewne pozycje nie stają się zatwierdzone przez samo ukończenie O1.
-Sygnał `agent_orchestrator.proposal.ready` obsługuje także powrót research z
-dedykowanego workera; jego nazwa nie oznacza, że O1 tworzy propozycję.
+Dotychczasowe testowe mapowanie całego `data` do `context.o1` zostało usunięte.
+Worker wywołuje istniejący runtime, który zapisuje rzeczywisty run, a wynik
+pozostaje w warstwie Orchestratora i szyfrowanym materiale. Przed uruchomieniem
+worker sprawdza szyfrowanie wejścia/wyniku runu, zapisów narzędzi i materiału.
+O1 zwraca `research`; nie tworzy propozycji ani decyzji Caseload.
 
 Apify dostarczy narzędzia odczytu konkretnych profili Instagram, stron Facebook
 oraz miejsc/opinii Google Maps. Nie prowadzi procesu, nie wyszukuje fotografów
@@ -131,25 +137,17 @@ z auto-discovery i nie wymaga generatora, migracji ani przebudowania aplikacji.
 
 ## Weryfikacja
 
-Runner: local. Test `hidden-potential-skeleton.test.ts` sprawdza istniejący walidator
-API, rzeczywistą odmowę silnika `DEFINITION_DISABLED` przed zapisem, rozdział
-odrzucenia i świadomego zamknięcia, interpolację czterech wartości O1 oraz
-mapowanie research do `context.o1` z zachowaniem źródeł i wymogu akceptacji.
-Po podłączeniu O1: 5/5 testów przeszło.
-W pierwotnej weryfikacji edytora potwierdzono 24 węzły i 34 połączenia (historyczny graf z O2; bieżący plik ma 23/33) oraz odczytano
-`enabled: false`, `triggers: []`, wersję 1 i zero instancji.
-Test startu przez działające API nie został wykonany: automatyczna kontrola
-bezpieczeństwa odmówiła tej operacji z powodu ryzyka uruchomienia niekompletnego
-procesu przy niesprawnej blokadzie. Nie jest raportowany jako zaliczony.
+Test grafu sprawdza walidator platformy, odmowę uruchomienia wyłączonej definicji,
+połączenie przygotowania, zlecenia, oczekiwania i zapisu oraz brak mapowania PII.
+Testy runtime obejmują zakres, uprawnienia, szyfrowanie i ponowienie wyniku.
 
-`POST /api/workflows/definitions/<UUID>/test-step` pozwala sprawdzić O1 w nadal
-wyłączonej definicji: przesłać `stepId: "o1"`, `activityType: "INVOKE_AGENT"`,
-rzeczywisty `config` odczytany z zapisanej definicji i syntetyczny `context`
-z czterema polami wejścia. Endpoint wykonuje tylko interpolację i mock:
-`simulated: true`, `invoked: false`, `kind: "would_invoke"`. Generyczne
-`wouldRequestDisposition: "human_review"` tego mocka nie jest decyzją o research
-O1. Endpoint nie uruchamia agenta; konfigurację badanego kroku trzeba przekazać w żądaniu.
-Rzeczywiste O1 testuje się osobno istniejącym Sandbox/Playground, bez włączania
-szkieletu i bez używania rzeczywistych danych rejestracyjnych.
+TC-PHOTOGRAPHERS-024 sprawdza w odizolowanym środowisku rejestrację z portfolio
+i rejestrację „brak”. Używa rzeczywistego API, CRM, silnika, kolejki, workera,
+runtime agenta i magazynu. Wyłącznie klient zewnętrznego OpenCode zwraca kontrolowany
+wynik. Testowa definicja jest wyprowadzona z pierwszych kroków tego grafu i kończy
+się przed K1; pełna definicja pozostaje wyłączona.
 
-Zmiana 2026-09-19: jeden agent odkrycia O1; usunięto krok i definicję O2, a zapis śladów przeniesiono na wyjście O1. Walidacja lokalna: 303 testy modułu fotografów oraz 67 testów O1 przeszły; po poprawkach adaptera ponownie przeszło 51 testów adapterów i 7 testów grafu. Generator, kontrola typów, lint zmienionego kodu adaptera i kompilacja aplikacji zakończyły się powodzeniem. Nie wykonywano rzeczywistych wyszukiwań ani uruchomienia całego procesu.
+Bieżące wyniki: [plan połączenia O1](../../../../../../.ai/runs/2026-09-19-photographer-o1-connection.md).
+Historyczna walidacja konsolidacji O1/O2: 303 testy fotografów, 67 testów O1,
+generowanie, kontrola typów, lint adaptera i build aplikacji przeszły. Nie stanowi
+to dowodu wykonania obecnego wycinka ani jakości wyszukiwania w sieci.

@@ -151,7 +151,7 @@ Graf pokazuje logikę biznesową. Każda propozycja przechodzi pełną politykę
 
 | Krok | Wykonawca | Wejście → wynik |
 |---|---|---|
-| O1 | Agent OpenCode `agent_examples.portfolio_reader_o1` | `originalPortfolio`, `registrationEmail`, `firstName`, `lastName` → research: WWW, kontakt, Instagram, Facebook, Google Maps, kandydaci NIP i miasto, ze źródłami i pewnością. Krok `o1` w nieaktywnym szkielecie wywołuje agenta i mapuje `data` do `context.o1`; przygotowanie danych rejestracji przed tym krokiem pozostaje do wdrożenia. Szczegóły: [kontrakt O1](2026-09-19-o1-portfolio-reader-agent.md). |
+| O1 | Agent OpenCode `agent_examples.portfolio_reader_o1` | `originalPortfolio`, `registrationEmail`, `firstName`, `lastName` → research: WWW, kontakt, Instagram, Facebook, Google Maps, kandydaci NIP i miasto, ze źródłami i pewnością. Przygotowanie odczytuje rejestrację i powiązania CRM; worker uruchamia agenta, a krok `o1` czeka na sygnał z identyfikatorem trwałego runu. Adapter zapisuje ślady. Pełny szkielet pozostaje wyłączony; kontekst nie zawiera danych źródłowych. Szczegóły: [kontrakt O1](2026-09-19-o1-portfolio-reader-agent.md). |
 | K1 | Kod domenowy i adapter propozycji | Porównania ze źródłami → potwierdzone ślady lub konkretna propozycja do decyzji; niepotwierdzone pozostają poza badaniem. |
 | A2 | Agent OpenCode `photographers.social_researcher` | Potwierdzone konta → liczby, daty, posty i informacja o druku. Wspólna funkcja liczy zaangażowanie i wzrost. |
 | A3 | Agent OpenCode `photographers.portfolio_researcher` | Potwierdzone portfolio/strona/galeria/Maps → kategoria, aktualność, rezerwacje, system galerii, opinie. |
@@ -160,7 +160,7 @@ Graf pokazuje logikę biznesową. Każda propozycja przechodzi pełną politykę
 | Punktacja | Kod domenowy i adapter propozycji | Fakty i wersja reguł → punkty, pozycje uzasadnienia, flagi i dopuszczalne akcje. |
 | A4 | Agent OpenCode `photographers.message_writer` | Zatwierdzona kwalifikacja, kategoria, galeria, dozwolone portfolio → pełny szkic; adapter tworzy propozycję jego akceptacji z `alwaysAsk: true`. |
 
-O1 nie odpytuje rejestrów. Pozyskiwanie kandydatów rejestrowych pozostaje przyszłym rozszerzeniem, a ocena pewności O1 nie zastępuje reguł K1. Brak lub niedostępność portfolio nie kończy odkrycia: O1 zaczyna od pełnego e-maila w cudzysłowie, a kolejne ślady sprawdza w tym samym budżecie. Adapter `photographers.o1.store_result` zapisuje ślady O1, w tym NIP i miasto, jako niepotwierdzone do kontroli K1. Przekazanie identyfikatora uruchomienia z workflow do adaptera pozostaje do podłączenia; szkielet jest nadal wyłączony.
+O1 nie odpytuje rejestrów. Pozyskiwanie kandydatów rejestrowych pozostaje przyszłym rozszerzeniem, a ocena pewności O1 nie zastępuje reguł K1. Brak lub niedostępność portfolio nie kończy odkrycia: O1 zaczyna od pełnego e-maila w cudzysłowie, a kolejne ślady sprawdza w tym samym budżecie. Adapter `photographers.o1.store_result` zapisuje ślady O1, w tym NIP i miasto, jako niepotwierdzone do kontroli K1. Przekazanie identyfikatora utrwalonego uruchomienia do adaptera jest podłączone przez sygnał `photographers.o1.ready`; szkielet jest nadal wyłączony.
 
 Agenci O1/A2/A3 oraz A4 zwracają `research`; po A4 adapter publikuje propozycję odnoszącą się do utrwalonej wiadomości. Ten podział chroni treść przed skopiowaniem do nieszyfrowanego workflow. Wyniki weryfikuje Zod i istniejące guardraile. Istniejący O1 pozostaje w `agent_examples/agents/portfolio_reader_o1/`. Pliki przyszłych agentów `AGENT.md`, `OUTCOME.md`, `FACTS.json` i umiejętności mają leżeć pod `photographers/agents/`; używają wspieranego podzbioru JSON Schema. Narzędzia są wyłącznie do odczytu, z najwęższym zakresem per rola. Narzędzia wyszukiwania to istniejące `agent_orchestrator.web_search` i `agent_orchestrator.web_fetch`, a nie swobodna sieć w skryptach OpenCode.
 
@@ -598,3 +598,36 @@ Adapter `photographers.o2.store_result` przyjmuje wyłącznie `runId`, sprawdza 
 Potwierdzono kod: 40 testów w czterech zestawach, typecheck aplikacji, lint zmienionych plików i generowanie. Runner local. Generowanie wykonano w odizolowanej kopii źródeł; znaleziono agenta w wygenerowanym rejestrze, bez zmian frameworka w repozytorium. Nie zmieniono API ani schematu bazy.
 
 **Niepotwierdzone w aplikacji:** rzeczywiste wyszukiwanie, uruchomienie O2 przez workflow i zapis wyniku na żywej bazie. Szkielet pozostaje wyłączony, bez wyzwalaczy; nie dodano wywołania agenta, workera ani oczekiwania na wynik. Rejestru działającej aplikacji nie przebudowano i aplikacji nie restartowano. Dawny plan podłączenia O2 jest anulowany; dalsza integracja dotyczy wyłącznie O1 → K1 i sprawdzenia pojedynczej rejestracji od wejścia do zapisanego wyniku. Brak migracji, resetów i zmian `packages/**`. Zatrzymano pracę na informację zwrotną.
+
+
+### Przyrost — rejestracja → O1 → ślady, 2026-09-19
+
+Na polecenie użytkownika domknięto wycinek przygotowania wejścia i odbioru wyniku
+O1 w istniejącym grafie. `photographers.o1.prepare` wywołuje przygotowanie CRM,
+a `photographers.o1.dispatch` przekazuje do kolejki tylko identyfikatory wykonania
+i zakresu. Worker czyta oryginalne cztery pola rejestracji, wywołuje istniejący
+runtime `agent_examples.portfolio_reader_o1` i wiąże run z konkretnym krokiem
+oraz jego próbą. Sygnał przenosi `o1RunId`; istniejący adapter utrwala ślady.
+Usunięto testowe kopiowanie PII i wyniku `data` do kontekstu workflow.
+
+Magazyn: `photographers_evaluation_materials`, `kind: traces`, szyfrowana kolumna
+`body`; `tracesRef` identyfikuje materiał powiązany z rejestracją, fotografem,
+profilem osoby, szansą i oceną. Każdy nowy ślad ma status `unconfirmed` niezależnie
+od oceny modelu. Istniejący GET materiału umożliwia autoryzowany odczyt i sprawdza
+integralność. Nie dodano ekranu ani zapisów potwierdzonych danych profilu.
+
+TC-PHOTOGRAPHERS-024 obejmuje wariant z portfolio oraz „brak”, prawdziwy zapis
+rejestracji, CRM, wykonanie silnika i workera, run agenta i szyfrowany materiał.
+Kontrolowany klient OpenCode zastępuje wyłącznie zewnętrzną odpowiedź; test nie
+ocenia jakości wyszukiwania w sieci. Testowa definicja jest wycinkiem rzeczywistego
+grafu zakończonym przed K1. Dowody i bieżący wynik w
+[planie przyrostu](../../runs/2026-09-19-photographer-o1-connection.md).
+
+Pełny graf pozostaje wyłączony, bez automatycznego startu rejestracji i bez K1.
+Nie zmieniono schematu bazy, frameworka ani publicznego API. Nowe funkcje DI
+są addytywne, a historyczny kontrakt adaptera odczytuje także stare referencje.
+Duplikat ukończonego runu jest bezpieczny. Natywny rerun z drugą próbą i odzyskanie
+zdalnej sesji przerwanej twardym zakończeniem procesu pozostają poza tym przyrostem;
+nie następuje automatyczne ponowne wywołanie modelu. Bieżący graf działa w trybie
+uprawnień inicjatora; osobna tożsamość przez `grantedFeatures` wymaga kolejnego
+podłączenia przed publikacją wersji wykonawczej.

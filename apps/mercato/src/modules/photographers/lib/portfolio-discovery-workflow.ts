@@ -10,14 +10,10 @@ import { AgentRun } from '@open-mercato/enterprise/modules/agent_orchestrator/da
 import { PhotographerRawData } from '../data/entities'
 import { portfolioDiscoveryInputSchema } from '../data/portfolio-discovery-validators'
 import { materialOperationId } from './material-codec'
+import { readPortfolioDiscoveryReferences } from '../data/portfolio-discovery-workflow-validators'
 import { preparePortfolioDiscoveryInput, preparePortfolioDiscoveryMaterial, PORTFOLIO_DISCOVERY_AGENT_ID, PORTFOLIO_DISCOVERY_STEP_ID, PORTFOLIO_DISCOVERY_WORKFLOW_ID } from './portfolio-discovery-contract'
 
 const argumentsSchema = z.object({ runId: z.string().uuid() }).strict()
-const referencesSchema = z.object({
-  registrationId: z.string().uuid(), photographerId: z.string().uuid(),
-  personId: z.string().uuid(), dealId: z.string().uuid(),
-  evaluationId: z.string().uuid(), evaluatedAt: z.string().datetime({ offset: true }),
-})
 
 export async function storePortfolioDiscoveryWorkflowResult(raw: unknown, context: ActivityContext, container: AwilixContainer) {
   const { runId } = argumentsSchema.parse(raw)
@@ -29,7 +25,7 @@ export async function storePortfolioDiscoveryWorkflowResult(raw: unknown, contex
   const em = container.resolve<EntityManager>('em').fork()
   const instance = await findOneWithDecryption(em, WorkflowInstance, { id: workflowInstance.id, workflowId: PORTFOLIO_DISCOVERY_WORKFLOW_ID, ...scope }, {}, scope)
   if (!instance || instance.currentStepId !== PORTFOLIO_DISCOVERY_STEP_ID || !['RUNNING', 'PAUSED'].includes(instance.status)) throw new Error('[internal] O1 step is not current')
-  const references = referencesSchema.parse(instance.context)
+  const references = readPortfolioDiscoveryReferences(instance.context)
   const run = await findOneWithDecryption(em, AgentRun, {
     id: runId, workflowInstanceId: instance.id, stepId: PORTFOLIO_DISCOVERY_STEP_ID,
     agentId: PORTFOLIO_DISCOVERY_AGENT_ID, status: 'ok', resultKind: 'research', ...scope,
