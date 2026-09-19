@@ -40,6 +40,10 @@ _Unikaj_: punkt startowy, seed, źródło, dane wejściowe
 Informacja znaleziona po drodze, która pomaga potwierdzić lub odrzucić kandydata na ślad, ale sama śladem nie jest: miasto z opisu profilu, NIP ze stopki strony, nazwa firmy z agregatora firm. Poszlaka staje się faktem dopiero po potwierdzeniu w rejestrze.
 _Unikaj_: hint, wskazówka, dowód (dowód to uzasadnienie pewności śladu)
 
+**Odstęp**:
+Liczba dni do następnej oceny fotografa. Rośnie dwukrotnie przy braku zmian (14 → 28 → 56 → 112 → 180), wraca do 14 przy zmianie dowolnego faktu, stoi, gdy szansa czeka na człowieka.
+_Unikaj_: interwał, spaced interval, kadencja (kadencja to częstość partii, nie odstęp jednego fotografa)
+
 ## Fazy oceny
 
 **Odkrycie**:

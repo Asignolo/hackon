@@ -38,6 +38,17 @@ Etapy w kolejności wędrówki szansy:
 
 Oba wyzwalacze uruchamiają ten sam przebieg.
 
+### 4.1 Rosnące odstępy
+
+Data następnej oceny siedzi w polu „następna interakcja” na fotografie. Partia dzienna to „wszyscy, którym minął termin”, od najstarszego. Cztery zasady, wszystkie konfigurowalne:
+
+1. **Start**: pierwsza ponowna ocena 14 dni po pierwszej.
+2. **Bez zmian → odstęp razy dwa**: 14, 28, 56, 112, maksymalnie 180 dni.
+3. **Zmiana dowolnego faktu → odstęp wraca do 14 dni.** Nowy post po ciszy, nowa wizytówka Google, zmiana statusu w CEIDG: baza budzi się przy tym fotografie.
+4. **Szansa u człowieka (Do weryfikacji, Do kontaktu) → zegar stoi.** Po decyzji zegar rusza od 14 dni. Zamknięta szansa: bez ocen.
+
+Na weekend: karta pokazuje datę następnej oceny, reguła jest w konfiguracji, drugiego przebiegu na scenie nie pokazujemy.
+
 ## 5. Fazy oceny i ich mapowanie na Agent Orchestrator
 
 | Faza | Co robi | Rodzaj wyniku w Orchestratorze | Kto zatwierdza |
