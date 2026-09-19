@@ -1,0 +1,7 @@
+{
+  "photographers.errors.scope_required": "Wybierz organizację i tenanta.",
+  "photographers.errors.forbidden": "Brak dostępu do tej organizacji.",
+  "photographers.errors.customer_not_found": "Klient nie jest dostępny w tej organizacji.",
+  "photographers.errors.encryption_unavailable": "Szyfrowanie danych jest niedostępne. Zgłoszenie nie zostało zapisane.",
+  "photographers.audit.raw_data.create": "Zapisanie zgłoszenia fotografa"
+}

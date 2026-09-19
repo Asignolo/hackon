@@ -1,0 +1,7 @@
+{
+  "photographers.errors.scope_required": "Select an organization and tenant.",
+  "photographers.errors.forbidden": "Access to this organization is denied.",
+  "photographers.errors.customer_not_found": "The customer is not available in this organization.",
+  "photographers.errors.encryption_unavailable": "Data encryption is unavailable. The submission has not been saved.",
+  "photographers.audit.raw_data.create": "Record photographer submission"
+}

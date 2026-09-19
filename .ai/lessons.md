@@ -1,6 +1,6 @@
 # Lessons
 
-This catalog indexes 143 focused lessons. Route the task first, then read only records whose modules, areas, or topics match the work.
+This catalog indexes 144 focused lessons. Route the task first, then read only records whose modules, areas, or topics match the work.
 
 ## How to use this catalog
 
@@ -45,6 +45,8 @@ This catalog indexes 143 focused lessons. Route the task first, then read only r
 - [Use `safeExtend()` when composing refined Zod object schemas](lessons/use-safeextend-when-composing-refined-zod-object-schemas.md) — area:architecture; module:shared,checkout; topic:generated-files,schema-composition
 
 ### module-data
+
+- [Photographer portfolio input is unnormalized source text](lessons/photographers-portfolio-is-raw-input.md) — area:module-data; module:photographers; topic:validation,source-data
 
 - [Auto-discovery routing surprises only a running app catches](lessons/api-route-files-must-sit-directly-under-the-resource.md) — area:module-data,backend-ui,testing; module:documents,cli,ui; topic:auto-discovery,generated-files,error-states
 - [Local tooling gotchas: stale snapshots and ephemeral restarts](lessons/db-generate-re-emits-an-unrelated-stale-snapshot.md) — area:module-data,testing,debugging; module:cli,ai_assistant; topic:database-migrations,dev-runtime,regeneration
