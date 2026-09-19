@@ -51,27 +51,30 @@ The source specification is included in this implementation branch because it ex
 - Paid-run ambiguity can create duplicate cost; paid starts have SDK retries disabled and are never retried after an ambiguous outcome.
 - Credential, AgentRun, and quota services are cross-module DI contracts; the provider resolves them lazily and returns a safe diagnostic when a required runtime capability is absent.
 - This is an additive contract surface: the module, ACL feature, integration ID, and four tool IDs become frozen on release.
+- The configured repository-wide gate remains blocked by baseline failures reproduced outside this change: generated capability registries omit `resources`, `warranty_claims`, and `wms`; the root README lacks the docs test's `yarn install-skills` reference; i18n sync reports pre-existing `app/photographers` locale gaps; and the app build reaches existing gRPC browser-bundle failures after Turbopack cannot bind its worker port.
 
 ## Progress
+
+PR: #6
 
 > Convention: `- [ ]` pending, `- [x]` done. Append ` — <commit sha>` when a step lands. Do not rename step titles.
 
 ### Phase 1: Provider foundation
 
-- [x] 1.1 Correct the configured base branch and scaffold provider foundation — 5066f43e
-- [x] 1.2 Implement environment preset, CLI, client, and health check — 5066f43e
+- [x] 1.1 Correct the configured base branch and scaffold provider foundation — 5066f43e, aaf8ca95
+- [x] 1.2 Implement environment preset, CLI, client, and health check — 5066f43e, aaf8ca95
 
 ### Phase 2: Runtime safety foundation
 
-- [x] 2.1 Implement configuration, validation, actor catalog, and result contracts — 10204284
-- [x] 2.2 Implement guarded execution, quotas, AgentRun correlation, cleanup, and telemetry — 10204284
+- [x] 2.1 Implement configuration, validation, actor catalog, and result contracts — 10204284, aaf8ca95
+- [x] 2.2 Implement guarded execution, quotas, AgentRun correlation, cleanup, and telemetry — 10204284, aaf8ca95
 
 ### Phase 3: Research tools
 
-- [x] 3.1 Implement Instagram and Facebook research tools — 46906855
-- [x] 3.2 Implement Google Maps place and reviews tools — 46906855
+- [x] 3.1 Implement Instagram and Facebook research tools — 46906855, aaf8ca95
+- [x] 3.2 Implement Google Maps place and reviews tools — 46906855, aaf8ca95
 
 ### Phase 4: Verification and operational readiness
 
-- [x] 4.1 Add comprehensive automated coverage and Agent Orchestrator smoke fixture — 341b666f
-- [x] 4.2 Generate registries, finalize documentation, and complete validation — 341b666f
+- [x] 4.1 Add comprehensive automated coverage and Agent Orchestrator smoke fixture — 341b666f, aaf8ca95
+- [x] 4.2 Generate registries, finalize documentation, and complete validation — 341b666f, aaf8ca95
