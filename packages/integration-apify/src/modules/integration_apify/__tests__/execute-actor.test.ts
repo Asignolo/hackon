@@ -147,6 +147,44 @@ describe('executeApifyActor', () => {
     expect(clients.start).not.toHaveBeenCalled()
   })
 
+  it('never crosses tenant or organization credential scope', async () => {
+    const credentialsResolve = jest.fn(async () => ({ apiToken: 'secret' }))
+    const { ctx } = createContext({
+      integrationCredentialsService: { resolve: credentialsResolve },
+    })
+    ctx.tenantId = 'tenant-b'
+    ctx.organizationId = 'org-b'
+    const clients = createClients()
+    await executeApifyActor({
+      ctx,
+      entry: ACTOR_CATALOG.instagram_profile,
+      target: { username: 'openmercato' },
+      platform: 'instagram',
+      dependencies: {
+        createMutationClient: () => clients.mutationClient,
+        createReadClient: () => clients.readClient,
+      },
+      normalize: ({ actorRunId }) => ({
+        ok: true,
+        status: 'complete',
+        platform: 'instagram',
+        canonicalUrl: null,
+        sourceUrl: null,
+        observedAt: '2026-09-19T00:00:00.000Z',
+        actorRunId,
+        data: { username: 'openmercato' },
+        unavailableFields: [],
+        diagnostics: [],
+      }),
+    })
+    expect(credentialsResolve).toHaveBeenCalledTimes(1)
+    expect(credentialsResolve).toHaveBeenCalledWith('integration_apify', {
+      tenantId: 'tenant-b',
+      organizationId: 'org-b',
+      userId: null,
+    })
+  })
+
   it('never retries an ambiguous paid start', async () => {
     const { ctx } = createContext()
     const clients = createClients({ startError: new Error('network timeout token=secret') })
