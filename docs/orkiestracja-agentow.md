@@ -10,13 +10,13 @@ Proponuję czterech agentów korzystających z modelu językowego i osobny kod d
 
 | Rola | Wejście | Zadanie i wynik | Granica odpowiedzialności |
 |---|---|---|---|
-| A1 Odkrycie | Cztery kotwice: imię, nazwisko, e-mail, portfolio; wcześniejsze ślady i decyzje | Rozpoznaje portfolio, zbiera poszlaki, ustala ślady wraz z dowodem i pewnością. Wynik: propozycja tożsamości albo brak propozycji. | Nie wybiera arbitralnie jednego z kilku kandydatów. Nie ocenia potencjału. |
-| A2 Media społecznościowe | Pewne ślady Instagram, Facebook, Pinterest; poprzednia ocena | Zbiera aktywność, obserwujących, posty i sygnały druku. Wynik: `research`, z dowodem i czasem odczytu. | Model interpretuje treść i zdjęcia; zaangażowanie i wzrost oblicza kod. Nie przypisuje kategorii ani punktów. |
-| A3 Portfolio i obecność w sieci | Pewne portfolio, strona, galeria i Google Maps | Ustala kategorię z portfolio, rodzaj i aktualność strony, rezerwacje, system galerii i opinie Google. Wynik: `research`. | Jedyny właściciel kategorii. Może czytać treść portfolio ze społeczności, ale pomiary tych kont należą do A2. |
+| A1 Odkrycie | Cztery dane z rejestracji: imię, nazwisko, e-mail, portfolio; wcześniejsze ślady i decyzje | Rozpoznaje portfolio, ustala ślady wraz ze statusem i polem „skąd”. Wynik: propozycja tożsamości albo brak propozycji. | Nie wybiera arbitralnie jednego z kilku kandydatów. Nie ocenia potencjału. |
+| A2 Media społecznościowe | Potwierdzone ślady Instagram, Facebook, Pinterest; poprzednia ocena | Zbiera aktywność, obserwujących, posty i sygnały druku. Wynik: `research`, ze źródłem i czasem odczytu. | Model interpretuje treść i zdjęcia; zaangażowanie i wzrost oblicza kod. Nie przypisuje kategorii ani punktów. |
+| A3 Portfolio i obecność w sieci | Potwierdzone portfolio, strona, galeria i Google Maps | Ustala kategorię z portfolio, rodzaj i aktualność strony, rezerwacje, system galerii i opinie Google. Wynik: `research`. | Jedyny właściciel kategorii. Może czytać treść portfolio ze społeczności, ale pomiary tych kont należą do A2. |
 | R1 Rejestry — wykonawca narzędzi | Potwierdzony przez odkrycie ślad CEIDG/KRS i identyfikatory | Pobiera status działalności, NIP, datę startu, PKD, VAT oraz dostępne dane KRS. Wynik: fakty w tym samym kontrakcie co `research`. | Preferowany zwykły kod i API. Nie wymaga osobnego modelu językowego. Nie zgaduje tożsamości i nie wystawia flag. |
 | A4 Opieka | Zatwierdzona kwalifikacja do kontaktu, kategoria, system galerii, dozwolony kontekst portfolio | Pisze trzy zdania i jedną propozycję, np. próbkę lub test druku. Wynik: propozycja wiadomości do Caseload. | Bez wysyłki i bez ujawniania VAT, liczby obserwujących czy opinii Google. Wewnętrzne „dlaczego” jest osobnym polem. |
 
-Odkrycie prowadzi cztery ścieżki poszukiwań: portfolio → profil; własna domena → strona i stopka; e-mail → wyszukiwanie; nazwisko → rejestry. Wyniki wcześniejszych ścieżek zawężają następne. Domena publicznej poczty, np. gmail.com, nie jest własną stroną fotografa. Wpis w rejestrze uznajemy za pewny po zgodności nazwiska i niezależnej poszlaki zgodnie z §6.4 procesu. Jeśli agent badający fotografa znajdzie nowy ślad, przekazuje go do odkrycia, które sprawdza jego tożsamość.
+Odkrycie prowadzi cztery ścieżki poszukiwań: portfolio → profil; własna domena → strona i stopka; e-mail → wyszukiwanie; nazwisko → rejestry. Wyniki wcześniejszych ścieżek zawężają następne. Domena publicznej poczty, np. gmail.com, nie jest własną stroną fotografa. Wpis w rejestrze uznajemy za potwierdzony po zgodności nazwiska i jednego zgodnego śladu z innej ścieżki, zgodnie z §6.4 procesu. Jeśli agent badający fotografa znajdzie nowy ślad, przekazuje go do odkrycia, które sprawdza jego tożsamość.
 
 ## Co robimy z czterema polami rejestracji
 
@@ -25,7 +25,7 @@ Na początku mamy tylko imię, nazwisko, e-mail i portfolio. Telefon, miasto, NI
 Całą rejestrację dostaje A1. Pozostali agenci pracują przede wszystkim na śladach, które A1 ustalił i które przeszły zatwierdzanie. Proponuję zachować oryginalne wartości pól, a oczyszczone adresy i znalezione informacje zapisywać osobno. Dzięki temu da się sprawdzić, co podał fotograf, a co ustalił agent.
 
 - **Imię i nazwisko** pomagają A1 porównać osobę z rejestracji z osobą opisaną na stronie, profilu lub w rejestrze. Samo zgodne nazwisko nie wystarcza do wybrania jednego z kilku kandydatów.
-- **E-mail** daje A1 dwie drogi poszukiwania: własną domenę po znaku `@` oraz wyszukanie pełnego adresu w cudzysłowie. Trafienie w agregatorze firm jest poszlaką do sprawdzenia. Użycie e-maila do odkrycia nie uruchamia wysyłki wiadomości.
+- **E-mail** daje A1 dwie drogi poszukiwania: własną domenę po znaku `@` oraz wyszukanie pełnego adresu w cudzysłowie. Trafienie w agregatorze firm jest śladem niepotwierdzonym do sprawdzenia. Użycie e-maila do odkrycia nie uruchamia wysyłki wiadomości.
 - **Portfolio** jest pierwszym miejscem, które A1 sprawdza, bo wskazał je sam fotograf. Może zawierać adres strony lub profilu, samą nazwę konta, adres galerii albo bezużyteczny wpis. A1 rozpoznaje tę postać i ustala, dokąd prowadzi.
 
 Po odkryciu dane rozchodzą się według zadań: konta społecznościowe do A2, portfolio i obecność w sieci do A3, potwierdzone wpisy rejestrowe do R1. A4 dostaje dane potrzebne do przygotowania wiadomości dopiero na końcu.
@@ -36,31 +36,31 @@ A1 odpowiada za to, żeby dalsze badanie dotyczyło właściwej osoby. Dostaje c
 
 Najpierw czyta portfolio. Jeśli fotograf podał samą nazwę konta, sprawdza ją na Instagramie, potem na Facebooku. Z opisu profilu może odczytać miasto, własną stronę, e-mail kontaktowy lub NIP. Te informacje pomagają w dalszym szukaniu. Nie każda z nich jest już potwierdzonym faktem.
 
-Jeśli portfolio lub e-mail wskazuje własną domenę, A1 sprawdza stronę oraz podstrony kontaktu, regulaminu i polityki prywatności. Szuka informacji pozwalających powiązać stronę z osobą i działalnością. Następnie może wyszukać pełny e-mail. Nazwisko w CEIDG sprawdza na końcu, kiedy ma już poszlaki, które zawężają wyniki.
+Jeśli portfolio lub e-mail wskazuje własną domenę, A1 sprawdza stronę oraz podstrony kontaktu, regulaminu i polityki prywatności. Szuka informacji pozwalających powiązać stronę z osobą i działalnością. Następnie może wyszukać pełny e-mail. Nazwisko w CEIDG sprawdza na końcu, kiedy ma już ślady z innych ścieżek, które zawężają wyniki.
 
-Każdemu znalezionemu śladowi przypisuje adres lub identyfikator, stopień pewności i dowód. Dla wpisu CEIDG lub VAT sprawdza zgodność nazwiska oraz przynajmniej jednej niezależnej poszlaki wskazanej w dokumentacji: miasta, NIP-u ze stopki, domeny lub fotograficznego PKD. Nie uznaje samego NIP-u z agregatora za potwierdzenie osoby.
+Każdemu znalezionemu śladowi przypisuje adres lub identyfikator, status i pole „skąd”. Dla wpisu CEIDG lub VAT sprawdza zgodność nazwiska oraz przynajmniej jednego zgodnego śladu z innej ścieżki wskazanego w dokumentacji: miasta, NIP-u ze stopki, domeny lub fotograficznego PKD. Nie uznaje samego NIP-u z agregatora za potwierdzenie osoby.
 
-**Przekazuje dalej:** pewne ślady do badania, kandydatów z uzasadnieniem do zachowania w wyniku oraz propozycję tożsamości, jeśli ma podstawy, żeby ją złożyć. Jeden kandydat z jedną poszlaką może trafić do Caseload. Kilku kandydatów bez rozstrzygnięcia pozostaje wynikiem „nie ustalono”. Jeśli wszystkie ścieżki się wyczerpią i nie ma czego badać, szansa trafia do Obserwowana z najdłuższym odstępem.
+**Przekazuje dalej:** potwierdzone ślady do badania, ślady niepotwierdzone z listą kandydatów do zachowania w wyniku oraz propozycję tożsamości, jeśli ma podstawy, żeby ją złożyć. Jeden kandydat z jednym zgodnym śladem może trafić do Caseload. Kilku kandydatów bez rozstrzygnięcia pozostaje jednym śladem niepotwierdzonym. Jeśli wszystkie ścieżki się wyczerpią i nie ma czego badać, szansa trafia do Obserwowana z najdłuższym odstępem.
 
 A1 kończy na ustaleniu tożsamości. Punkty i decyzja o kontakcie należą do późniejszych kroków.
 
 ## A2. Media społecznościowe: zbiera fakty o aktywności i druku
 
-A2 dostaje pewne konta Instagram, Facebook i Pinterest oraz wyniki poprzedniej oceny. Korzysta więc z wyniku pracy nad rejestracją: nie szuka ponownie fotografa po samym nazwisku.
+A2 dostaje potwierdzone konta Instagram, Facebook i Pinterest oraz wyniki poprzedniej oceny. Korzysta więc z wyniku pracy nad rejestracją: nie szuka ponownie fotografa po samym nazwisku.
 
 Na Instagramie i Facebooku zbiera liczbę postów i obserwujących, datę ostatniego posta oraz dane do obliczenia zaangażowania. Czyta opisy i ogląda dostępne zdjęcia z ostatnich 12 postów. Ustala, czy fotograf pokazuje albumy, odbitki, oprawy albo wspomina o druku. Na Pintereście zbiera fakty przewidziane w katalogu: istnienie konta, liczbę pinów i obserwujących.
 
 Model interpretuje treść i zdjęcia. Wspólna funkcja oblicza zaangażowanie z polubień, komentarzy i liczby obserwujących. Porównuje też liczbę obserwujących z poprzednią oceną. Przy pierwszej ocenie wzrost pozostaje nieznany. Jeśli źródło jest niedostępne, A2 zapisuje ten stan; nie zastępuje brakujących liczb zerami ani braku dostępu odpowiedzią „nie pokazuje druku”.
 
-**Przekazuje dalej:** fakty w wyniku `research`, wraz ze źródłem, czasem odczytu i dowodem. Punktacja użyje tych faktów do zastosowania reguł. A2 nie nadaje punktów i nie decyduje o kategorii fotografa.
+**Przekazuje dalej:** fakty w wyniku `research`, wraz ze źródłem i czasem odczytu. Punktacja użyje tych faktów do zastosowania reguł. A2 nie nadaje punktów i nie decyduje o kategorii fotografa.
 
 ## A3. Portfolio i obecność w sieci: ustala specjalizację i sposób prezentowania pracy
 
-A3 dostaje pewne portfolio, stronę, galerię i wizytówkę Google Maps. Portfolio pochodzi z rejestracji lub ze śladów potwierdzonych przez A1. Może prowadzić do konta społecznościowego; własna strona nie jest warunkiem wykonania tej części badania.
+A3 dostaje potwierdzone portfolio, stronę, galerię i wizytówkę Google Maps. Portfolio pochodzi z rejestracji lub ze śladów potwierdzonych przez A1. Może prowadzić do konta społecznościowego; własna strona nie jest warunkiem wykonania tej części badania.
 
 Z treści portfolio A3 przypisuje kategorię: ślubny, rodzinny i noworodkowy, szkolny i przedszkolny, reportażowy i eventowy, produktowy i komercyjny, inny albo nieznane. Jeśli treść nie pozwala rozstrzygnąć, pozostawia „nieznane”. W proponowanym podziale to A3 odpowiada za kategorię w całym procesie.
 
-Na stronie sprawdza jej rodzaj, aktualność i obecność kalendarza rezerwacji. Rozpoznaje system galerii według listy z dokumentacji, np. Zalamo, Mafelo, Pixieset lub Pic-Time. Z pewnej wizytówki Google Maps zbiera liczbę opinii, średnią ocenę, datę ostatniej opinii i informację, czy fotograf odpowiada na opinie.
+Na stronie sprawdza jej rodzaj, aktualność i obecność kalendarza rezerwacji. Rozpoznaje system galerii według listy z dokumentacji, np. Zalamo, Mafelo, Pixieset lub Pic-Time. Z potwierdzonej wizytówki Google Maps zbiera liczbę opinii, średnią ocenę, datę ostatniej opinii i informację, czy fotograf odpowiada na opinie.
 
 Jeśli portfolio jest na Instagramie lub Facebooku, A3 korzysta z jego treści do określenia kategorii. Liczby dotyczące konta pozostają zadaniem A2. Proponuję udostępniać obu agentom ten sam materiał pobrany w danej ocenie, żeby nie pobierali go ponownie tylko z powodu podziału ról.
 
@@ -88,7 +88,7 @@ A4 nie wysyła wiadomości. Na demo zatwierdzenie zapisuje treść i przesuwa sz
 
 ## Co zostaje po pracy agentów
 
-Na fotografie zapisujemy pewne ślady i fakty. Na jednej szansie tego fotografa zapisujemy bieżące punkty, flagi, propozycję i etap. Każda kolejna ocena dopisuje aktywność z datą, wynikiem, zmianami i uzasadnieniem.
+Na fotografie zapisujemy potwierdzone ślady i fakty. Na jednej szansie tego fotografa zapisujemy bieżące punkty, flagi, propozycję i etap. Każda kolejna ocena dopisuje aktywność z datą, wynikiem, zmianami i uzasadnieniem.
 
 Agenci zwracają wyniki, a zapis wykonują komendy uruchamiane przez przepływ. Fakty z badania nie wymagają osobnej decyzji człowieka. Propozycje tożsamości, zmiany etapu i wiadomości przechodzą właściwe zasady zatwierdzania.
 
@@ -97,16 +97,16 @@ Jeśli operator odrzuci błędny ślad, kolejna ocena pomija go oraz oparte na n
 ## Przepływ jednej oceny
 
 1. **Start — kod przepływu.** Nowa rejestracja lub partia uruchamia ten sam proces. Sprawdzenie braku zamówień, jednej szansy na fotografa, braku zamknięcia i braku już trwającej oceny. Pierwsza ocena: Nowa → W badaniu; kolejne nie cofają etapu.
-2. **A1 Odkrycie.** Pewne ślady przechodzą politykę zatwierdzania. Wąski przypadek „jeden kandydat, jedna poszlaka” trafia do Caseload. Wieloznaczność to brak propozycji, nie prośba do człowieka o wykonanie całego badania. Jeśli istnieją inne pewne ślady, badanie może objąć tylko je. Brak jakiegokolwiek użytecznego śladu po wyczerpaniu ścieżek → Obserwowana i 180 dni.
+2. **A1 Odkrycie.** Potwierdzone ślady przechodzą politykę zatwierdzania. Wąski przypadek „jeden kandydat, jeden zgodny ślad” trafia do Caseload. Wieloznaczność to brak propozycji, nie prośba do człowieka o wykonanie całego badania. Jeśli istnieją inne potwierdzone ślady, badanie może objąć tylko je. Brak jakiegokolwiek użytecznego śladu po wyczerpaniu ścieżek → Obserwowana i 180 dni.
 3. **Zapis zaakceptowanej tożsamości — komenda.** Po decyzji operatora przepływ używa poprawionej wersji. Odrzucony ślad nie trafia do badania.
-4. **A2, A3 i R1 — badanie równoległe.** Każdy bada wszystkie pewne źródła ze swojego zakresu. Brak śladu daje wynik „nieznane”; awaria źródła ma oddzielny status i ograniczone ponowienia. Koszt kontrolujemy wielkością partii i współbieżnością, nie skracaniem badania.
+4. **A2, A3 i R1 — badanie równoległe.** Każdy bada wszystkie potwierdzone ślady ze swojego zakresu. Brak śladu daje wynik „nieznane”; awaria źródła ma oddzielny status i ograniczone ponowienia. Koszt kontrolujemy wielkością partii i współbieżnością, nie skracaniem badania.
 5. **Scalenie — kod.** Czeka na zakończenie wszystkich trzech gałęzi, także zakończenie błędem lub niedostępnością. Sprawdza typy, źródła i aktualność faktów oraz wykrywa sprzeczne wyniki. Nie wymyśla wartości. Fakty zapisuje przez komendy na fotografie; `research` nie wymaga zatwierdzenia człowieka.
 6. **Punktacja — kod.** Oblicza sumę reguł, obcina do 100, wyprowadza flagi i uzasadnienie. Flaga → Do weryfikacji i Caseload. Bez flag, kategoria produktowy i komercyjny → Obserwowana. Pozostali: ≥60 → kwalifikacja do kontaktu; <60 → Obserwowana. Przeniesienie etapu przechodzi politykę propozycji.
 7. **A4 Opieka.** Wyłącznie po zatwierdzonej kwalifikacji. Propozycja wiadomości ma ryzyko wysokie i rekomendowane `alwaysAsk: true`. Gdy szkic jest gotowy, szansa spełnia definicję Do kontaktu. Do tego czasu należy pokazywać stan przygotowania opieki, a nie sugerować gotowość wiadomości.
 8. **Caseload — operator.** Zatwierdzenie lub edycja pozwala wykonać konkretną zaakceptowaną akcję. Odrzucenie pomija tę akcję; samo w sobie nie oznacza przegranej szansy. Poprawka wraz z powodem staje się przypadkiem testowym.
 9. **Zapis i termin — kod.** Aktualizacja szansy, aktywność oceny, różnica względem poprzedniej oceny i następny termin. Zamknięcie wygrane po pierwszym zamówieniu, na demo ręcznie; przegrane wyłącznie decyzją człowieka z powodem.
 
-Na demo zatwierdzenie wiadomości zapisuje interakcję „wiadomość zatwierdzona do wysłania” i przesuwa do Skontaktowana zgodnie z §9 procesu. To nie jest dowód wysyłki. W produkcji rekomendujemy zmianę etapu dopiero po potwierdzeniu wysłania przez kanał; bez tego miara pierwszego zamówienia w 90 dni od kontaktu będzie zafałszowana.
+Na demo zatwierdzenie wiadomości zapisuje interakcję „wiadomość zatwierdzona do wysłania” i przesuwa do Skontaktowana zgodnie z §9 procesu. To nie jest potwierdzenie wysyłki. W produkcji rekomendujemy zmianę etapu dopiero po potwierdzeniu wysłania przez kanał; bez tego miara pierwszego zamówienia w 90 dni od kontaktu będzie zafałszowana.
 
 ## Co należy do Orchestratora i zwykłego kodu
 
@@ -121,8 +121,8 @@ Proponowane zabezpieczenia wykonania: identyfikator oceny wspólny dla gałęzi,
 
 | Wynik | Minimalna zawartość |
 |---|---|
-| Ślad | typ, adres/identyfikator, pewność, dowód, kotwica lub niezależne poszlaki, czas sprawdzenia |
-| Fakt | nazwa, typowana wartość lub „nieznane”, identyfikator pewnego śladu, dowód, czas odczytu, właściciel pola, status odczytu |
+| Ślad | typ, adres/identyfikator, status (potwierdzony / niepotwierdzony), skąd, czas sprawdzenia |
+| Fakt | nazwa, typowana wartość lub „nieznane”, identyfikator potwierdzonego śladu, źródło, czas odczytu, właściciel pola, status odczytu |
 | Punktacja | wersja reguł, identyfikator zestawu faktów, spełnione reguły z punktami, suma, flagi, kategoria, proponowany etap |
 | Wiadomość | treść, dozwolone fakty użyte w treści, wewnętrzne uzasadnienie, ryzyko, wersja zestawu faktów |
 | Ocena | fotograf, szansa, identyfikator oceny, daty, wyniki gałęzi, różnica, decyzje, wersje instrukcji i reguł |
