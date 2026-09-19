@@ -1,0 +1,6 @@
+{
+  "integration_apify.provider.label": "Apify 리서치",
+  "integration_apify.research": "Apify를 통한 유료 공개 비즈니스 데이터 리서치 실행",
+  "integration_apify.status.invalidCredentials": "Apify가 구성된 자격 증명을 거부했습니다.",
+  "integration_apify.status.upstreamUnavailable": "Apify를 일시적으로 사용할 수 없습니다."
+}

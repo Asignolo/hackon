@@ -28,6 +28,11 @@ export interface AgentRunSessionStore {
    * per-run call budget silently never applies there.
    */
   resolveActiveRunId(sessionToken: string): Promise<string | null>
+  resolveActiveRunContext?(sessionToken: string): Promise<{
+    runId: string
+    tenantId: string
+    organizationId: string
+  } | null>
   /**
    * Store the validated outcome. Single-shot: `not_found` when no run exists for
    * the token, `already_completed` when an outcome was already captured (never
@@ -82,14 +87,25 @@ export class DbAgentRunSessionStore implements AgentRunSessionStore {
 
   async resolveActiveAgentId(sessionToken: string): Promise<string | null> {
     const em = this.em()
-    const row = await em.findOne(AgentRunSession, { sessionToken })
+    const row = await em.findOne(AgentRunSession, { sessionToken, status: 'pending' })
     return row?.agentId ?? null
   }
 
   async resolveActiveRunId(sessionToken: string): Promise<string | null> {
     const em = this.em()
-    const row = await em.findOne(AgentRunSession, { sessionToken })
+    const row = await em.findOne(AgentRunSession, { sessionToken, status: 'pending' })
     return row?.runId ?? null
+  }
+
+  async resolveActiveRunContext(sessionToken: string): Promise<{
+    runId: string
+    tenantId: string
+    organizationId: string
+  } | null> {
+    const em = this.em()
+    const row = await em.findOne(AgentRunSession, { sessionToken, status: 'pending' })
+    if (!row?.runId) return null
+    return { runId: row.runId, tenantId: row.tenantId, organizationId: row.organizationId }
   }
 
   async completeOutcome(
@@ -123,23 +139,50 @@ export class DbAgentRunSessionStore implements AgentRunSessionStore {
 export class InMemoryAgentRunSessionStore implements AgentRunSessionStore {
   private readonly rows = new Map<
     string,
-    { agentId: string; runId: string | null; outcome?: unknown; status: 'pending' | 'completed' }
+    {
+      agentId: string
+      runId: string | null
+      tenantId: string
+      organizationId: string
+      outcome?: unknown
+      status: 'pending' | 'completed'
+    }
   >()
 
-  async open(input: { sessionToken: string; agentId: string; runId?: string | null }): Promise<void> {
+  async open(input: {
+    sessionToken: string
+    agentId: string
+    runId?: string | null
+    tenantId: string
+    organizationId: string
+  }): Promise<void> {
     this.rows.set(input.sessionToken, {
       agentId: input.agentId,
       runId: input.runId ?? null,
+      tenantId: input.tenantId,
+      organizationId: input.organizationId,
       status: 'pending',
     })
   }
 
   async resolveActiveAgentId(sessionToken: string): Promise<string | null> {
-    return this.rows.get(sessionToken)?.agentId ?? null
+    const row = this.rows.get(sessionToken)
+    return row?.status === 'pending' ? row.agentId : null
   }
 
   async resolveActiveRunId(sessionToken: string): Promise<string | null> {
-    return this.rows.get(sessionToken)?.runId ?? null
+    const row = this.rows.get(sessionToken)
+    return row?.status === 'pending' ? row.runId : null
+  }
+
+  async resolveActiveRunContext(sessionToken: string): Promise<{
+    runId: string
+    tenantId: string
+    organizationId: string
+  } | null> {
+    const row = this.rows.get(sessionToken)
+    if (!row?.runId || row.status !== 'pending') return null
+    return { runId: row.runId, tenantId: row.tenantId, organizationId: row.organizationId }
   }
 
   async completeOutcome(

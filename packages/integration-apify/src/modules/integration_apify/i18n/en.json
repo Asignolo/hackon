@@ -1,0 +1,6 @@
+{
+  "integration_apify.provider.label": "Apify Research",
+  "integration_apify.research": "Run paid Apify public-business research",
+  "integration_apify.status.invalidCredentials": "Apify rejected the configured credentials.",
+  "integration_apify.status.upstreamUnavailable": "Apify is temporarily unavailable."
+}

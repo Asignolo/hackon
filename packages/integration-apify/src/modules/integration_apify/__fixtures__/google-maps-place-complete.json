@@ -1,0 +1,15 @@
+{
+  "placeId": "ChIJ12345678901234567890123",
+  "title": "Open Mercato Lab",
+  "categoryName": "Software company",
+  "categories": ["Software company", "Technology company", "Software company"],
+  "address": "1 Example Street",
+  "phone": "+48 000 000 000",
+  "website": "https://openmercato.com",
+  "totalScore": 4.8,
+  "reviewsCount": 12,
+  "price": "$$",
+  "temporarilyClosed": false,
+  "permanentlyClosed": false,
+  "location": { "lat": 52.2297, "lng": 21.0122 }
+}
