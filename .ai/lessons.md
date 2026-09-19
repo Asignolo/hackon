@@ -1,6 +1,6 @@
 # Lessons
 
-This catalog indexes 148 focused lessons. Route the task first, then read only records whose modules, areas, or topics match the work.
+This catalog indexes 149 focused lessons. Route the task first, then read only records whose modules, areas, or topics match the work.
 
 ## How to use this catalog
 
@@ -52,9 +52,10 @@ This catalog indexes 148 focused lessons. Route the task first, then read only r
 
 - [Auto-discovery routing surprises only a running app catches](lessons/api-route-files-must-sit-directly-under-the-resource.md) — area:module-data,backend-ui,testing; module:documents,cli,ui; topic:auto-discovery,generated-files,error-states
 - [Local tooling gotchas: stale snapshots and ephemeral restarts](lessons/db-generate-re-emits-an-unrelated-stale-snapshot.md) — area:module-data,testing,debugging; module:cli,ai_assistant; topic:database-migrations,dev-runtime,regeneration
+- [Keep worker helpers outside command registration modules](lessons/keep-worker-helpers-outside-command-registration-modules.md) — area:architecture,debugging,testing; module:photographers,cli; topic:command-pattern,module-boundaries,generated-files
 - [Coordinate integration snapshot refreshes through one owner](lessons/coordinate-integration-snapshot-refreshes.md) — area:testing,debugging; module:cli; topic:integration-tests,dev-runtime,source-freshness
 - [`dbMigrate` must not write migration snapshots during initialize flows](lessons/dbmigrate-must-not-write-migration-snapshots-during.md) — area:module-data,architecture; module:cli,create_app; topic:generated-files,database-migrations,runtime-startup
-- [A self-request needs data committed outside the caller's transaction](lessons/a-self-request-needs-data-committed-outside-the-callers.md) — area:module-data; module:auth,checkout,query_index; topic:data-integrity,query-index,workers
+- [A self-request needs data committed outside the caller's transaction](lessons/a-self-request-needs-data-committed-outside-the-callers.md) — area:module-data; module:auth,checkout,query_index,photographers; topic:data-integrity,query-index,workers
 - [Avoid identity-map stale snapshots in command logs](lessons/avoid-identity-map-stale-snapshots-in-command-logs.md) — area:module-data,debugging; module:audit_logs,cache; topic:command-pattern,data-integrity,generated-files
 - [Classify entity metadata by ORM ownership before custom declarations](lessons/classify-entity-metadata-by-orm-ownership-before-custom.md) — area:module-data; module:entities; topic:access-control,filters
 - [Concurrent index migrations must recover from invalid build stubs](lessons/concurrent-index-migrations-must-recover-from-invalid-build-stubs.md) — area:module-data,debugging,testing; module:query_index; topic:concurrency,database-migrations,data-integrity
@@ -162,6 +163,8 @@ This catalog indexes 148 focused lessons. Route the task first, then read only r
 - [Inject TypeScript types into LLM tool descriptions for correct API payloads](lessons/inject-typescript-types-into-llm-tool-descriptions-for.md) — area:ai-workflow,backend-ui,module-data; module:ai_assistant,events,search; topic:events,runtime-startup,testing
 
 ### debugging
+
+- [Check public types before inferring storage shapes](lessons/check-public-types-before-inferring-storage-shapes.md) — area:debugging,architecture; module:agent_orchestrator,workflows; topic:type-normalization,workflow,testing
 
 - [Anchor repeated route-handler edits to unique context](lessons/anchor-repeated-route-handler-edits-to-unique-context.md) — area:debugging,testing; module:messages; topic:route-coverage,testing
 - [Compose startup commands must not hard-depend on newly added image scripts](lessons/compose-startup-commands-must-not-hard-depend-on-newly.md) — area:debugging,module-data,architecture; module:create_app; topic:command-pattern,runtime-startup,template-sync

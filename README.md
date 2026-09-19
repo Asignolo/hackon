@@ -32,6 +32,8 @@ yarn install --immutable
 yarn build
 ```
 
+Jeśli pracujesz z agentem programistycznym, zainstaluj instrukcje projektu poleceniem `yarn install-skills`. Jest to osobny, opcjonalny krok przygotowania środowiska.
+
 `yarn build` buduje lokalne pakiety, generuje rejestry modułów, ponownie buduje pakiety z rejestrami i tworzy produkcyjną aplikację Next.js.
 
 Lokalna konfiguracja aplikacji znajduje się w `apps/mercato/.env`; konfiguracja usług Docker pozostaje w głównym `.env`. Pliki te są ignorowane przez Git.
@@ -58,3 +60,16 @@ Istniejące pliki lokalne pozostają w głównym `storage/`; aplikacja korzysta 
 ## Aktualizacja lokalnej bazy (2026-09-18)
 
 Zastosowano wszystkie 43 oczekujące migracje do lokalnej bazy `hackon` i odświeżono indeksy słowników klientów, słowników ogólnych oraz definicji workflow. Kopia sprzed aktualizacji znajduje się w `.backups/2026-09-18-before-develop-migrations/before-migration.dump` (ignorowana przez Git). Aplikację uruchomiono ponownie na porcie 3001.
+
+
+## Scenariusz demonstracyjny Fotografów
+
+Po zbudowaniu aplikacji otwórz **Fotografowie → Scenariusz demonstracyjny** (`/backend/photographers/demo`).
+
+1. Utwórz fikcyjnego fotografa przyciskiem uruchomienia. Ekran pokaże postęp oraz linki do osoby, szansy i procesu.
+2. Gdy pojawi się decyzja, otwórz Caseload, przeczytaj materiały i zatwierdź albo odrzuć szkic.
+3. Wróć do scenariusza i sprawdź wynik w CRM. Akceptacja zapisuje szkic i przenosi szansę do etapu Skontaktowana; odrzucenie kieruje ją do obserwacji.
+
+Demo korzysta z przygotowanych fikcyjnych źródeł. Nie wymaga dostawcy LLM ani dostępu do zewnętrznych serwisów i nie wysyła wiadomości. Powrót do adresu tej samej sprawy odtwarza jej stan. Przycisk nowej demonstracji tworzy osobny przykład.
+
+Scenariusz wymaga włączonych procesów, workflow i zadań w tle oraz instalacji konfiguracji modułu Fotografowie. Pełne badanie rzeczywistych rejestracji pozostaje kolejną częścią [specyfikacji](.ai/specs/enterprise/2026-09-19-photographer-hidden-potential-mvp.md).

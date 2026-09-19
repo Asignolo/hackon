@@ -26,3 +26,4 @@ export * from './evaluation-validators'
 
 export * from './material-validators'
 export * from './synthetic-workflow-validators'
+export * from './demo-workflow-validators'

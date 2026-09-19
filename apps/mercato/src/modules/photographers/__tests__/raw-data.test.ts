@@ -1,5 +1,5 @@
 import { asValue, createContainer } from 'awilix'
-import type { CommandRuntimeContext } from '@open-mercato/shared/lib/commands'
+import { registerCommand, type CommandRuntimeContext } from '@open-mercato/shared/lib/commands'
 import { makeCrudRoute } from '@open-mercato/shared/lib/crud/factory'
 import { findOneWithDecryption } from '@open-mercato/shared/lib/encryption/find'
 import { emitCrudSideEffects } from '@open-mercato/shared/lib/commands/helpers'
@@ -193,4 +193,10 @@ describe('append-only route', () => {
     const transformItem = config.list?.transformItem as (item: Record<string, unknown>) => Record<string, unknown>
     expect(transformItem({ id: submissionId, first_name: source.firstName, last_name: source.lastName, email: source.email, portfolio_raw: source.portfolioRaw, submitted_at: 'submitted', created_at: 'created', updated_at: 'updated' })).toEqual({ id: submissionId, ...source, submittedAt: 'submitted', customerEntityId: null, createdAt: 'created', updatedAt: 'updated' })
   })
+})
+
+it('allows the registration helper to load in a worker without registering commands', () => {
+  jest.mocked(registerCommand).mockClear()
+  jest.isolateModules(() => { require('../lib/raw-data-create') })
+  expect(registerCommand).not.toHaveBeenCalled()
 })

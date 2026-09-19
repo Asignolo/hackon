@@ -179,3 +179,35 @@ test('scope, ACL, current entity version, material owner, and missing audit serv
   await expect(dispose({ ...input(), tenantId: uuid(50) })).rejects.toMatchObject({ status: 404 })
   await expect(dispose({ ...input(), userId: uuid(50) })).rejects.toMatchObject({ status: 403 })
 })
+
+
+test.each(['approved', 'edited', 'rejected'])('historical %s material survives CRM version changes without a new receipt', async (disposition) => {
+  proposal.disposition = disposition
+  currentVersion = new Date(now + 1000).toISOString()
+  const response = await readProposalReviewMaterials(proposalId, context())
+  expect(response.options[0].materials[1]).toMatchObject({ kind: 'message', data: { body: 'Complete synthetic message' } })
+  expect(log).not.toHaveBeenCalled()
+  await expect(recordProposalReviewAccess(proposalId, context(), { payload: originalPayload(), selectedOptionId: 'first' })).rejects.toMatchObject({ status: 409 })
+})
+
+test('historical material still rejects missing current owners, foreign material identity and denied ACL', async () => {
+  proposal.disposition = 'approved'
+  currentVersion = new Date(now + 1000).toISOString()
+  jest.mocked(findOneWithDecryption).mockImplementation(async (_em, entity) => (entity.name === 'AgentProposal' ? proposal : null) as never)
+  await expect(readProposalReviewMaterials(proposalId, context())).rejects.toMatchObject({ status: 404 })
+  jest.mocked(findOneWithDecryption).mockImplementation(async (_em, entity) => (entity.name === 'AgentProposal' ? proposal : { updatedAt: new Date(currentVersion) }) as never)
+  jest.mocked(readEvaluationMaterial).mockImplementation(async (id) => ({ ...material(id), photographerId: uuid(50) }) as never)
+  await expect(readProposalReviewMaterials(proposalId, context())).rejects.toMatchObject({ status: 409 })
+  grants = []
+  await expect(readProposalReviewMaterials(proposalId, context())).rejects.toMatchObject({ status: 403 })
+  expect(log).not.toHaveBeenCalled()
+})
+
+test('pending preview and approval both retain strict predecision versions', async () => {
+  await readProposalReviewMaterials(proposalId, context())
+  log.mockClear()
+  currentVersion = new Date(now + 1000).toISOString()
+  await expect(readProposalReviewMaterials(proposalId, context())).rejects.toMatchObject({ status: 409 })
+  await expect(dispose()).rejects.toMatchObject({ status: 409 })
+  expect(log).not.toHaveBeenCalled()
+})

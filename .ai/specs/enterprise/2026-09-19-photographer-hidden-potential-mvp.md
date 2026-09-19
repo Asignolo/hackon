@@ -292,6 +292,9 @@ Zatwierdzanie wymaga uprawnienia `agent_orchestrator.proposals.dispose` i ochron
 
 | Endpoint | Żądanie | Odpowiedź |
 |---|---|---|
+| `POST /api/photographers/demo-evaluations` | `{requestId: UUID}`; wyłącznie fikcyjne dane ustalone po stronie serwera. | `202` ze stanem scenariusza, odwołaniami do rejestracji/CRM/procesu/oceny oraz linkami. Ponowienie używa tego samego żądania. |
+| `GET /api/photographers/demo-evaluations/:requestId` | Zakres organizacji oraz prawa do oceny, CRM i procesu. | Bieżący stan i bezpieczne linki; bez uruchamiania efektów zapisu; `Cache-Control: no-store`. |
+| `POST /api/photographers/demo-evaluations/:requestId` | Jawne ponowienie istniejącego scenariusza. | Stan po próbie odzyskania; nie tworzy nowej oceny. |
 | `POST /api/photographers/evaluation-eligibility` | `{photographerId,requestId,status:'no_orders_confirmed',checkedAt,sourceRef}`; uprawniony operator potwierdza sprawdzenie sklepu. | `201 {id,photographerId,expiresAt}`; szyfrowany, idempotentny zapis, server-side confirmedBy. |
 | `POST /api/photographers/evaluations` | `{registrationIds: UUID[1..200], requestId: UUID}`; serwer rozpoznaje wcześniej przetworzone wejścia. Nowa ocena już przypisanej osoby jest jawnie wersjonowanym żądaniem, nie skutkiem ponowienia HTTP. | `202 {progressJobId, requestId}`; wyniki poszczególnych uruchomień w postępie/odwołaniach. |
 | `GET /api/photographers/evaluation-materials/:id` | UUID snapshotu + autoryzowany zakres. | `{id,kind,schemaVersion,evaluationId,data,updatedAt}`; wyłącznie po sprawdzeniu powiązanej osoby, szansy i dostępu. `Cache-Control: no-store`. |
@@ -341,6 +344,16 @@ Po poprawnym odczycie wszystkich wymaganych materiałów serwer zapisuje w istni
 Aplikacyjny interceptor komendy `agent_orchestrator.proposals.dispose`, bez warunku features wyłączającego zabezpieczenie, wymaga zgodnego dowodu przy zatwierdzeniu/edycji wiadomości. Sprawdza ponownie wersje CRM, materiał, właścicieli, wybraną opcję i użytkownika. Dowód jest ważny najwyżej 5 minut; brak wpisu w ograniczonym odczycie ostatnich 100 własnych wpisów oznacza ponowne otwarcie materiałów. Odrzucenie pozostaje standardowe. Zbiorcze zatwierdzenie lub bezpośrednie wywołanie komendy bez dowodu nie omija kontroli. Propozycje innych modułów nie zmieniają zachowania.
 
 Pierwszy przyrost obsługuje `photographers.message_review` i akcję `photographers.message.accept`. Kontrakty `photographers.identity_review` i `photographers.evaluation_review` wymagają dalszego wdrożenia; ich akceptacja pozostaje zablokowana, a nie pozornie obsłużona. Edytor rewizji/wyjątku oraz kompletne przekazanie decyzji do workera należą do kolejnych testowanych kroków.
+
+### Połączony scenariusz demonstracyjny — przyrost fazy 1
+
+Ekran `/backend/photographers/demo` w menu Fotografowie tworzy fikcyjną rejestrację oraz powiązaną osobę i szansę. Pokazuje postęp rzeczywistego procesu, link do propozycji w Caseload i zapisany wynik decyzji. Adaptery portfolio/social dostarczają jawnie oznaczone dane demonstracyjne: nie wykonują badań w sieci ani wywołań LLM. Ten przyrost nie zastępuje docelowej ścieżki prawdziwych rejestracji i partii.
+
+Przygotowanie ma stabilny requestId i techniczne potwierdzenie w istniejącym ModuleConfig, ograniczone do identyfikatorów, operatora i intencji fazy. Nie zmienia czterech oryginalnych pól rejestracji. Usunięty rekord lub nieudowodniony częściowy zapis blokuje ponowienie zamiast odtwarzać osobę. Definicja workflow i proces korzystają z istniejących interfejsów; scheduler oraz kolejka ponawiają bezpieczne kroki. Propozycja wiąże się z konkretną próbą kroku. Ręczny rerun kroku unieważnia ten scenariusz; stara decyzja nie może wznowić nowej próby.
+
+Akceptacja zapisuje dokładnie zatwierdzony szkic w interakcji CRM i etap Skontaktowana, z komunikatem „Zatwierdzono do wysłania”. Odrzucenie zapisuje decyzję i etap Obserwowana. Nie ma wysyłki. Zmiany wersji blokują zapis; undo wymaga zgodnego stanu i dopisuje odwołanie, zachowując oryginalne materiały. Niepewna luka między zatwierdzeniem zapisu CRM a jego audytem pozostaje konfliktem wymagającym sprawdzenia; ponowienie nie przyjmuje automatycznie najnowszej wersji jako własnej.
+
+Strona jest komponentem serwerowym z małą wyspą kliencką. Mutacje korzystają z istniejących guardów, a zmiana organizacji natychmiast usuwa poprzednie odwołania. Stan żądania pozostaje w URL, dzięki czemu powrót z Caseload odtwarza postęp tej samej sprawy.
 
 ### Frontend Architecture Contract
 
@@ -442,6 +455,9 @@ Testy w `apps/mercato/src/modules/photographers/__integration__/`, jeden plik na
 | TC-PHOTOGRAPHERS-020 | Wyłączony Orchestrator/workflows oraz brak providera: rejestracja działa, ocena ma jawny stan niedostępności, ponowienie po naprawie. |
 | TC-PHOTOGRAPHERS-021 | Widget w istniejącym Caseload: pełna treść, zmiana propozycji podczas odczytu, błąd/ponowienie, dotychczasowe zachowanie innych agentów; zatwierdzenie wymaga świeżego dowodu udostępnienia właściwych materiałów. |
 | TC-PHOTOGRAPHERS-022 | Syntetyczny proces na bazie i kolejce local/async: dwie równoległe gałęzie, połączenie wyników, zatrzymanie przed decyzją, duplikat callbacku bez drugiego sygnału i jawna awaria kolejki bez zawieszenia. Nie zastępuje TC-010 ani pełnego testu decyzji człowieka. |
+| TC-PHOTOGRAPHERS-023 | Połączone demo: ekran i POST start, GET stanu, POST odzyskania, prawdziwe wykonanie i run/proposal, odczyt materiałów oraz native dispose approve/reject; pojedynczy skutek CRM, brak wysyłki, ponowienie requestId, izolacja zakresu i brak PII w kontekście procesu. |
+
+Obecny plik TC-023 obejmuje uruchomienie z ekranu, dojście do propozycji oraz wyświetlenie materiałów i natywnych przycisków decyzji. Użytkownik wybrał ręczne sprawdzenie akceptacji i odrzucenia; pozostała macierz TC-023 nie jest oznaczona jako ukończona.
 
 Testy jednostkowe obejmują matcher tożsamości, formuły punktowe, walidatory snapshotów, plan następnego terminu, wybór zatwierdzonej opcji, odrzucanie niedozwolonych akcji i redakcję payloadów. Nie piszemy testów, które tylko kopiują strukturę implementacji.
 
@@ -504,6 +520,8 @@ Po decyzji użytkownika projekt nie dopuszcza zmian frameworka. Wcześniejszy pr
 Syntetyczny workflow dostępny wyłącznie przy `OM_INTEGRATION_TEST=true` służy sprawdzeniu mechanizmu. Jego worker zatrzymuje się przed decyzją; jawny sterownik testu może zasymulować sygnał, ale nie zastępuje propozycji ani decyzji operatora. Nie ma jeszcze produkcyjnego odbiorcy decyzji ani odzyskiwania zadań po wyczerpaniu prób kolejki. Natywne ponowienie od kroku zachowuje kontekst i tworzy nową próbę; obecny worker testowy nie wiąże dowodu operacji z pierwotnym identyfikatorem tej próby. Przed produkcją potrzebne jest takie powiązanie lub kontrola ponowienia przez rozszerzenie aplikacji. Testy jednostkowe nie zamykają tych warunków.
 
 ## Changelog
+
+- 2026-09-19: Połączono gotowe elementy w jawnie fikcyjny scenariusz: ekran startu, przygotowanie CRM, proces dwóch adapterów, Caseload oraz zapis wyniku. Dodano kontrakty trzech tras demo i TC-023; aplikację zbudowano i uruchomiono na porcie 3001. Próba integracyjna ujawniła błędy transakcji, gotowości przycisku i ponownej rejestracji komendy; poprawiono je w module aplikacyjnym. TC-023 nie ma jeszcze końcowego wyniku PASS. Użytkownik wybrał ręczne sprawdzenie pełnego przebiegu po ostatniej poprawce.
 
 - 2026-09-19: Zaimplementowano aplikacyjny magazyn materiałów, podgląd i kontrolę decyzji oraz testowy proces dwóch gałęzi. Zaliczono 128 testów jednostkowych i 6 przypadków integracyjnych na osobnej bazie, kolejkach local/async oraz w przeglądarce. Faza 1 pozostaje w toku; produkcyjne wznowienie po decyzji, odzyskiwanie i dalsze ścieżki biznesowe nie są jeszcze gotowe.
 

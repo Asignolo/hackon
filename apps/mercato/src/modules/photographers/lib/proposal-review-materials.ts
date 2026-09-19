@@ -76,7 +76,7 @@ export async function validateEditedReview(original: MessageReviewEnvelope, edit
   }
 }
 
-export async function readMessageReviewMaterials(payload: MessageReviewActionPayload, ctx: CommandRuntimeContext) {
+async function readReviewMaterials(payload: MessageReviewActionPayload, ctx: CommandRuntimeContext, requireCurrentVersions: boolean) {
   const scope = await requirePhotographerScope(ctx)
   const materials = await Promise.all([payload.factsRef, payload.messageSnapshotId].map(async (id) => materialResponseSchema.parse(await readEvaluationMaterial(id, ctx))))
   const [facts, message] = materials
@@ -88,6 +88,14 @@ export async function readMessageReviewMaterials(payload: MessageReviewActionPay
     findOneWithDecryption(em, CustomerDeal, { id: payload.dealId, ...scope, deletedAt: null }, {}, scope),
   ])
   if (!person || !deal) return reviewError(404, 'material_not_found')
-  if (person.updatedAt.toISOString() !== new Date(payload.expectedVersions.personUpdatedAt).toISOString() || deal.updatedAt.toISOString() !== new Date(payload.expectedVersions.dealUpdatedAt).toISOString()) return reviewError(409, 'material_conflict')
+  if (requireCurrentVersions && (person.updatedAt.toISOString() !== new Date(payload.expectedVersions.personUpdatedAt).toISOString() || deal.updatedAt.toISOString() !== new Date(payload.expectedVersions.dealUpdatedAt).toISOString())) return reviewError(409, 'material_conflict')
   return materials
+}
+
+export async function readMessageReviewMaterials(payload: MessageReviewActionPayload, ctx: CommandRuntimeContext) {
+  return readReviewMaterials(payload, ctx, true)
+}
+
+export async function readHistoricalMessageReviewMaterials(payload: MessageReviewActionPayload, ctx: CommandRuntimeContext) {
+  return readReviewMaterials(payload, ctx, false)
 }

@@ -1,0 +1,83 @@
+{
+  "build": "standard yarn build passed",
+  "appBuildSeconds": 32.952,
+  "setup": "seed:defaults --module photographers completed for3activeorganizations",
+  "schemaMigrationsApplied": false,
+  "port": 3001,
+  "launcherPid": 21879,
+  "loginHttpStatus": 200,
+  "protectedDemoRouteHttpStatus": 307,
+  "environmentFilePreserved": true,
+  "encryptionCacheRestart": true,
+  "encryptionReadiness": [
+    {
+      "organizationId": "70ee5cca-b185-4e7b-9f81-405b3957a3e8",
+      "missingMapsAdded": [
+        "photographers:photographer_evaluation_material"
+      ]
+    },
+    {
+      "organizationId": "70ee5cca-b185-4e7b-9f81-405b3957a3e8",
+      "encryptionEnabled": true,
+      "fieldsEncrypted": {
+        "photographers:photographer_raw_data": true,
+        "photographers:photographer_evaluation_material": true,
+        "customers:customer_entity": true,
+        "customers:customer_person_profile": true,
+        "customers:customer_deal": true,
+        "customers:customer_interaction": true,
+        "audit_logs:action_log": true
+      }
+    },
+    {
+      "organizationId": "0432f61b-71bc-4bbe-ad7b-45758e521866",
+      "missingMapsAdded": [
+        "photographers:photographer_evaluation_material",
+        "customers:customer_entity",
+        "customers:customer_deal",
+        "customers:customer_interaction",
+        "customers:customer_person_profile",
+        "audit_logs:action_log"
+      ]
+    },
+    {
+      "organizationId": "0432f61b-71bc-4bbe-ad7b-45758e521866",
+      "encryptionEnabled": true,
+      "fieldsEncrypted": {
+        "photographers:photographer_raw_data": true,
+        "photographers:photographer_evaluation_material": true,
+        "customers:customer_entity": true,
+        "customers:customer_person_profile": true,
+        "customers:customer_deal": true,
+        "customers:customer_interaction": true,
+        "audit_logs:action_log": true
+      }
+    },
+    {
+      "organizationId": "edb6efab-4e2a-412c-9924-2575d1df3ae3",
+      "missingMapsAdded": [
+        "photographers:photographer_evaluation_material",
+        "customers:customer_entity",
+        "customers:customer_deal",
+        "customers:customer_interaction",
+        "customers:customer_person_profile",
+        "audit_logs:action_log"
+      ]
+    },
+    {
+      "organizationId": "edb6efab-4e2a-412c-9924-2575d1df3ae3",
+      "encryptionEnabled": true,
+      "fieldsEncrypted": {
+        "photographers:photographer_raw_data": true,
+        "photographers:photographer_evaluation_material": true,
+        "customers:customer_entity": true,
+        "customers:customer_person_profile": true,
+        "customers:customer_deal": true,
+        "customers:customer_interaction": true,
+        "audit_logs:action_log": true
+      }
+    }
+  ],
+  "finalBrowserAcceptance": "Pending user verification; TC023 not passed before final helper and hydration fixes",
+  "ownedEphemeralCleanup": "CLI disposed its database after owned application stopped; no test process remains; snapshot removed after evidence retention"
+}

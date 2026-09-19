@@ -6,5 +6,5 @@ export const metadata = {
   pageGroup: 'Photographers',
   pageGroupKey: 'photographers.nav.group',
   pageOrder: 100,
-  icon: 'camera',
+  icon: 'user-plus',
 }

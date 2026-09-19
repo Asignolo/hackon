@@ -3,7 +3,7 @@ import type { AccessLogService } from '@open-mercato/core/modules/audit_logs/ser
 import type { CommandRuntimeContext } from '@open-mercato/shared/lib/commands'
 import type { CommandInterceptor } from '@open-mercato/shared/lib/commands/command-interceptor'
 import { proposalReviewMaterialsResponseSchema, type MessageReviewEnvelope } from '../data/proposal-review-validators'
-import { authorizeProposalReview, loadReviewProposal, manualReviewAgentIds, parseReviewEnvelope, readMessageReviewMaterials, reviewDigest, reviewError, validateEditedReview } from './proposal-review-materials'
+import { authorizeProposalReview, loadReviewProposal, manualReviewAgentIds, parseReviewEnvelope, readHistoricalMessageReviewMaterials, readMessageReviewMaterials, reviewDigest, reviewError, validateEditedReview } from './proposal-review-materials'
 
 const resourceKind = 'photographers.proposal_material'
 const accessType = 'review_material'
@@ -35,13 +35,14 @@ export async function recordProposalReviewAccess(proposalId: string, ctx: Comman
   const original = await parseReviewEnvelope(proposal.payload)
   const envelope = edit ? await parseReviewEnvelope(edit.payload) : original
   if (edit) {
+    if (proposal.disposition !== 'pending') return reviewError(409, 'material_conflict')
     await authorizeProposalReview(ctx, true)
     if (!envelope.options.some((option) => option.id === edit.selectedOptionId)) return reviewError(409, 'invalid_material')
     await validateEditedReview(original, envelope, edit.selectedOptionId)
   }
   const options = await Promise.all(envelope.options.map(async (option) => ({
     selectedOptionId: option.id, label: option.label,
-    materials: await readMessageReviewMaterials(option.actions[0].payload, ctx),
+    materials: await (proposal.disposition === 'pending' ? readMessageReviewMaterials : readHistoricalMessageReviewMaterials)(option.actions[0].payload, ctx),
   })))
   const response = proposalReviewMaterialsResponseSchema.parse({ ...base, options })
   if (proposal.disposition !== 'pending') return response
