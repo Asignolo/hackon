@@ -5,6 +5,10 @@ the boundaries (which label groups exist, the hard merge blocks, the "exactly on
 exactly one risk" rule); everything below is the detail that used to live there. The machine
 readable taxonomy lives in `.ai/agentic.config.json` (`labels.*`, `qaGate`).
 
+## Local validation instead of GitHub Actions
+
+GitHub Actions is not a merge prerequisite in this repository. Validate the reviewed commit locally (or in the configured local Docker environment), and record its SHA, commands, results, and limitations on the PR. Use the configured validation commands for code changes; documentation-only changes require consistency and whitespace checks. Historical pending GitHub checks are not blockers and do not warrant `ci-monitoring`. Local failures, review findings, conflicts, and the existing QA gate remain blockers. See `.ai/skills/om-auto-review-pr/SKILL.md` for the repository override.
+
 ## Label groups
 
 - Pipeline labels are mutually exclusive: `review`, `changes-requested`, `qa`, `qa-failed`, `merge-queue`, `blocked`, `do-not-merge`.
