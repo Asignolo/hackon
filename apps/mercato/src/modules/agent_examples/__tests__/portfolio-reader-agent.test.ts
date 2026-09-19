@@ -184,6 +184,38 @@ describe('O1 OpenCode portfolio discovery contract', () => {
     })).toBe(true)
   })
 
+  it.each(['complete', 'partial', 'no_results'])('supports email discovery with missing portfolio and status %s', (status) => {
+    const noResults = status === 'no_results'
+    expect(accepts({
+      ...completeData,
+      status,
+      portfolio: { kind: 'missing', originalValue: 'brak', normalizedValue: null, resolvedUrl: null, status: 'unresolved' },
+      links: noResults ? [] : completeData.links,
+      nip: noResults ? [] : completeData.nip,
+      city: noResults ? [] : completeData.city,
+      coverage: noResults
+        ? Object.fromEntries(Object.keys(uncheckedCoverage).map((key) => [key, 'not_found']))
+        : completeData.coverage,
+      attempts: [{
+        tool: 'web_search',
+        target: '\"kontakt@studio-fotograficzne.example\"',
+        outcome: noResults ? 'not_found' : 'found',
+        detail: 'Syntetyczne wyszukiwanie pełnego e-maila przy braku portfolio.',
+      }],
+    })).toBe(true)
+  })
+
+  it('renders mandatory email discovery and prevents missing portfolio from ending discovery', () => {
+    const rendered = loadedAgent!.openCodeAgentFile
+    expect(rendered).toContain('For every valid input, first search the exact full registration email in quotes')
+    expect(rendered).toContain('including when portfolio is missing, dead')
+    expect(rendered).toContain('Deduplicate queries and visited URLs across portfolio and email discovery')
+    expect(rendered).toContain('no_portfolio status and stopReason are deprecated')
+    expect(rendered).toContain('Missing or dead portfolio never implies low potential')
+    expect(rendered).not.toContain('make no web calls, return `no_portfolio`')
+    expect(rendered).not.toContain('prawdopodobnie nie\njest to klient docelowy')
+  })
+
   it('preserves competing NIP candidates and invalid-checksum evidence for review', () => {
     expect(accepts({
       ...completeData,

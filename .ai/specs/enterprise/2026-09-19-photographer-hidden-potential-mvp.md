@@ -116,9 +116,8 @@ Kontekst początkowy zawiera identyfikatory: `registrationId`, `photographerId`,
 ```mermaid
 flowchart TD
     START[Rejestracja lub partia] --> PREP[Powiązanie osoby i szansy; kontrola uruchomienia]
-    PREP --> O1[O1: odczyt portfolio]
-    O1 --> O2[O2: dalsze poszukiwania]
-    O2 --> ID[Reguły powiązania śladów]
+    PREP --> O1[O1: odkrycie przez portfolio i e-mail]
+    O1 --> ID[K1: reguły powiązania śladów]
     ID -->|Konkretna niepewna propozycja| HUMAN_ID[Caseload: przypisanie śladu]
     HUMAN_ID --> ACCEPTED[Zestaw dopuszczonych śladów]
     ID -->|Rozstrzygnięte ślady| ACCEPTED
@@ -153,7 +152,6 @@ Graf pokazuje logikę biznesową. Każda propozycja przechodzi pełną politykę
 | Krok | Wykonawca | Wejście → wynik |
 |---|---|---|
 | O1 | Agent OpenCode `agent_examples.portfolio_reader_o1` | `originalPortfolio`, `registrationEmail`, `firstName`, `lastName` → research: WWW, kontakt, Instagram, Facebook, Google Maps, kandydaci NIP i miasto, ze źródłami i pewnością. Krok `o1` w nieaktywnym szkielecie wywołuje agenta i mapuje `data` do `context.o1`; przygotowanie danych rejestracji przed tym krokiem pozostaje do wdrożenia. Szczegóły: [kontrakt O1](2026-09-19-o1-portfolio-reader-agent.md). |
-| O2 | Agent OpenCode `photographers.trace_finder` | Rejestracja i O1 → ślady ze strony/stopki, wyszukania e-maila i kandydatów rejestrowych. Brak wyniku O1 nie pomija O2. |
 | K1 | Kod domenowy i adapter propozycji | Porównania ze źródłami → potwierdzone ślady lub konkretna propozycja do decyzji; niepotwierdzone pozostają poza badaniem. |
 | A2 | Agent OpenCode `photographers.social_researcher` | Potwierdzone konta → liczby, daty, posty i informacja o druku. Wspólna funkcja liczy zaangażowanie i wzrost. |
 | A3 | Agent OpenCode `photographers.portfolio_researcher` | Potwierdzone portfolio/strona/galeria/Maps → kategoria, aktualność, rezerwacje, system galerii, opinie. |
@@ -162,7 +160,9 @@ Graf pokazuje logikę biznesową. Każda propozycja przechodzi pełną politykę
 | Punktacja | Kod domenowy i adapter propozycji | Fakty i wersja reguł → punkty, pozycje uzasadnienia, flagi i dopuszczalne akcje. |
 | A4 | Agent OpenCode `photographers.message_writer` | Zatwierdzona kwalifikacja, kategoria, galeria, dozwolone portfolio → pełny szkic; adapter tworzy propozycję jego akceptacji z `alwaysAsk: true`. |
 
-Agenci O1/O2/A2/A3 oraz A4 zwracają `research`; po A4 adapter publikuje propozycję odnoszącą się do utrwalonej wiadomości. Ten podział chroni treść przed skopiowaniem do nieszyfrowanego workflow. Wyniki weryfikuje Zod i istniejące guardraile. Pliki `AGENT.md`, `OUTCOME.md`, `FACTS.json` i umiejętności leżą pod `photographers/agents/`; używają wspieranego podzbioru JSON Schema. Narzędzia są wyłącznie do odczytu, z najwęższym zakresem per rola. Narzędzia wyszukiwania to istniejące `agent_orchestrator.web_search` i `agent_orchestrator.web_fetch`, a nie swobodna sieć w skryptach OpenCode.
+O1 nie odpytuje rejestrów. Pozyskiwanie kandydatów rejestrowych pozostaje przyszłym rozszerzeniem, a ocena pewności O1 nie zastępuje reguł K1. Brak lub niedostępność portfolio nie kończy odkrycia: O1 zaczyna od pełnego e-maila w cudzysłowie, a kolejne ślady sprawdza w tym samym budżecie. Adapter `photographers.o1.store_result` zapisuje ślady O1, w tym NIP i miasto, jako niepotwierdzone do kontroli K1. Przekazanie identyfikatora uruchomienia z workflow do adaptera pozostaje do podłączenia; szkielet jest nadal wyłączony.
+
+Agenci O1/A2/A3 oraz A4 zwracają `research`; po A4 adapter publikuje propozycję odnoszącą się do utrwalonej wiadomości. Ten podział chroni treść przed skopiowaniem do nieszyfrowanego workflow. Wyniki weryfikuje Zod i istniejące guardraile. Istniejący O1 pozostaje w `agent_examples/agents/portfolio_reader_o1/`. Pliki przyszłych agentów `AGENT.md`, `OUTCOME.md`, `FACTS.json` i umiejętności mają leżeć pod `photographers/agents/`; używają wspieranego podzbioru JSON Schema. Narzędzia są wyłącznie do odczytu, z najwęższym zakresem per rola. Narzędzia wyszukiwania to istniejące `agent_orchestrator.web_search` i `agent_orchestrator.web_fetch`, a nie swobodna sieć w skryptach OpenCode.
 
 Każda gałąź zapisuje osobny wynik; agent nie modyfikuje wspólnego kontekstu workflow. Definicja jawnie mapuje wyłącznie bezpieczne odwołania przez `outputMapping`; wynik `EXECUTE_FUNCTION` znajduje się pod `result`. Surowy wynik agenta `data` pozostaje w warstwie Orchestratora i szyfrowanym materiale; nie jest mapowany do workflow. Scalenie czeka na wszystkie trzy gałęzie, również zakończone kontrolowaną niedostępnością. Nowy ślad znaleziony podczas badania wraca do potwierdzenia przed użyciem; w MVP może pozostać zapisany jako kandydat do następnej oceny, bez nieograniczonej pętli poszukiwań.
 
@@ -371,7 +371,7 @@ Weryfikacja UI: ładowanie i interakcje obu widoków Caseload, hydratacja, konfl
 
 | Zdarzenie | Reakcja i widoczny stan |
 |---|---|
-| Martwe portfolio | O2 sprawdza pozostałe drogi. Dopiero zakończone bez wyniku poszukiwania dają 180 dni obserwacji. |
+| Brak lub martwe portfolio | O1 kontynuuje po e-mailu i pozostałych wskazówkach rejestracji. Dopiero zakończone bez wyniku poszukiwania dają 180 dni obserwacji. |
 | Logowanie, blokada lub limit źródła | `blocked/unavailable/timeout`; brak zer zastępujących liczby. Pozostałe gałęzie pracują, wynik wskazuje zakres braków. |
 | Sprzeczność śladów | Niepotwierdzony ślad bez punktów; konkretna możliwa do rozstrzygnięcia propozycja idzie do człowieka. |
 | Błąd jednej gałęzi | Ograniczone ponowienia; scalenie dostaje jawny status. Błąd walidacji nie przechodzi jako poprawne badanie. |
@@ -478,7 +478,7 @@ Każda faza jest wdrażalnym przyrostem jednej funkcjonalności; nie włącza ni
 
 ### Faza 2 — odkrycie i badanie
 
-- [ ] **2.1. O1 i O2.** Agenci plikowi, read-only narzędzia, obsługa portfolio raw, źródła i limity; deklaracje FACTS oraz syntetyczne SAMPLE. Test: martwe portfolio, nazwa konta, własna domena, brak trafień i przerwane poszukiwania.
+- [ ] **2.1. O1.** Jeden agent plikowy dla portfolio i wyszukiwania po e-mailu także bez portfolio, read-only narzędzia, obsługa portfolio raw, źródła i limity; deklaracje FACTS oraz syntetyczne SAMPLE. Test: brak portfolio z trafieniem po e-mailu, martwe portfolio, nazwa konta, własna domena, brak trafień, przerwane poszukiwania i przejście O1 → K1 bez O2.
 - [ ] **2.2. K1.** Wersjonowany matcher z regułą Q1, propozycje częściowych powiązań i pamięć odrzuceń. Test: TC-005/006; bez danych rejestrowych przed dopuszczeniem wpisu.
 - [ ] **2.3. A2/A3/R1.** Równoległe zadania, źródła społecznościowe/portfolio/Maps i adapter rejestrów używający zabezpieczonego klienta platformy. Test: TC-007 i próbny odczyt dostępnych źródeł live. Brak dostępu musi być jawny; nie dodawać zależności ani obchodzić blokad serwisów.
 - [ ] **2.4. Scalenie i historia.** Jeden właściciel każdej kategorii faktu, snapshot aktualny i różnica do poprzedniej oceny. Test: sprzeczności, częściowe źródła, odwrócona kolejność gałęzi, rozmiar snapshotu i zaszyfrowane CF.
@@ -516,6 +516,8 @@ Po decyzji użytkownika projekt nie dopuszcza zmian frameworka. Wcześniejszy pr
 Syntetyczny workflow dostępny wyłącznie przy `OM_INTEGRATION_TEST=true` służy sprawdzeniu mechanizmu. Jego worker zatrzymuje się przed decyzją; jawny sterownik testu może zasymulować sygnał, ale nie zastępuje propozycji ani decyzji operatora. Nie ma jeszcze produkcyjnego odbiorcy decyzji ani odzyskiwania zadań po wyczerpaniu prób kolejki. Natywne ponowienie od kroku zachowuje kontekst i tworzy nową próbę; obecny worker testowy nie wiąże dowodu operacji z pierwotnym identyfikatorem tej próby. Przed produkcją potrzebne jest takie powiązanie lub kontrola ponowienia przez rozszerzenie aplikacji. Testy jednostkowe nie zamykają tych warunków.
 
 ## Changelog
+
+- 2026-09-19: Na decyzję użytkownika scalono odkrycie w O1 i usunięto rolę O2. Brak portfolio uruchamia wyszukiwanie po e-mailu. K1 zachowuje decyzję o przypisaniu śladów; odpytywanie rejestrów nie jest częścią obecnego O1.
 
 - 2026-09-19: Naprawiono zakończenie demonstracji po akceptacji i odrzuceniu: ograniczono pola zapytania o propozycję, poprawiono odczyt szyfrowanych potwierdzeń komend i stan kroku widziany przez finalizator oraz walidację metadanych harmonogramu. Usunięto też wyścig początkowej inicjalizacji organizacji z przyciskiem Start. TC-023 obejmuje obie decyzje, a cztery wcześniej zatrzymane demonstracje odzyskano przez istniejący mechanizm. Nazwy etapów, brak wysyłki i zakres MVP pozostają bez zmian. Dowody i końcowe wyniki w PLAN.md.
 
@@ -585,7 +587,9 @@ Walidacja lokalna: 245 testów modułu; TC-002 3/3 obejmuje API i ponowienia, fo
 Użytkownik usunął wymóg potwierdzenia braku zamówień: jest to założenie wejścia do procesu. Zastąpiono wynik przygotowania CRM przez `ready` i usunięto komunikat/formularz potwierdzenia z planowanego przebiegu. Nie dodano startu badania ani kolejnego przyrostu. Dawne kontrakty materiału `eligibility` i pole konfiguracji ważności pozostają wyłącznie dla zgodności z istniejącymi danymi/testami magazynu; nie są warunkiem procesu ani zadaniem do wdrożenia. Schemat odpowiedzi przyjmuje dawny status dla zgodności, ale serwer zwraca `ready`.
 
 
-### O2 — dopasowanie do szkieletu workflow, 2026-09-19
+### Historyczny wycinek O2 — zastąpiony przez O1, 2026-09-19
+
+Poniższy zapis dotyczy wycofanego wycinka i dawnych wyników walidacji. Nie jest aktualnym planem ani instrukcją ponownego podłączenia O2. Aktualny szkielet prowadzi bezpośrednio z O1 do K1; O1 przejmuje wyszukiwanie po e-mailu również bez portfolio.
 
 Zakres tej iteracji: definicja plikowa `photographers.trace_finder` i przekazanie jej wyniku z kroku `o2` do `identity` w nieaktywnym szkielecie z commitu `cc9e576d`. O2 szuka po oryginalnym e-mailu, zwraca najwyżej pięciu kandydatów i źródła; nie wymaga O1 ani Apify. Nie potwierdza tożsamości. Jest to ograniczony wycinek O2, nie ukończenie całego badania.
 
@@ -593,4 +597,4 @@ Adapter `photographers.o2.store_result` przyjmuje wyłącznie `runId`, sprawdza 
 
 Potwierdzono kod: 40 testów w czterech zestawach, typecheck aplikacji, lint zmienionych plików i generowanie. Runner local. Generowanie wykonano w odizolowanej kopii źródeł; znaleziono agenta w wygenerowanym rejestrze, bez zmian frameworka w repozytorium. Nie zmieniono API ani schematu bazy.
 
-**Niepotwierdzone w aplikacji:** rzeczywiste wyszukiwanie, uruchomienie O2 przez workflow i zapis wyniku na żywej bazie. Szkielet pozostaje wyłączony, bez wyzwalaczy; nie dodano wywołania agenta, workera ani oczekiwania na wynik. Rejestru działającej aplikacji nie przebudowano i aplikacji nie restartowano. Następna uzgadniana iteracja musi podłączyć wykonanie O2 oraz sprawdzić pojedynczą rejestrację od wejścia do zapisanego wyniku. Brak migracji, resetów i zmian `packages/**`. Zatrzymano pracę na informację zwrotną.
+**Niepotwierdzone w aplikacji:** rzeczywiste wyszukiwanie, uruchomienie O2 przez workflow i zapis wyniku na żywej bazie. Szkielet pozostaje wyłączony, bez wyzwalaczy; nie dodano wywołania agenta, workera ani oczekiwania na wynik. Rejestru działającej aplikacji nie przebudowano i aplikacji nie restartowano. Dawny plan podłączenia O2 jest anulowany; dalsza integracja dotyczy wyłącznie O1 → K1 i sprawdzenia pojedynczej rejestracji od wejścia do zapisanego wyniku. Brak migracji, resetów i zmian `packages/**`. Zatrzymano pracę na informację zwrotną.

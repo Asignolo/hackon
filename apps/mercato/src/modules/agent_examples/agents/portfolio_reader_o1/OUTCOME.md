@@ -467,15 +467,18 @@ another failed attempt, use found and record the failure in attempts/summary.
 
 Status and stopping rules:
 - complete requires all five link types confirmed, at least one confirmed checksum-valid NIP,
-  approvalRequired false, all coverage found, portfolio.status resolved, and search_exhausted.
+  approvalRequired false, all coverage found, and search_exhausted. A missing or dead supplied
+  portfolio does not prevent complete discovery from email; its own status remains unresolved.
+  A discovered website belongs in links, never replaces the original supplied portfolio.
 - partial means at least one sourced item exists but complete is not justified. Missing city
   alone is not a reason for partial. A single confirmed profile without the other targets is partial.
 - no_results means links/nip/city are all empty after attempted discovery. stopReason and coverage
   distinguish a completed negative search from unfinished checks and infrastructure failures.
-- no_portfolio requires portfolio.kind missing, unresolved portfolio, null normalized/resolved
-  values, empty item/attempt arrays, all coverage not_checked, approvalRequired false and
-  stopReason no_portfolio. Summary says no portfolio was supplied and the registrant is probably
-  not a target customer; it must not assert that they are not a photographer.
+- no_portfolio status and stopReason are deprecated, retained only so historical results remain
+  readable. Never emit them in new runs. For missing portfolio, keep portfolio.kind missing,
+  status unresolved and normalizedValue/resolvedUrl null; search the exact full email and
+  return complete, partial or no_results according to evidence and actual stopping conditions.
+  Missing or dead portfolio never implies low potential or that the person is not a target customer.
 - invalid_input requires unresolved portfolio, null resolvedUrl, empty item/attempt arrays,
   all coverage not_checked, approvalRequired false and stopReason invalid_input. Describe the
   malformed input briefly without inventing replacement values.

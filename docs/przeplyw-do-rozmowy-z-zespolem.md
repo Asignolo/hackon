@@ -1,8 +1,8 @@
 # Ocena fotografa: przepływ do rozmowy z zespołem
 
-Propozycja po rozbiciu A1 na mniejsze zadania. Ten podział zastępuje wcześniejszy pomysł jednego agenta odkrycia. Reguły biznesowe pochodzą z [procesu oceny](proces-oceny.md); zmiany wymagające ustalenia z zespołem zebrano na końcu.
+Decyzja z 19.09.2026: jeden agent odkrycia O1 zbiera ślady, a osobny krok K1 sprawdza ich przypisanie. Usuwamy osobnego agenta O2. Reguły biznesowe pochodzą z [procesu oceny](proces-oceny.md); zmiany wymagające ustalenia z zespołem zebrano na końcu.
 
-Open Mercato Agent Orchestrator prowadzi ocenę jednego fotografa. Uruchamia zadania, zbiera wyniki, zatrzymuje pracę przed wymaganą decyzją człowieka i wykonuje zatwierdzone zmiany. Odkrycie składa się z dwóch zadań dla agentów i osobnego kroku, który nadaje śladom status według reguł.
+Open Mercato Agent Orchestrator prowadzi ocenę jednego fotografa. Uruchamia zadania, zbiera wyniki, zatrzymuje pracę przed wymaganą decyzją człowieka i wykonuje zatwierdzone zmiany. Odkrycie wykonuje O1; K1 nadaje śladom status według reguł.
 
 ## 1. Od rejestracji do potwierdzonych śladów
 
@@ -12,8 +12,7 @@ Open Mercato Agent Orchestrator prowadzi ocenę jednego fotografa. Uruchamia zad
 flowchart TD
     REG["Rejestracja lub partia<br/>Imię · nazwisko · e-mail · portfolio"]
     START["Kod: rozpocznij ocenę<br/>Jedna szansa, bez równoczesnej oceny"]
-    O1["O1 · Odczyt portfolio · AI<br/>Rozpoznaj wpis, otwórz portfolio<br/>Zbierz adresy i inne ślady"]
-    O2["O2 · Dalsze poszukiwania · AI<br/>Własna strona i stopka → e-mail w wyszukiwarce<br/>→ kandydaci w rejestrach"]
+    O1["O1 · Odkrycie · AI<br/>Portfolio, własna strona i kontakt<br/>Wyszukiwanie po e-mailu także bez portfolio"]
     K1["K1 · Sprawdzenie tożsamości · kod<br/>Porównaj ślady z danymi z rejestracji<br/>Nadaj status i zapisz „skąd”"]
     CLASS{"Wynik dla danego śladu"}
     POLICY["Ślad potwierdzony<br/>Propozycja tożsamości → polityka zatwierdzania"]
@@ -24,10 +23,8 @@ flowchart TD
     RESEARCH["Badanie tylko po potwierdzonych śladach"]
     WAIT["Obserwowana<br/>Brak użytecznych śladów po wyczerpaniu poszukiwań<br/>Kolejna ocena za 180 dni"]
     REG --> START --> O1
-    O1 -->|"Ślady lub zapis przyczyny ich braku"| O2
-    REG -.->|"Imię, nazwisko, e-mail"| O2
-    O1 -.->|"Portfolio wskazane przez fotografa"| K1
-    O2 -->|"Ślady do sprawdzenia + skąd"| K1
+    O1 -->|"Ślady do sprawdzenia + skąd lub przyczyna ich braku"| K1
+    REG -.->|"Oryginalne dane rejestracji"| K1
     K1 --> CLASS
     CLASS -->|"Potwierdzony"| POLICY
     CLASS -->|"Jeden kandydat, jeden zgodny ślad"| HUMAN
@@ -85,33 +82,22 @@ Odrzucenie propozycji pomija jej wykonanie. Nie oznacza automatycznej przegranej
 
 ## Co dokładnie robi każde zadanie
 
-### O1. Odczyt portfolio
+### O1. Odkrycie
 
-**Dostaje:** oryginalne portfolio, imię i nazwisko z rejestracji.
+**Dostaje:** oryginalne portfolio, e-mail, imię i nazwisko z rejestracji.
 
-1. Rozpoznaje, czy wpis jest adresem strony, profilu, galerii, samą nazwą konta czy wpisem typu „brak”.
-2. Otwiera podane miejsce. Samą nazwę konta sprawdza najpierw na Instagramie, potem na Facebooku.
-3. Z dostępnego opisu zbiera nazwisko, miasto, e-mail kontaktowy, odsyłacz do własnej strony i ewentualny NIP.
-4. Przy każdym ustaleniu zapisuje, gdzie je znalazł. Jeśli portfolio jest martwe, puste lub nie pozwala ustalić tożsamości, zapisuje powód i przekazuje pracę dalej.
+1. Rozpoznaje adres strony, profilu, galerii, nazwę konta lub wpis typu „brak”. Pierwsze wyszukiwanie wykonuje po pełnym e-mailu w cudzysłowie; następnie odczytuje dostępne portfolio i zbiera odsyłacze.
+2. Sprawdza znalezioną własną stronę oraz kontakt, stopkę, informacje o autorze i informacje prawne. Szuka nazwiska, miasta, NIP-u i powiązań z fotografem.
+3. Sprawdza kandydatów znalezionych po e-mailu oraz uzupełnia brakujące ślady przez nazwisko, markę lub własną domenę. Robi to również przy pustym albo martwym portfolio. Domena publicznej poczty nie jest stroną fotografa.
+4. Zwraca stronę, kontakt, Instagram, Facebook, Google Maps, kandydatów NIP i miasto wraz ze źródłami, oceną pewności i zakresem wykonanych poszukiwań. Nie wymyśla adresów ani nie wybiera arbitralnie osoby o tym samym nazwisku.
 
-**Oddaje:** rozpoznane portfolio, znalezione adresy i inne ślady ze źródłami. O1 nie przeszukuje rejestrów ani nie mierzy aktywności konta. Jego zadanie kończy się po odczycie wskazanego portfolio i zebraniu odsyłaczy do dalszego sprawdzenia.
+**Oddaje:** jeden wynik `research` dla K1. Ocena pewności modelu nie zastępuje decyzji K1 ani wymaganej decyzji człowieka. O1 nie mierzy aktywności, nie punktuje i nie odpytuje rejestrów. Wyszukiwanie kandydatów w rejestrach pozostaje przyszłym, niewdrożonym rozszerzeniem; nie jest ukrytym zadaniem usuniętego O2.
 
-### O2. Dalsze poszukiwania
-
-**Dostaje:** imię, nazwisko, e-mail oraz wynik O1, także wtedy, gdy O1 nic nie znalazł.
-
-1. Sprawdza własną stronę znalezioną w portfolio lub wynikającą z domeny e-maila. Domena publicznej poczty nie jest stroną fotografa.
-2. Czyta kontakt, stopkę, regulamin i politykę prywatności. Szuka nazwiska, miasta, NIP-u oraz danych łączących stronę z fotografem.
-3. Wyszukuje pełny e-mail w cudzysłowie. Trafienia w agregatorach zapisuje jako ślady niepotwierdzone.
-4. Szuka kandydatów w rejestrach. Korzysta z wcześniejszych ustaleń, żeby zawęzić wyszukiwanie po nazwisku.
-
-**Oddaje:** listę kandydatów z polem „skąd”. Nie wskazuje arbitralnie zwycięzcy spośród kilku osób o tym samym nazwisku. Nie zbiera jeszcze pełnego zestawu faktów do punktacji.
-
-O2 ma ustaloną listę ścieżek, po której kończy poszukiwania. Budżet wywołań narzędzi i czas pracy wymagają ustalenia przez zespół. Awarię narzędzia zapisujemy osobno od wyniku „brak trafień”; ponowienia mają limit.
+O1 ma wspólny budżet: 10 wyszukiwań, 15 odczytów stron, głębokość dwa i pięć minut, z jednym ponowieniem błędu przejściowego w tych samych limitach. Awarię narzędzia i wyczerpanie budżetu zapisuje osobno od zakończonych poszukiwań bez trafień. Brak portfolio sam w sobie nie kończy odkrycia.
 
 ### K1. Sprawdzenie tożsamości
 
-**Dostaje:** cztery dane z rejestracji i ślady z O1 oraz O2.
+**Dostaje:** cztery dane z rejestracji i wynik O1.
 
 Sprawdza każdy ślad osobno według reguł z dokumentacji. Portfolio podane przez fotografa jest potwierdzone z definicji. Dla wpisu CEIDG lub VAT wymagana jest zgodność nazwiska i co najmniej jednego zgodnego śladu z innej ścieżki wskazanego w §6.4 procesu. Sam NIP z agregatora nie wystarcza. Kilka kopii tej samej informacji nie powinno być traktowane jako niezależne potwierdzenia.
 
@@ -156,10 +142,10 @@ Pisze trzy zdania i jedną propozycję, np. próbkę lub test druku. Treść mo�
 
 ## Decyzje do przegadania z zespołem
 
-1. **Granice poszukiwania.** Jaki czas i budżet narzędzi dajemy O2? Co robimy, gdy limit skończy się przed sprawdzeniem wszystkich ścieżek?
+1. **Granice poszukiwania.** O1 ma opisane wyżej limity. Jak proces ma obsłużyć niepełny wynik po ich wyczerpaniu, zanim wdrożymy pełną ocenę?
 2. **Reguły tożsamości.** Dokumentacja dopuszcza zgodność nazwiska i jednego zgodnego śladu z innej ścieżki, w tym fotograficznego PKD. Czy to wystarcza przy popularnym nazwisku? Diagram zachowuje tę regułę; zespół powinien ją świadomie potwierdzić lub zaostrzyć.
 3. **Punkty a pewność.** Proponujemy oddzielić potencjał fotografa od pewności poprawnego zastosowania reguł. W przeciwnym razie niski wynik może kierować zwykłą obserwację do Caseload.
 4. **Znaczenie etapów.** Proponujemy ustawiać Do kontaktu dopiero po przygotowaniu wiadomości. Dla Do weryfikacji trzeba rozdzielić zapis stanu oczekiwania od propozycji dalszego działania, na którą czeka człowiek.
 5. **Demo a faktyczny kontakt.** Na demo zatwierdzona wiadomość oznacza Skontaktowana, choć wysyłka jest ręczna. Docelowo proponujemy zmieniać etap po potwierdzeniu wysyłki.
 
-Podział O1/O2/K1, współdzielenie pobranego materiału i opisane doprecyzowania są projektem zespołu, a nie gotowym przepływem dostarczanym przez Open Mercato. Potwierdzone mechanizmy platformy i źródła opisano w [dokumencie orkiestracji](orkiestracja-agentow.md#Weryfikacja-z-Open-Mercato).
+Podział O1/K1, współdzielenie pobranego materiału i opisane doprecyzowania są projektem zespołu, a nie gotowym przepływem dostarczanym przez Open Mercato. Potwierdzone mechanizmy platformy i źródła opisano w [dokumencie orkiestracji](orkiestracja-agentow.md#Weryfikacja-z-Open-Mercato).

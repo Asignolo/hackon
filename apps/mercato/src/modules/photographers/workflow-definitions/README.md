@@ -2,7 +2,7 @@
 
 `hidden-potential.v1.json` to wersjonowany dokument wejściowy istniejącego API
 `POST /api/workflows/definitions`, z identyfikatorem `photographers.hidden_potential`.
-Zawiera 24 kroki, 34 połączenia, nazwy, opisy wejścia/wyniku oraz pozycje w istniejącym
+Zawiera 23 kroki, 33 połączenia, nazwy, opisy wejścia/wyniku oraz pozycje w istniejącym
 edytorze Automatyzacji. Krok O1 ma konfigurację wywołania istniejącego agenta;
 cały proces nadal pozostaje nieaktywnym szkieletem.
 
@@ -12,8 +12,8 @@ Definicja ma `enabled: false` i `definition.triggers: []`. Silnik odmawia startu
 wyłączonej definicji także przy podaniu konkretnej wersji. Samo `lifecycle: draft`
 nie stanowi takiej blokady; dokument nie polega na tym polu.
 
-O1 ma aktywność `INVOKE_AGENT`. Na przejściu `o2_identity_3` podłączony jest
-adapter zapisu ukończonego wyniku O2; sam nie uruchamia agenta i odmawia pracy
+O1 ma aktywność `INVOKE_AGENT`. Na przejściu `o1_identity_2` podłączony jest
+adapter zapisu ukończonego wyniku O1; sam nie uruchamia agenta i odmawia pracy
 bez zgodnego przebiegu. Pozostałe kroki nadal czekają na implementację.
 Wyjścia z niewdrożonych kroków mają `trigger: manual`, aby nie przechodziły
 samoczynnie. To techniczny stan niepodłączonego grafu, **nie dodatkowe decyzje
@@ -34,8 +34,7 @@ w inspektorze edytora. Dokument nie deklaruje nowego modelu danych.
 | Kroki | Istniejący kontrakt / przyszłe podłączenie |
 | --- | --- |
 | Wejście, przygotowanie | `photographers.registration.prepare_crm`, wejście `{ registrationId }`, wynik `RegistrationCrmResult` ze stanem `ready` i `photographerId`, `personId`, `dealId`. Rejestracja pozostaje niezmieniona; ponowienie wykorzystuje istniejącą osobę i szansę. |
-| O1 | Podłączony `agent_examples.portfolio_reader_o1`: `originalPortfolio`, `registrationEmail`, `firstName`, `lastName` z kontekstu → wynik `research` pod `context.o1`. Przygotowanie wejścia z rejestracji i dalsze użycie wyniku pozostają niepodłączone. |
-| O2 | `photographers.trace_finder`: `registrationId`, `firstName`, `lastName`, `email`, opcjonalne `portfolioRaw` → research `status`, `candidates` (`url`, `kind`, `name`, `evidence`, `sourceUrl`), `summary`, `issues`. Nie wymaga O1. Adapter `photographers.o2.store_result` na wyjściu kroku zapisuje `tracesSnapshotSchema` z ukończonego `AgentRun`. Samo uruchamianie agenta i rozszerzenie o wynik O1 pozostają niepodłączone. |
+| O1 | Podłączony `agent_examples.portfolio_reader_o1`: `originalPortfolio`, `registrationEmail`, `firstName`, `lastName` z kontekstu → wynik `research` pod `context.o1`. Adapter `photographers.o1.store_result` zapisuje ślady przed krokiem identity. Przygotowanie wejścia z rejestracji i przekazanie `o1RunId` pozostają niepodłączone. |
 | Przypisanie, decyzja, dopuszczone ślady | `traceEvidenceSchema`, `tracesSnapshotSchema` i natywne propozycje Caseload. Odrzucony ślad nie trafia do badania; pozostałe potwierdzone mogą trafić. Brak konkretnej propozycji nie tworzy pustego zadania. |
 | A2 | `researchFactSchema`, `owner: social`; docelowo `photographers.social_researcher`. |
 | A3 | `researchFactSchema`, `owner: portfolio`; docelowo `photographers.portfolio_researcher`. |
@@ -61,39 +60,39 @@ Obecne podłączenie O1 oczekuje czterech jawnych wartości w kontekście testow
 odczyt rejestracji przez wcześniejszy krok `prepare`, przekazanie tych wartości
 oraz adapter wyniku do materiałów nadal wymagają implementacji przed włączeniem procesu.
 
-### O2 — kontrakt adaptera wyjścia
+### O1 — kontrakt adaptera wyjścia
 
-Agent otrzymuje wyłącznie oryginalne pola jednej rejestracji, odczytane i
-odszyfrowane przez zaufanego wykonawcę. `prepareTraceFinderInput` wybiera te pola;
-nie przekazuje całego rekordu CRM ani kontekstu workflow. Identyfikator agenta to
-`photographers.trace_finder`, workflow `photographers.hidden_potential`, krok `o2`.
+Jedynym agentem odkrycia jest `agent_examples.portfolio_reader_o1`, krok `o1`.
+Odczytuje portfolio i wyszukuje pełny e-mail także przy braku portfolio.
+Wejście obejmuje `originalPortfolio`, `registrationEmail`, `firstName`, `lastName`.
+Nie ma osobnego kroku ani uruchamialnej definicji agenta O2.
 
-Po zakończeniu wykonawca zachowuje w kontekście tylko `o2RunId`. Przejście do
-`identity` wywołuje `photographers.o2.store_result` z tym UUID. Adapter wymaga
-zakończonego runu `research`, właściwego workflow/kroku/próby oraz dokładnie tej
-samej rejestracji. Kontroluje zakres organizacji i uprawnienia; oryginalne dane
-rejestracji porównuje z wejściem runu. Nie przyjmuje od klienta wyniku modelu.
-Pierwszy przyrost odmawia zapisu po natywnym rerun kroku (więcej niż jedna próba).
+Przejście `o1_identity_2` wywołuje `photographers.o1.store_result` z `o1RunId`.
+Adapter czyta ukończony `AgentRun` ze zgodnym agentem, workflow, krokiem i próbą.
+Sprawdza uprawnienia, organizację i zgodność wejścia z oryginalną rejestracją;
+nie przyjmuje wyniku modelu od klienta. Ponowienie zapisu tego samego runu jest
+idempotentne. Pierwszy przyrost nadal odmawia zapisu po natywnym rerun kroku.
+
+Linki, NIP i miasto trafiają do materiału śladów wraz ze źródłami. Wszystkie
+pozostają `unconfirmed` do K1, niezależnie od oceny `confidence` modelu.
+Kontakt jest zapisywany jako ślad typu `website`. K1 odczytuje oryginalne portfolio
+z rejestracji, a jego rozpoznanie z utrwalonego runu O1. Sam `resolvedUrl` bez
+źródła nie tworzy nowego śladu. Pochodzenie fragmentu, ocena modelu i wynik
+kontroli NIP pozostają w opisie dowodu, aby K1 nie utracił informacji o ograniczeniach. Wynik adaptera zawiera wyłącznie
+`runId`, `tracesRef` i `status`; pełne badanie pozostaje przy runie i w materiale.
+Niepełne odczyty, awarie i wyczerpany budżet nie oznaczają wyczerpania poszukiwań.
+Historyczny wynik `no_portfolio` również nie uprawnia do zakończenia odkrycia.
 
 Kontekst oceny musi dostarczyć `registrationId`, `photographerId`, `personId`,
-`dealId`, `evaluationId` i `evaluatedAt`. Adapter zapisuje materiał przez istniejącą
-komendę `photographers.evaluation.store_material`; ponowienie tego samego runu
-używa tego samego klucza operacji. Wynik aktywności `o2Result.result` zawiera tylko
-`runId`, `tracesRef`, `status`. Pełne `summary` i `issues` pozostają przy runie,
-a dowody kandydatów w szyfrowanym materiale. Dane osobowe nie są wynikiem aktywności.
+`dealId`, `evaluationId` i `evaluatedAt`. Bezpieczne przekazanie identyfikatora
+utrwalonego runu do `o1RunId` oraz przygotowanie wejścia nadal wymagają podłączenia.
+Sam adapter nie uruchamia agenta i nie włącza procesu. Istniejące testowe mapowanie
+`context.o1` pozostaje w szkielecie; nie stanowi produkcyjnego transportu materiału.
+Przed publikacją trzeba zastąpić je bezpiecznymi odwołaniami.
 
-Wszystkie ślady są `unconfirmed`. `other` oznacza ogólną stronę WWW i jest mapowane
-na `website`; fragmenty adresów źródłowych pozostają zachowane. Adapter kontroluje
-limity pięciu kandydatów i długości tekstu. Agent nie nadaje UUID śladom — robi to
-kod deterministycznie dla oceny i adresu. `no_results` oznacza wyłącznie brak
-wyników wyszukiwania e-maila. Materiał ma `discoveryStatus: partial` również przy
-`complete`/`no_results`, bo pełne O1/O2 nie zostało wykonane; awaria ma
-`discoveryStatus: unavailable`. Nie wolno na tej podstawie ustalać terminu 180 dni.
-
-To podłączenie **wyjścia** O2 do nieaktywnego dokumentu. Nie instaluje ani nie
-włącza workflow w bazie, nie uruchamia agenta i nie zastępuje przyszłego workera
-oraz korelacji sygnału. Następny przyrost musi podłączyć wykonanie i oczekiwanie
-przed publikacją wersji aktywnej. Nie kopiować PII do `INVOKE_AGENT.inputMapping`.
+Stary adapter O2 pozostaje wyłącznie mostem kompatybilności dla historycznych
+wyników. Nowy graf go nie wywołuje, a usunięta definicja agenta nie podlega odkrywaniu.
+Nie nadpisywać zapisanych wersji workflow ani historii wykonań w bazie.
 
 ### O1 i Apify
 
@@ -137,7 +136,7 @@ API, rzeczywistą odmowę silnika `DEFINITION_DISABLED` przed zapisem, rozdział
 odrzucenia i świadomego zamknięcia, interpolację czterech wartości O1 oraz
 mapowanie research do `context.o1` z zachowaniem źródeł i wymogu akceptacji.
 Po podłączeniu O1: 5/5 testów przeszło.
-W pierwotnej weryfikacji edytora potwierdzono 24 węzły i 34 połączenia oraz odczytano
+W pierwotnej weryfikacji edytora potwierdzono 24 węzły i 34 połączenia (historyczny graf z O2; bieżący plik ma 23/33) oraz odczytano
 `enabled: false`, `triggers: []`, wersję 1 i zero instancji.
 Test startu przez działające API nie został wykonany: automatyczna kontrola
 bezpieczeństwa odmówiła tej operacji z powodu ryzyka uruchomienia niekompletnego
@@ -152,3 +151,5 @@ z czterema polami wejścia. Endpoint wykonuje tylko interpolację i mock:
 O1. Endpoint nie uruchamia agenta; konfigurację badanego kroku trzeba przekazać w żądaniu.
 Rzeczywiste O1 testuje się osobno istniejącym Sandbox/Playground, bez włączania
 szkieletu i bez używania rzeczywistych danych rejestracyjnych.
+
+Zmiana 2026-09-19: jeden agent odkrycia O1; usunięto krok i definicję O2, a zapis śladów przeniesiono na wyjście O1. Walidacja lokalna: 303 testy modułu fotografów oraz 67 testów O1 przeszły; po poprawkach adaptera ponownie przeszło 51 testów adapterów i 7 testów grafu. Generator, kontrola typów, lint zmienionego kodu adaptera i kompilacja aplikacji zakończyły się powodzeniem. Nie wykonywano rzeczywistych wyszukiwań ani uruchomienia całego procesu.

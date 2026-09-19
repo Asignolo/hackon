@@ -3,7 +3,7 @@
   "workflowName": "Opiekun nowego fotografa — Ukryty potencjał (szkielet v1)",
   "version": 1,
   "enabled": false,
-  "description": "Nieaktywny szkielet docelowego procesu z podłączoną konfiguracją O1 i adapterem zapisu wyniku O2. Przygotowanie wejścia O1, uruchamianie O2 i pozostałe kroki nie są wdrożone. Brak wyzwalaczy, automatycznych decyzji i wysyłki. Rozgałęzienia opisują zamierzony proces; reguły ich wyboru nie są jeszcze podłączone. Nie włączać tej wersji.",
+  "description": "Nieaktywny szkielet docelowego procesu z jednym agentem odkrycia O1 i adapterem zapisu jego wyniku. O1 bada portfolio i wyszukuje po e-mailu także bez portfolio. Przygotowanie wejścia, przekazanie o1RunId i pozostałe kroki nie są wdrożone. Brak wyzwalaczy i wysyłki. Nie włączać tej wersji.",
   "metadata": {
     "category": "photographers",
     "tags": [
@@ -38,7 +38,7 @@
         "stepId": "o1",
         "stepName": "O1 — odkrywanie źródeł",
         "stepType": "AUTOMATED",
-        "description": "agent_examples.portfolio_reader_o1: originalPortfolio, registrationEmail, firstName i lastName z kontekstu → research w context.o1: strona, kontakt, Instagram, Facebook, Google Maps, NIP i miasto ze źródłami oraz pewnością. O1 jest read-only; approvalRequired nie tworzy propozycji ani zadania Caseload. Przygotowanie czterech pól z rejestracji przez wcześniejszy krok i dalsze przetwarzanie wyniku pozostają niepodłączone.",
+        "description": "agent_examples.portfolio_reader_o1: originalPortfolio, registrationEmail, firstName i lastName → research: strony, profile, NIP i miasto ze źródłami. Jeden agent odczytuje portfolio oraz wyszukuje pełny e-mail także bez portfolio. Adapter photographers.o1.store_result zapisuje wynik utrwalonego runu jako niepotwierdzone ślady; K1 rozstrzyga przypisanie. Przygotowanie wejścia i bezpieczne przekazanie o1RunId pozostają niepodłączone. Nie włączać szkieletu.",
         "activities": [
           {
             "activityId": "o1_discovery",
@@ -67,16 +67,6 @@
         "_editorPosition": {
           "x": 600,
           "y": 480
-        }
-      },
-      {
-        "stepId": "o2",
-        "stepName": "O2 — dalsze poszukiwania",
-        "stepType": "AUTOMATED",
-        "description": "photographers.trace_finder: oryginalna rejestracja (registrationId, firstName, lastName, email, opcjonalne portfolioRaw) → research: status, candidates (url, kind, name, evidence, sourceUrl), summary, issues. O2 szuka po e-mailu bez O1, Apify i rejestrów. Adapter wyjścia photographers.o2.store_result pobiera utrwalony run wskazany przez o2RunId, zapisuje niepotwierdzone tracesSnapshotSchema i zwraca tylko odwołania jako o2Result. Wyszukanie e-maila nie kończy pełnego discovery. Uruchamianie agenta i bezpieczne oczekiwanie nadal wymagają osobnego podłączenia; nie włączać szkieletu.",
-        "_editorPosition": {
-          "x": 600,
-          "y": 720
         }
       },
       {
@@ -302,27 +292,22 @@
         "trigger": "manual"
       },
       {
-        "transitionId": "o1_o2_2",
+        "transitionId": "o1_identity_2",
         "fromStepId": "o1",
-        "toStepId": "o2",
-        "transitionName": "Także bez wyniku O1",
-        "trigger": "manual"
-      },
-      {
-        "transitionId": "o2_identity_3",
-        "fromStepId": "o2",
         "toStepId": "identity",
         "transitionName": "",
         "trigger": "manual",
         "activities": [
           {
-            "activityId": "store_o2_result",
-            "activityName": "o2Result",
+            "activityId": "store_o1_result",
+            "activityName": "o1Result",
             "activityType": "EXECUTE_FUNCTION",
             "async": false,
             "config": {
-              "functionName": "photographers.o2.store_result",
-              "args": { "runId": "{{context.o2RunId}}" }
+              "functionName": "photographers.o1.store_result",
+              "args": {
+                "runId": "{{context.o1RunId}}"
+              }
             }
           }
         ]

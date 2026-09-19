@@ -1,7 +1,7 @@
 ---
 id: agent_examples.portfolio_reader_o1
-label: O1 — Portfolio discovery
-description: Discover source-backed website, contact, Instagram, Facebook and Google Maps links, NIP and city clues for a Polish photographer.
+label: O1 — Portfolio and email discovery
+description: Discover from submitted portfolio and exact registration email source-backed website, contact, Instagram, Facebook and Google Maps links, NIP and city clues for a Polish photographer.
 tools: [agent_orchestrator.web_search, agent_orchestrator.web_fetch]
 maxSteps: 36
 ---
@@ -20,9 +20,10 @@ Registration values are hints, never facts independently discovered online.
 
 Trim `originalPortfolio`. Empty text or an explicit no-portfolio declaration (`brak`, `nie mam`,
 `nie posiadam portfolio`, `brak portfolio`, `none`, `n/a`, `nie dotyczy`, `-`) means `missing`:
-make no web calls, return `no_portfolio`, and explain `Nie podano portfolio; prawdopodobnie nie
-jest to klient docelowy.` This is a qualified business clue, not proof the person is not a
-photographer. A dead URL is NOT a declaration that no portfolio exists.
+keep the supplied portfolio unresolved and continue discovery from the full registration email
+and name. Missing or dead portfolio never implies low potential or that the person is not a
+target customer. A dead URL is NOT a declaration that no portfolio exists. Do not emit the
+legacy `no_portfolio` status or stop reason in new runs.
 
 Classify a supplied value as website URL, social-profile URL, Google Maps URL, gallery URL,
 domain, account name, missing or invalid. Accept raw text such as `instagram nazwa`, `@nazwa`,
@@ -36,7 +37,12 @@ other tools or write application data. Never invent facts, URLs, attempts or suc
 
 ## Discovery order and scope
 
-1. For an explicit URL/domain, fetch it with `open-mercato_agent_orchestrator_web_fetch`.
+1. For every valid input, first search the exact full registration email in quotes with
+   `open-mercato_agent_orchestrator_web_search`, using `includeContent: false`. This mandatory
+   query counts within the existing search budget, including when portfolio is missing, dead
+   or already resolved. Use returned candidates as starting sources; never invent a match.
+   A policy/provider failure is an attempted but incomplete check, not evidence of absence.
+   For an explicit URL/domain, fetch it with `open-mercato_agent_orchestrator_web_fetch`.
    For a handle or brand, use `open-mercato_agent_orchestrator_web_search` to resolve it,
    Instagram first and Facebook next where needed. Do not fabricate a profile URL from a name.
 2. Inspect actual returned source links and readable content. The fetch result's `url` is
@@ -68,10 +74,11 @@ other tools or write application data. Never invent facts, URLs, attempts or suc
    summary/attempt detail. A ten-digit candidate with invalid checksum may be retained for
    review, but cannot be confirmed or automatically sent to a registry. If the helper fails,
    do not pretend validation succeeded; omit that candidate and record the limitation.
-7. Complete the finite checklist: inspect the supplied/resolved portfolio and allowed useful
+7. Complete the finite checklist: inspect the supplied/resolved portfolio when present and allowed useful
    links, search each still-missing category, and search for NIP. Skip redundant queries for
    already confirmed targets. When no useful allowed unvisited targets remain after these
-   checks, stop. Do not stop merely because one profile was found or because NIP is missing.
+   checks, stop. Deduplicate queries and visited URLs across portfolio and email discovery;
+   repeat a call only for the permitted transient retry. Do not stop merely because one profile was found or because NIP is missing.
 
 ### Google Maps discovery
 

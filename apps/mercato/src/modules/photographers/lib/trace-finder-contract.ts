@@ -6,6 +6,7 @@ export const TRACE_FINDER_AGENT_ID = 'photographers.trace_finder'
 export const TRACE_FINDER_WORKFLOW_ID = 'photographers.hidden_potential'
 export const TRACE_FINDER_STEP_ID = 'o2'
 
+/** @deprecated Use preparePortfolioDiscoveryInput for O1. Historical O2 compatibility; removal no earlier than 0.9.0. */
 export function prepareTraceFinderInput(registration: {
   id: string; firstName: string; lastName: string; email: string; portfolioRaw: string;
 }) {
@@ -23,6 +24,7 @@ function canonicalTraceUrl(value: string) {
   return url.href
 }
 
+/** @deprecated Use preparePortfolioDiscoveryMaterial for O1. Historical O2 compatibility; removal no earlier than 0.9.0. */
 export function prepareTraceFinderMaterial(rawResult: unknown, rawContext: unknown) {
   const result = traceFinderResultSchema.parse(rawResult)
   const context = traceFinderSnapshotContextSchema.parse(rawContext)

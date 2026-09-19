@@ -19,6 +19,10 @@ export function register(container: AppContainer) {
     })
   }
   container.register({
+    'workflowFunction:photographers.o1.store_result': asValue(async (args: unknown, context: ActivityContext) => {
+      const { storePortfolioDiscoveryWorkflowResult } = await import('./lib/portfolio-discovery-workflow')
+      return storePortfolioDiscoveryWorkflowResult(args, context, container)
+    }),
     'workflowFunction:photographers.o2.store_result': asValue(async (args: unknown, context: ActivityContext) => {
       const { storeTraceFinderWorkflowResult } = await import('./lib/trace-finder-workflow')
       return storeTraceFinderWorkflowResult(args, context, container)

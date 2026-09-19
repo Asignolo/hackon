@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs'
+import path from 'node:path'
 import type { EntityManager } from '@mikro-orm/core'
 import { createWorkflowDefinitionInputCheckedSchema } from '@open-mercato/core/modules/workflows/data/validators'
 import { invokeAgentConfigSchema } from '@open-mercato/core/modules/workflows/data/activity-config-schemas'
@@ -13,11 +15,11 @@ function getO1Step() {
   return step
 }
 
-test('O2 hands only its run reference to the material adapter before identity', () => {
-  const route = definition.definition.transitions.find((transition) => transition.fromStepId === 'o2' && transition.toStepId === 'identity')
+test('O1 hands only its run reference to the material adapter before identity', () => {
+  const route = definition.definition.transitions.find((transition) => transition.fromStepId === 'o1' && transition.toStepId === 'identity')
   expect(route?.activities).toEqual([{
-    activityId: 'store_o2_result', activityName: 'o2Result', activityType: 'EXECUTE_FUNCTION', async: false,
-    config: { functionName: 'photographers.o2.store_result', args: { runId: '{{context.o2RunId}}' } },
+    activityId: 'store_o1_result', activityName: 'o1Result', activityType: 'EXECUTE_FUNCTION', async: false,
+    config: { functionName: 'photographers.o1.store_result', args: { runId: '{{context.o1RunId}}' } },
   }])
 })
 
@@ -100,4 +102,10 @@ test('O1 research maps into its own context key without losing source or approva
   expect(mapped).toEqual({ o1: research })
   expect(mapped).not.toHaveProperty('proposalPayload')
   expect(mapped).not.toHaveProperty('disposition')
+})
+
+test('discovery has only O1 and no remaining O2 routes or agent definition', () => {
+  expect(definition.definition.steps.map((step) => step.stepId)).not.toContain('o2')
+  expect(definition.definition.transitions.some((route) => route.fromStepId === 'o2' || route.toStepId === 'o2')).toBe(false)
+  expect(existsSync(path.join(__dirname, '../agents/trace_finder/AGENT.md'))).toBe(false)
 })

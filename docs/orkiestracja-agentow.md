@@ -1,6 +1,6 @@
 # Propozycja orkiestracji „Ukryty potencjał”
 
-Aktualizacja po rozmowie o zakresie A1: [diagram i opis pracy O1, O2 oraz K1](przeplyw-do-rozmowy-z-zespolem.md) zastępują poniższą propozycję jednego agenta odkrycia. Pozostałe role zachowują swój zakres. Poniższy opis A1 pozostaje zapisem wcześniejszego wariantu.
+Aktualizacja 19.09.2026: jeden agent O1 wykonuje odkrycie, a K1 sprawdza przypisanie śladów. Osobny O2 został usunięty. [Diagram i szczegółowy przepływ O1 → K1](przeplyw-do-rozmowy-z-zespolem.md) opisują ten podział.
 
 Status: projekt do wdrożenia, 19.09.2026. Podstawa: [proces oceny](proces-oceny.md), [słownik](../CONTEXT.md) i cztery ADR. Poniższy podział ról oraz doprecyzowania są rekomendacją; nie zmieniają automatycznie wcześniejszych ustaleń.
 
@@ -10,39 +10,38 @@ Proponuję czterech agentów korzystających z modelu językowego i osobny kod d
 
 | Rola | Wejście | Zadanie i wynik | Granica odpowiedzialności |
 |---|---|---|---|
-| A1 Odkrycie | Cztery dane z rejestracji: imię, nazwisko, e-mail, portfolio; wcześniejsze ślady i decyzje | Rozpoznaje portfolio, ustala ślady wraz ze statusem i polem „skąd”. Wynik: propozycja tożsamości albo brak propozycji. | Nie wybiera arbitralnie jednego z kilku kandydatów. Nie ocenia potencjału. |
+| O1 Odkrycie | Cztery dane z rejestracji: imię, nazwisko, e-mail, portfolio | Rozpoznaje portfolio i wyszukuje po e-mailu także bez portfolio. Wynik: `research`, źródła i ocena pewności. | Nie rozstrzyga przypisania za K1, nie odpytuje rejestrów i nie ocenia potencjału. |
+| K1 Tożsamość — kod | Rejestracja i wynik O1 | Sprawdza reguły przypisania oraz przekazuje propozycje przez politykę zatwierdzania. | Ocena modelu nie jest decyzją tego kroku. |
 | A2 Media społecznościowe | Potwierdzone ślady Instagram, Facebook, Pinterest; poprzednia ocena | Zbiera aktywność, obserwujących, posty i sygnały druku. Wynik: `research`, ze źródłem i czasem odczytu. | Model interpretuje treść i zdjęcia; zaangażowanie i wzrost oblicza kod. Nie przypisuje kategorii ani punktów. |
 | A3 Portfolio i obecność w sieci | Potwierdzone portfolio, strona, galeria i Google Maps | Ustala kategorię z portfolio, rodzaj i aktualność strony, rezerwacje, system galerii i opinie Google. Wynik: `research`. | Jedyny właściciel kategorii. Może czytać treść portfolio ze społeczności, ale pomiary tych kont należą do A2. |
 | R1 Rejestry — wykonawca narzędzi | Potwierdzony przez odkrycie ślad CEIDG/KRS i identyfikatory | Pobiera status działalności, NIP, datę startu, PKD, VAT oraz dostępne dane KRS. Wynik: fakty w tym samym kontrakcie co `research`. | Preferowany zwykły kod i API. Nie wymaga osobnego modelu językowego. Nie zgaduje tożsamości i nie wystawia flag. |
 | A4 Opieka | Zatwierdzona kwalifikacja do kontaktu, kategoria, system galerii, dozwolony kontekst portfolio | Pisze trzy zdania i jedną propozycję, np. próbkę lub test druku. Wynik: propozycja wiadomości do Caseload. | Bez wysyłki i bez ujawniania VAT, liczby obserwujących czy opinii Google. Wewnętrzne „dlaczego” jest osobnym polem. |
 
-Odkrycie prowadzi cztery ścieżki poszukiwań: portfolio → profil; własna domena → strona i stopka; e-mail → wyszukiwanie; nazwisko → rejestry. Wyniki wcześniejszych ścieżek zawężają następne. Domena publicznej poczty, np. gmail.com, nie jest własną stroną fotografa. Wpis w rejestrze uznajemy za potwierdzony po zgodności nazwiska i jednego zgodnego śladu z innej ścieżki, zgodnie z §6.4 procesu. Jeśli agent badający fotografa znajdzie nowy ślad, przekazuje go do odkrycia, które sprawdza jego tożsamość.
+O1 czyta portfolio, stronę i kontakt, a brakujące ślady wyszukuje po e-mailu, nazwisku lub marce. Brak portfolio nie pomija poszukiwań. Domena publicznej poczty, np. gmail.com, nie jest własną stroną fotografa. Kandydaci NIP mogą pochodzić ze stron, ale O1 nie odpytuje CEIDG, KRS ani VAT. Poszukiwanie kandydatów w rejestrach pozostaje przyszłym rozszerzeniem. K1 sprawdza przypisanie każdego śladu; kilka kopii jednego źródła nie stanowi niezależnych potwierdzeń.
 
 ## Co robimy z czterema polami rejestracji
 
 Na początku mamy tylko imię, nazwisko, e-mail i portfolio. Telefon, miasto, NIP czy nazwa firmy mogą pojawić się dopiero w wyniku odkrycia. Nie zakładamy, że znamy je z rejestracji.
 
-Całą rejestrację dostaje A1. Pozostali agenci pracują przede wszystkim na śladach, które A1 ustalił i które przeszły zatwierdzanie. Proponuję zachować oryginalne wartości pól, a oczyszczone adresy i znalezione informacje zapisywać osobno. Dzięki temu da się sprawdzić, co podał fotograf, a co ustalił agent.
+Całą rejestrację dostaje O1. Pozostali agenci pracują przede wszystkim na śladach, które O1 znalazł, K1 sprawdził i które przeszły zatwierdzanie. Proponuję zachować oryginalne wartości pól, a oczyszczone adresy i znalezione informacje zapisywać osobno. Dzięki temu da się sprawdzić, co podał fotograf, a co ustalił agent.
 
-- **Imię i nazwisko** pomagają A1 porównać osobę z rejestracji z osobą opisaną na stronie, profilu lub w rejestrze. Samo zgodne nazwisko nie wystarcza do wybrania jednego z kilku kandydatów.
-- **E-mail** daje A1 dwie drogi poszukiwania: własną domenę po znaku `@` oraz wyszukanie pełnego adresu w cudzysłowie. Trafienie w agregatorze firm jest śladem niepotwierdzonym do sprawdzenia. Użycie e-maila do odkrycia nie uruchamia wysyłki wiadomości.
-- **Portfolio** jest pierwszym miejscem, które A1 sprawdza, bo wskazał je sam fotograf. Może zawierać adres strony lub profilu, samą nazwę konta, adres galerii albo bezużyteczny wpis. A1 rozpoznaje tę postać i ustala, dokąd prowadzi.
+- **Imię i nazwisko** pomagają O1 porównać osobę z rejestracji z osobą opisaną na stronie lub profilu. Samo zgodne nazwisko nie wystarcza do wybrania jednego z kilku kandydatów.
+- **E-mail** daje O1 dwie drogi poszukiwania: własną domenę po znaku `@` oraz wyszukanie pełnego adresu w cudzysłowie. Trafienie w agregatorze firm jest śladem niepotwierdzonym do sprawdzenia. Użycie e-maila do odkrycia nie uruchamia wysyłki wiadomości.
+- **Portfolio** jest pierwszym miejscem, które O1 sprawdza, bo wskazał je sam fotograf. Może zawierać adres strony lub profilu, samą nazwę konta, adres galerii albo bezużyteczny wpis. O1 rozpoznaje tę postać i ustala, dokąd prowadzi.
 
 Po odkryciu dane rozchodzą się według zadań: konta społecznościowe do A2, portfolio i obecność w sieci do A3, potwierdzone wpisy rejestrowe do R1. A4 dostaje dane potrzebne do przygotowania wiadomości dopiero na końcu.
 
-## A1. Odkrycie: ustala, które ślady należą do fotografa
+## O1. Odkrycie: znajduje ślady ze źródłami
 
-A1 odpowiada za to, żeby dalsze badanie dotyczyło właściwej osoby. Dostaje cztery pola rejestracji, a przy kolejnej ocenie także wcześniejsze ślady i decyzje operatora.
+O1 dostaje cztery pola rejestracji. Najpierw wyszukuje pełny e-mail w cudzysłowie. Czyta dostępne portfolio i odsyłacze, sprawdza stronę oraz kontakt, informacje o autorze i informacje prawne. Sprawdza kandydatów z wyszukiwania i uzupełnia brakujące ślady przez nazwisko, markę lub własną domenę. Puste albo martwe portfolio nie kończy zadania.
 
-Najpierw czyta portfolio. Jeśli fotograf podał samą nazwę konta, sprawdza ją na Instagramie, potem na Facebooku. Z opisu profilu może odczytać miasto, własną stronę, e-mail kontaktowy lub NIP. Te informacje pomagają w dalszym szukaniu. Nie każda z nich jest już potwierdzonym faktem.
+Zwraca jeden wynik `research`: stronę, kontakt, Instagram, Facebook, Google Maps, kandydatów NIP i miasto, ze źródłami, oceną pewności oraz informacją o wykonanych i nieukończonych poszukiwaniach. Wspólny budżet to 10 wyszukiwań, 15 odczytów, głębokość dwa i pięć minut. O1 nie odpytuje rejestrów, nie mierzy aktywności i nie nadaje punktów.
 
-Jeśli portfolio lub e-mail wskazuje własną domenę, A1 sprawdza stronę oraz podstrony kontaktu, regulaminu i polityki prywatności. Szuka informacji pozwalających powiązać stronę z osobą i działalnością. Następnie może wyszukać pełny e-mail. Nazwisko w CEIDG sprawdza na końcu, kiedy ma już ślady z innych ścieżek, które zawężają wyniki.
+## K1. Tożsamość: sprawdza przypisanie śladów
 
-Każdemu znalezionemu śladowi przypisuje adres lub identyfikator, status i pole „skąd”. Dla wpisu CEIDG lub VAT sprawdza zgodność nazwiska oraz przynajmniej jednego zgodnego śladu z innej ścieżki wskazanego w dokumentacji: miasta, NIP-u ze stopki, domeny lub fotograficznego PKD. Nie uznaje samego NIP-u z agregatora za potwierdzenie osoby.
+K1 porównuje wynik O1 z oryginalną rejestracją według reguł domenowych. Ocena `confirmed` nadana przez model nie zastępuje tej kontroli. Portfolio wskazane przez fotografa jest potwierdzone z definicji; inne ślady wymagają odpowiednich dowodów i polityki zatwierdzania.
 
-**Przekazuje dalej:** potwierdzone ślady do badania, ślady niepotwierdzone z listą kandydatów do zachowania w wyniku oraz propozycję tożsamości, jeśli ma podstawy, żeby ją złożyć. Jeden kandydat z jednym zgodnym śladem może trafić do Caseload. Kilku kandydatów bez rozstrzygnięcia pozostaje jednym śladem niepotwierdzonym. Jeśli wszystkie ścieżki się wyczerpią i nie ma czego badać, szansa trafia do Obserwowana z najdłuższym odstępem.
-
-A1 kończy na ustaleniu tożsamości. Punkty i decyzja o kontakcie należą do późniejszych kroków.
+**Przekazuje dalej:** ślady dopuszczone do badania oraz zapis nierozstrzygniętych kandydatów. Jeden kandydat z jednym zgodnym śladem może trafić do Caseload. Kilku kandydatów bez rozstrzygnięcia pozostaje niepotwierdzonych. Zakończone poszukiwania bez użytecznych śladów mogą prowadzić do Obserwowana z najdłuższym odstępem; awaria lub wyczerpanie budżetu nie oznaczają ukończonych poszukiwań.
 
 ## A2. Media społecznościowe: zbiera fakty o aktywności i druku
 
@@ -56,7 +55,7 @@ Model interpretuje treść i zdjęcia. Wspólna funkcja oblicza zaangażowanie z
 
 ## A3. Portfolio i obecność w sieci: ustala specjalizację i sposób prezentowania pracy
 
-A3 dostaje potwierdzone portfolio, stronę, galerię i wizytówkę Google Maps. Portfolio pochodzi z rejestracji lub ze śladów potwierdzonych przez A1. Może prowadzić do konta społecznościowego; własna strona nie jest warunkiem wykonania tej części badania.
+A3 dostaje potwierdzone portfolio, stronę, galerię i wizytówkę Google Maps. Portfolio pochodzi z rejestracji lub ze śladów potwierdzonych przez K1. Może prowadzić do konta społecznościowego; własna strona nie jest warunkiem wykonania tej części badania.
 
 Z treści portfolio A3 przypisuje kategorię: ślubny, rodzinny i noworodkowy, szkolny i przedszkolny, reportażowy i eventowy, produktowy i komercyjny, inny albo nieznane. Jeśli treść nie pozwala rozstrzygnąć, pozostawia „nieznane”. W proponowanym podziale to A3 odpowiada za kategorię w całym procesie.
 
@@ -68,7 +67,7 @@ Jeśli portfolio jest na Instagramie lub Facebooku, A3 korzysta z jego treści d
 
 ## R1. Rejestry: odczytuje potwierdzone dane działalności
 
-R1 dostaje potwierdzony ślad CEIDG lub KRS oraz ustalone identyfikatory. Nie dostaje zadania „znajdź firmę tej osoby” na podstawie samego formularza. To powiązanie ustalił wcześniej A1.
+R1 dostaje potwierdzony ślad CEIDG lub KRS oraz ustalone identyfikatory. Nie dostaje zadania „znajdź firmę tej osoby” na podstawie samego formularza. To powiązanie musi wcześniej sprawdzić K1. Obecny O1 zbiera kandydatów NIP ze stron; wyszukiwanie wpisów rejestrowych pozostaje do wdrożenia.
 
 R1 odczytuje NIP, REGON, KRS, status działalności, datę rozpoczęcia, PKD i miasto, a także sprawdza status VAT. Dla spółek zbiera dostępne dane o przychodzie z KRS zgodnie z katalogiem faktów. Zwraca tylko to, co udało się ustalić; niedostępny wpis lub brak odpowiedzi pozostawia jako „nieznane” z powodem.
 
@@ -97,7 +96,7 @@ Jeśli operator odrzuci błędny ślad, kolejna ocena pomija go oraz oparte na n
 ## Przepływ jednej oceny
 
 1. **Start — kod przepływu.** Nowa rejestracja lub partia uruchamia ten sam proces. Sprawdzenie braku zamówień, jednej szansy na fotografa, braku zamknięcia i braku już trwającej oceny. Pierwsza ocena: Nowa → W badaniu; kolejne nie cofają etapu.
-2. **A1 Odkrycie.** Potwierdzone ślady przechodzą politykę zatwierdzania. Wąski przypadek „jeden kandydat, jeden zgodny ślad” trafia do Caseload. Wieloznaczność to brak propozycji, nie prośba do człowieka o wykonanie całego badania. Jeśli istnieją inne potwierdzone ślady, badanie może objąć tylko je. Brak jakiegokolwiek użytecznego śladu po wyczerpaniu ścieżek → Obserwowana i 180 dni.
+2. **O1 Odkrycie → K1 Tożsamość.** O1 zbiera źródła także bez portfolio; K1 sprawdza przypisanie. Potwierdzone ślady przechodzą politykę zatwierdzania. Wąski przypadek „jeden kandydat, jeden zgodny ślad” trafia do Caseload. Wieloznaczność to brak propozycji, nie prośba do człowieka o wykonanie całego badania. Jeśli istnieją inne potwierdzone ślady, badanie może objąć tylko je. Brak jakiegokolwiek użytecznego śladu po wyczerpaniu ścieżek → Obserwowana i 180 dni.
 3. **Zapis zaakceptowanej tożsamości — komenda.** Po decyzji operatora przepływ używa poprawionej wersji. Odrzucony ślad nie trafia do badania.
 4. **A2, A3 i R1 — badanie równoległe.** Każdy bada wszystkie potwierdzone ślady ze swojego zakresu. Brak śladu daje wynik „nieznane”; awaria źródła ma oddzielny status i ograniczone ponowienia. Koszt kontrolujemy wielkością partii i współbieżnością, nie skracaniem badania.
 5. **Scalenie — kod.** Czeka na zakończenie wszystkich trzech gałęzi, także zakończenie błędem lub niedostępnością. Sprawdza typy, źródła i aktualność faktów oraz wykrywa sprzeczne wyniki. Nie wymyśla wartości. Fakty zapisuje przez komendy na fotografie; `research` nie wymaga zatwierdzenia człowieka.
@@ -145,4 +144,4 @@ Sprawdzono źródła `develop` 19.09.2026; drzewo repozytorium wskazywało commi
 - [Polityka zatwierdzania](https://github.com/open-mercato/open-mercato/blob/83330e271e0da0e0ae8ed4dd4d83369735cc06e6/packages/enterprise/src/modules/agent_orchestrator/lib/disposition/autoApprovalPolicy.ts): `alwaysAsk`, włącznik polityki, strażnik, ślad wykonania, ryzyko, próg pewności i opcjonalny margines między opcjami.
 - [Format propozycji](https://github.com/open-mercato/open-mercato/blob/83330e271e0da0e0ae8ed4dd4d83369735cc06e6/packages/enterprise/src/modules/agent_orchestrator/data/proposalEnvelope.ts): aktualny kontrakt `options[]`, z akcjami, pewnością i uzasadnieniem opcji. Kod wspiera też starszy format.
 
-Nazwy A1–A4 i R1 są naszym projektem ról. Równoległe badanie, reguły domenowe i adapter deterministycznej punktacji do propozycji wymagają wdrożenia i testu na używanej wersji platformy; nie są gotowym przepływem dostarczanym przez te przykłady.
+Nazwy O1, K1, A2–A4 i R1 są naszym projektem ról. Równoległe badanie, reguły domenowe i adapter deterministycznej punktacji do propozycji wymagają wdrożenia i testu na używanej wersji platformy; nie są gotowym przepływem dostarczanym przez te przykłady.

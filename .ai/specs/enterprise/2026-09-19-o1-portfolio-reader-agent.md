@@ -16,13 +16,13 @@ Registration portfolio text includes full URLs, schemeless domains, usernames, p
 
 Preserve the ID, file-agent runtime and research kind; emit exactly five link types (`website`, `contact`, `instagram`, `facebook`, `google_maps`), NIP candidates and city clues. Retain one best-supported link per type; no multi-account/studio model. Search actively for NIP, including quoted email plus NIP. A pure sandbox helper checks NIP syntax and checksum, independently of ownership.
 
-Add optional source links to existing web-fetch results. A native agent, direct Firecrawl/Apify tools, general OSINT crawler or new approval UI would exceed the agreed scope. This is implementation of an accepted contract, not new market research.
+The previously implemented optional source links in web-fetch results remain a dependency; this consolidation introduces no new engine work. A native agent, direct Firecrawl/Apify tools, general OSINT crawler or new approval UI would exceed the agreed scope. This is implementation of an accepted contract, not new market research.
 
 ## 📝 Architecture
 
 The app owns `AGENT.md`, `OUTCOME.md`, `SAMPLE.json`, and `tools/validate_nip.ts`. Enterprise owns existing ACLs, run persistence, sandbox and result submission. Web research extracts anchors using its existing tokenizer before main-content extraction removes navigation/footer markup.
 
-Flow: validate input → normalize/classify portfolio → stop if missing → fetch/resolve portfolio → inspect relevant links and owned contact/about/legal pages → search missing targets and NIP → checksum candidates → submit research. Runtime wraps the data as `{ kind: 'research', data }`.
+Flow: validate input → normalize/classify portfolio → search the exact full registration email first → fetch/resolve portfolio when present and inspect email candidates → inspect relevant links and owned contact/about/legal pages → search missing targets and NIP → checksum candidates → submit research → K1 identity gate. Missing or unreachable portfolio does not skip the email search. Queries and visited URLs are deduplicated within the shared budget. Runtime wraps the data as `{ kind: 'research', data }`.
 
 ### Sources and identity
 
@@ -32,7 +32,7 @@ GUS, CEIDG, KRS, VAT and other register checks belong to the next stage. Do not 
 
 `confirmed` needs a strong identity bridge: matching public registration email with consistent identity, or a first-party link from an already confirmed photographer site. `probable` has corroborated name/brand without a strong bridge; `unconfirmed` is a sourced but insufficiently attributed candidate; `conflict` has contradictory identity/ownership evidence. Name or city alone is not confirmation. Search RRF confidence is never identity confidence.
 
-Confirmed items continue independently. Other items require human review and cannot be automatically assigned/scraped as this photographer. A company NIP is not automatically a team member's NIP. Separate competing NIP candidates; merge duplicate observations and their evidence. Missing NIP alone does not require approval.
+Confidence is the researcher’s assessment, not an authoritative identity decision. K1 applies domain attribution rules and the approval policy before downstream use. Items confirmed by that gate continue independently. Other items require human review and cannot be automatically assigned/scraped as this photographer. A company NIP is not automatically a team member's NIP. Separate competing NIP candidates; merge duplicate observations and their evidence. Missing NIP alone does not require approval.
 
 ### Normalization
 
@@ -52,7 +52,7 @@ No tables/migrations. Existing scoped/encrypted AgentRun input/output and traces
 
 ## 📝 API Contracts
 
-Input: exactly four string properties `originalPortfolio`, `registrationEmail`, `firstName`, `lastName`. Malformed identity/input gives `invalid_input` without egress. Empty/missing-token portfolio gives `no_portfolio` with a qualified business assessment in the Polish summary. Input validation is agent instruction in the existing free-form run path, not a new API validator.
+Input: exactly four string properties `originalPortfolio`, `registrationEmail`, `firstName`, `lastName`. Malformed identity/input gives `invalid_input` without egress. Empty/missing-token portfolio remains unresolved and starts discovery from the registration email/name; it does not cause an early return. The Polish summary records the absent portfolio separately from the research result. Input validation is agent instruction in the existing free-form run path, not a new API validator.
 
 `OUTCOME.md` is the authoritative supported JSON Schema; all properties are required:
 
@@ -69,7 +69,7 @@ Input: exactly four string properties `originalPortfolio`, `registrationEmail`, 
 - `attempts[]`: actual tool, target/query, outcome and diagnostic detail. Empty only on no-egress paths.
 - `summary`: concise Polish results and limitations.
 
-Complete requires all five types confirmed, at least one confirmed checksum-valid NIP, no uncertainty and search_exhausted. City is optional. Partial means some sourced items exist but those conditions fail. No_results has no retained items; stopReason/coverage distinguish completed negative research from failure/unfinished work. No_portfolio/invalid_input have empty arrays and unchecked coverage.
+Complete requires all five types confirmed, at least one confirmed checksum-valid NIP, no uncertainty and search_exhausted. City is optional. The supplied portfolio may remain unresolved even for a complete result when email-based discovery supplies all required evidence. Partial means some sourced items exist but those conditions fail. No_results has no retained items; stopReason/coverage distinguish completed negative research from failure/unfinished work. `invalid_input` has empty arrays and unchecked coverage. `no_portfolio` status and stop reason remain accepted for historical output compatibility; new valid-input runs use complete/partial/no_results after email-based discovery, regardless of whether a portfolio was supplied.
 
 No new routes. Fetch extension: optional `links: Array<{ url, originalHref, text }>` and `linksTruncated`; final page URL supplies source provenance. HTTP HTML reads extract anchors; other adapters may omit links (unknown, not empty). Existing tool domain policy applies to candidates.
 
@@ -93,12 +93,15 @@ Rollback restores authored agent files and regenerates. Optional generic fetch f
 
 ## Migration & Backward Compatibility
 
+The owner approved consolidating discovery into O1 and retiring the separate O2 agent on 2026-09-19. O1 retains its ID, four-field input and schemaVersion 1; historical output is not rewritten. Missing portfolio now starts email-based research, while legacy `no_portfolio` enum values remain accepted. K1 retains identity authority. Registry candidate discovery remains future work.
+
 Previous O1 files/spec/tests were an uncommitted local draft. The owner explicitly approved replacing its three-field input and fact-gathering output before release, retaining the ID. Historical run JSON is not rewritten. No in-repo production consumer of the old output was found; external consumers of that draft must adopt this versioned contract.
 
 FetchedPage links/linksTruncated are optional additive fields; old adapters remain supported. Increment CONTRACT_VERSION while preserving minimum supported version. Existing text/status fields retain meaning; no removals or deprecations. Record this in UPGRADE_NOTES.md.
 
 ## 🧪 Verification & Integration Coverage
 
+- Consolidation coverage: missing/declared-absent and dead portfolio must reach email-based discovery; valid no-results and tool-failure outputs remain distinct; workflow routes O1 directly to K1 without O2.
 - Loader/schema tests: ID/runtime/tool surface, synthetic four-field sample, exact five link types, source/confidence requirements, complete/partial/empty/missing/invalid shapes, unsupported fields and read-only generated permissions.
 - NIP helper: actual sandbox, synthetic formatted valid numbers, checksum mismatch/remainder ten, placeholders and malformed inputs.
 - Engine: footer/nav/icon/relative/base/entity links, bounds, unsafe protocols, deduplication, optional legacy/browser behavior.
@@ -107,6 +110,8 @@ FetchedPage links/linksTruncated are optional additive fields; old adapters rema
 - yarn generate, focused tests, changed-package build/typecheck and focused lint. Runner: local; compose dev/fullapp probes found no running app container.
 
 ## 📋 Implementation Plan and Progress
+
+The completed checklist below records the earlier O1/source-link implementation. The current consolidation changes agent instructions, workflow/persistence consumers and documentation; it does not repeat or extend the engine work.
 
 - [x] Update instructions, outcome schema, synthetic sample and NIP helper.
 - [x] Add optional source links and engine/MCP regression tests.
@@ -120,6 +125,8 @@ Accepted scope: file-defined read-only research, five links, NIP/city evidence, 
 Validation (local runner): `yarn generate` passed; agent contract and sandbox NIP suites passed (63 tests); focused web-research suites passed (38 tests); MCP source-link policy suite passed (4 tests). Web-research and enterprise builds/typechecks passed. Focused ESLint passed with the existing root Next.js pages-directory configuration warning; lessons catalog and diff whitespace checks passed. Full web-research suite attempts stalled without output and were interrupted; no full-suite pass is claimed. No live provider/LLM smoke test or real registration data was used. Cross-field consistency and discovery quality remain agent instructions to assess in Sandbox, not new deterministic runtime validators.
 
 ## Changelog
+
+- 2026-09-19: Consolidated discovery into O1, including email-based search when portfolio is absent or unreachable. Removed O2 from the planned flow; K1 remains the authoritative identity gate. Retained historical output enums; registry lookups remain excluded.
 
 - 2026-09-19: Added a bounded Google Maps search sequence within the existing budget, distinguished organic search from Google's business panel, and prohibited treating truncated content alone as an access block. This improves the discovery procedure without claiming complete Maps coverage or executing an Apify actor.
 - 2026-09-19: Initial local portfolio-reader draft.

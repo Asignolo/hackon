@@ -27,11 +27,11 @@ export const businessFlagSchema = z.enum(['business_suspended', 'business_remove
 export const traceEvidenceSchema = z.object({
   schemaVersion,
   id: uuid,
-  kind: z.enum(['portfolio', 'website', 'instagram', 'facebook', 'gallery', 'google_maps', 'registry', 'email']),
+  kind: z.enum(['portfolio', 'website', 'instagram', 'facebook', 'gallery', 'google_maps', 'registry', 'email', 'nip', 'city']),
   value: z.string().min(1).max(2048),
   status: z.enum(['confirmed', 'unconfirmed']),
   provenance: z.array(z.object({
-    value: z.string().min(1).max(2048),
+    value: z.string().min(1).max(4096),
     sourceRef,
     observedAt: timestamp,
   }).strict()).min(1).max(20),

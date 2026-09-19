@@ -129,7 +129,7 @@ The whole tree stays propose-only: no agent writes.
 It delegates each ticket to `support.ticket_triage` in parallel and returns an
 aggregate (`total`, `urgentCount`, `items[]`).
 
-## O1 portfolio discovery
+## O1 portfolio and email discovery
 
 `agent_examples.portfolio_reader_o1` is a file-defined OpenCode researcher. Its
 input contains exactly four registration fields (synthetic contract example):
@@ -154,7 +154,12 @@ confirmed items may continue independently, while uncertain/conflicting items
 wait for the owner. These research flags are consumed by the surrounding process:
 they do not create proposals or automatically invoke proposal disposition.
 
-An explicitly absent portfolio ends discovery without web calls. Missing NIP
+O1 is the single discovery researcher: it searches the exact full registration email
+in quotes for every valid input and combines that evidence with the supplied portfolio.
+Missing or dead portfolio continues through email and name discovery and never implies
+low potential. Queries and visited URLs are deduplicated within the same run. The original
+portfolio stays missing/unresolved when absent; discovered websites are returned in `links`.
+The legacy `no_portfolio` status remains readable but is not emitted in new runs. Missing NIP
 alone gives a partial result without requiring approval. `coverage`, `attempts`
 and `stopReason` distinguish completed searches from blocked/failed/unattempted
 checks. NIP checksum validation uses the pure sandboxed `validate_nip` helper;
