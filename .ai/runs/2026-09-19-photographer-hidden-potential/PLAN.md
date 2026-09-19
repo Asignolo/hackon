@@ -143,3 +143,24 @@ Evidence: [verification](evidence/registration-crm-verification.json), [screensh
 Every customer entering this process has no orders by definition. This supersedes the eligibility gate in the original plan and first-increment record above. No confirmation UI, command, expiry or prerequisite should be implemented. CRM preparation now returns `ready`; the simulator states that CRM is ready and research has not started. Historical eligibility material schemas remain compatible with existing data, without gating this process. Scope remains increment 1 only.
 
 Correction deployed to port 3001. Verification: 245 module tests and TC-002 3/3 passed (API, browser, subscriber), application typecheck/build and translation/lesson checks passed. No migrations or framework changes. Screenshot registration-crm-ready.png now shows the corrected readiness message. Work remains stopped for user feedback.
+
+
+### O2 — dopasowanie do szkieletu workflow, 2026-09-19
+
+Zakres tej iteracji: definicja plikowa `photographers.trace_finder` i przekazanie jej wyniku z kroku `o2` do `identity` w nieaktywnym szkielecie z commitu `cc9e576d`. O2 szuka po oryginalnym e-mailu, zwraca najwyżej pięciu kandydatów i źródła; nie wymaga O1 ani Apify. Nie potwierdza tożsamości. Jest to ograniczony wycinek O2, nie ukończenie całego badania.
+
+Adapter `photographers.o2.store_result` przyjmuje wyłącznie `runId`, sprawdza uprawnienia, organizację, workflow, pojedynczą próbę kroku i zgodność wejścia z oryginalną rejestracją. Zapisuje niepotwierdzone ślady istniejącą komendą szyfrowanych materiałów. Zwraca tylko `runId`, `tracesRef` i status; dane źródłowe nie trafiają do kontekstu workflow. Wynik samego wyszukania po e-mailu nie oznacza zakończenia całego discovery. Powtórne próby kroku są na razie odrzucane.
+
+Potwierdzono kod: 40 testów w czterech zestawach, typecheck aplikacji, lint zmienionych plików i generowanie. Runner local. Generowanie wykonano w odizolowanej kopii źródeł; znaleziono agenta w wygenerowanym rejestrze, bez zmian frameworka w repozytorium. Nie zmieniono API ani schematu bazy.
+
+**Niepotwierdzone w aplikacji:** rzeczywiste wyszukiwanie, uruchomienie O2 przez workflow i zapis wyniku na żywej bazie. Szkielet pozostaje wyłączony, bez wyzwalaczy; nie dodano wywołania agenta, workera ani oczekiwania na wynik. Rejestru działającej aplikacji nie przebudowano i aplikacji nie restartowano. Następna uzgadniana iteracja musi podłączyć wykonanie O2 oraz sprawdzić pojedynczą rejestrację od wejścia do zapisanego wyniku. Brak migracji, resetów i zmian `packages/**`. Zatrzymano pracę na informację zwrotną.
+
+
+### Aktualizacja rejestru O2 — 2026-09-19
+
+Na polecenie użytkownika uruchomiono `yarn generate` w repozytorium (local). Generowanie zakończone powodzeniem; rejestr `file-agents.generated.ts` zawiera `photographers.trace_finder`, powstał również `docker/opencode/agents/photographers_trace_finder.md`. Zmiana w `packages/**` jest wyłącznie automatycznie wygenerowanym wpisem rejestru, objętym tym poleceniem; bez ręcznej zmiany frameworka. Nie przebudowano ani nie restartowano działającej aplikacji/OpenCode. Widoczność na liście w działającej aplikacji nie została jeszcze potwierdzona.
+
+
+### Restart aplikacji z O2 — 2026-09-19
+
+Na polecenie użytkownika przebudowano pakiet enterprise i aplikację (PASS), następnie uruchomiono ponownie `mercato server start` na porcie 3001. Skompilowany serwer zawiera `photographers.trace_finder`. GET `/backend` zwraca 307 do logowania. Nie uruchamiano O2 ani workflow; widoczność listy w zalogowanej sesji pozostaje do ręcznej weryfikacji. Bez migracji i resetów.

@@ -13,6 +13,14 @@ function getO1Step() {
   return step
 }
 
+test('O2 hands only its run reference to the material adapter before identity', () => {
+  const route = definition.definition.transitions.find((transition) => transition.fromStepId === 'o2' && transition.toStepId === 'identity')
+  expect(route?.activities).toEqual([{
+    activityId: 'store_o2_result', activityName: 'o2Result', activityType: 'EXECUTE_FUNCTION', async: false,
+    config: { functionName: 'photographers.o2.store_result', args: { runId: '{{context.o2RunId}}' } },
+  }])
+})
+
 test('the inactive authored graph is accepted by the existing API schema', () => {
   expect(createWorkflowDefinitionInputCheckedSchema.safeParse(definition).success).toBe(true)
   expect(definition.enabled).toBe(false)

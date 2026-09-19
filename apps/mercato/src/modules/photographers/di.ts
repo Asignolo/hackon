@@ -19,6 +19,10 @@ export function register(container: AppContainer) {
     })
   }
   container.register({
+    'workflowFunction:photographers.o2.store_result': asValue(async (args: unknown, context: ActivityContext) => {
+      const { storeTraceFinderWorkflowResult } = await import('./lib/trace-finder-workflow')
+      return storeTraceFinderWorkflowResult(args, context, container)
+    }),
     photographerRegistrationPrepare: asValue(async (input: unknown) => {
       const { prepareRegistrationFromEvent } = await import('./lib/registration-crm-event')
       await prepareRegistrationFromEvent(input, container)

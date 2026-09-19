@@ -3,7 +3,7 @@
   "workflowName": "Opiekun nowego fotografa — Ukryty potencjał (szkielet v1)",
   "version": 1,
   "enabled": false,
-  "description": "Nieaktywny szkielet docelowego procesu z podłączoną konfiguracją O1. Przygotowanie wejścia O1 i pozostałe kroki nie są wdrożone. Brak wyzwalaczy, automatycznych decyzji i wysyłki. Rozgałęzienia opisują zamierzony proces; reguły ich wyboru nie są jeszcze podłączone. Nie włączać tej wersji.",
+  "description": "Nieaktywny szkielet docelowego procesu z podłączoną konfiguracją O1 i adapterem zapisu wyniku O2. Przygotowanie wejścia O1, uruchamianie O2 i pozostałe kroki nie są wdrożone. Brak wyzwalaczy, automatycznych decyzji i wysyłki. Rozgałęzienia opisują zamierzony proces; reguły ich wyboru nie są jeszcze podłączone. Nie włączać tej wersji.",
   "metadata": {
     "category": "photographers",
     "tags": [
@@ -73,7 +73,7 @@
         "stepId": "o2",
         "stepName": "O2 — dalsze poszukiwania",
         "stepType": "AUTOMATED",
-        "description": "photographers.trace_finder: registrationId, firstName, lastName, email, opcjonalne portfolioRaw → research: status, candidates (url, kind, name, evidence, sourceUrl), summary, issues. Aktualny przyrost O2 nie wymaga O1; szuka po e-mailu, bez Apify i rejestrów. Przyszły adapter zapisze niepotwierdzonych kandydatów jako tracesSnapshotSchema. Docelowe rozszerzenie O2 z wynikiem O1 pozostaje niepodłączone.",
+        "description": "photographers.trace_finder: oryginalna rejestracja (registrationId, firstName, lastName, email, opcjonalne portfolioRaw) → research: status, candidates (url, kind, name, evidence, sourceUrl), summary, issues. O2 szuka po e-mailu bez O1, Apify i rejestrów. Adapter wyjścia photographers.o2.store_result pobiera utrwalony run wskazany przez o2RunId, zapisuje niepotwierdzone tracesSnapshotSchema i zwraca tylko odwołania jako o2Result. Wyszukanie e-maila nie kończy pełnego discovery. Uruchamianie agenta i bezpieczne oczekiwanie nadal wymagają osobnego podłączenia; nie włączać szkieletu.",
         "_editorPosition": {
           "x": 600,
           "y": 720
@@ -313,7 +313,19 @@
         "fromStepId": "o2",
         "toStepId": "identity",
         "transitionName": "",
-        "trigger": "manual"
+        "trigger": "manual",
+        "activities": [
+          {
+            "activityId": "store_o2_result",
+            "activityName": "o2Result",
+            "activityType": "EXECUTE_FUNCTION",
+            "async": false,
+            "config": {
+              "functionName": "photographers.o2.store_result",
+              "args": { "runId": "{{context.o2RunId}}" }
+            }
+          }
+        ]
       },
       {
         "transitionId": "identity_identity_review_4",

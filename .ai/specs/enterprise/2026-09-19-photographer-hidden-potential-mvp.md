@@ -583,3 +583,14 @@ Walidacja lokalna: 245 testów modułu; TC-002 3/3 obejmuje API i ponowienia, fo
 ### Korekta założenia o zamówieniach — 2026-09-19
 
 Użytkownik usunął wymóg potwierdzenia braku zamówień: jest to założenie wejścia do procesu. Zastąpiono wynik przygotowania CRM przez `ready` i usunięto komunikat/formularz potwierdzenia z planowanego przebiegu. Nie dodano startu badania ani kolejnego przyrostu. Dawne kontrakty materiału `eligibility` i pole konfiguracji ważności pozostają wyłącznie dla zgodności z istniejącymi danymi/testami magazynu; nie są warunkiem procesu ani zadaniem do wdrożenia. Schemat odpowiedzi przyjmuje dawny status dla zgodności, ale serwer zwraca `ready`.
+
+
+### O2 — dopasowanie do szkieletu workflow, 2026-09-19
+
+Zakres tej iteracji: definicja plikowa `photographers.trace_finder` i przekazanie jej wyniku z kroku `o2` do `identity` w nieaktywnym szkielecie z commitu `cc9e576d`. O2 szuka po oryginalnym e-mailu, zwraca najwyżej pięciu kandydatów i źródła; nie wymaga O1 ani Apify. Nie potwierdza tożsamości. Jest to ograniczony wycinek O2, nie ukończenie całego badania.
+
+Adapter `photographers.o2.store_result` przyjmuje wyłącznie `runId`, sprawdza uprawnienia, organizację, workflow, pojedynczą próbę kroku i zgodność wejścia z oryginalną rejestracją. Zapisuje niepotwierdzone ślady istniejącą komendą szyfrowanych materiałów. Zwraca tylko `runId`, `tracesRef` i status; dane źródłowe nie trafiają do kontekstu workflow. Wynik samego wyszukania po e-mailu nie oznacza zakończenia całego discovery. Powtórne próby kroku są na razie odrzucane.
+
+Potwierdzono kod: 40 testów w czterech zestawach, typecheck aplikacji, lint zmienionych plików i generowanie. Runner local. Generowanie wykonano w odizolowanej kopii źródeł; znaleziono agenta w wygenerowanym rejestrze, bez zmian frameworka w repozytorium. Nie zmieniono API ani schematu bazy.
+
+**Niepotwierdzone w aplikacji:** rzeczywiste wyszukiwanie, uruchomienie O2 przez workflow i zapis wyniku na żywej bazie. Szkielet pozostaje wyłączony, bez wyzwalaczy; nie dodano wywołania agenta, workera ani oczekiwania na wynik. Rejestru działającej aplikacji nie przebudowano i aplikacji nie restartowano. Następna uzgadniana iteracja musi podłączyć wykonanie O2 oraz sprawdzić pojedynczą rejestrację od wejścia do zapisanego wyniku. Brak migracji, resetów i zmian `packages/**`. Zatrzymano pracę na informację zwrotną.
