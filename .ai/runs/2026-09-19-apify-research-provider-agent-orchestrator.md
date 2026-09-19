@@ -72,5 +72,5 @@ The source specification is included in this implementation branch because it ex
 
 ### Phase 4: Verification and operational readiness
 
-- [ ] 4.1 Add comprehensive automated coverage and Agent Orchestrator smoke fixture
-- [ ] 4.2 Generate registries, finalize documentation, and complete validation
+- [x] 4.1 Add comprehensive automated coverage and Agent Orchestrator smoke fixture — 341b666f
+- [x] 4.2 Generate registries, finalize documentation, and complete validation — 341b666f
