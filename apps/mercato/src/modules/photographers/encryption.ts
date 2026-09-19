@@ -2,6 +2,10 @@ import type { ModuleEncryptionMap } from '@open-mercato/shared/modules/encryptio
 
 export const defaultEncryptionMaps: ModuleEncryptionMap[] = [
   {
+    entityId: 'photographers:photographer_evaluation_material',
+    fields: [{ field: 'body' }],
+  },
+  {
     entityId: 'photographers:photographer_raw_data',
     fields: [
       { field: 'first_name' },

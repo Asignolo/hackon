@@ -1,0 +1,28 @@
+{
+  "testCase": "TC-PHOTOGRAPHERS-021",
+  "command": "PHOTOGRAPHERS_TEST_MONOREPO=true node .ai/scripts/test-env-tests.mjs TC-PHOTOGRAPHERS-021",
+  "environment": "Owned isolated test app; actual canonical routes, no message effect.",
+  "baseUrl": "http://127.0.0.1:58644",
+  "stats": {
+    "startTime": "2026-09-19T12:48:35.376Z",
+    "duration": 92930.932,
+    "expected": 1,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "tests": [
+    {
+      "title": "requires material access, renders the complete message and preserves native rejection",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "duration": 2645,
+          "retry": 0
+        }
+      ]
+    }
+  ],
+  "screenshot": "TC-PHOTOGRAPHERS-021-materials.png"
+}

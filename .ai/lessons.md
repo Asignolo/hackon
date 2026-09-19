@@ -1,6 +1,6 @@
 # Lessons
 
-This catalog indexes 144 focused lessons. Route the task first, then read only records whose modules, areas, or topics match the work.
+This catalog indexes 148 focused lessons. Route the task first, then read only records whose modules, areas, or topics match the work.
 
 ## How to use this catalog
 
@@ -20,6 +20,7 @@ This catalog indexes 144 focused lessons. Route the task first, then read only r
 
 ### architecture
 
+- [Hackathon photographer features must use existing framework capabilities](lessons/hackathon-photographers-no-framework-changes.md) — area:architecture,umes; module:photographers; topic:extension-boundaries,workflow,scope
 - [Durable quota reservations need fenced leases, conditional creates, and bounded sizes](lessons/durable-quota-reservations-need-fenced-leases.md) — area:architecture,module-data; module:attachments,storage_s3; topic:data-scoping,command-pattern,database-migrations
 - [Encode untrusted Markdown fragments as data, not chained escapes](lessons/encode-untrusted-markdown-fragments-as-data.md) — area:architecture,testing; module:platform; topic:network-security,testing
 
@@ -46,10 +47,12 @@ This catalog indexes 144 focused lessons. Route the task first, then read only r
 
 ### module-data
 
+- [Photographer identifiers name distinct records](lessons/photographer-identifiers-name-distinct-records.md) — area:module-data; module:photographers,customers; topic:identity,data-scoping,command-pattern
 - [Photographer portfolio input is unnormalized source text](lessons/photographers-portfolio-is-raw-input.md) — area:module-data; module:photographers; topic:validation,source-data
 
 - [Auto-discovery routing surprises only a running app catches](lessons/api-route-files-must-sit-directly-under-the-resource.md) — area:module-data,backend-ui,testing; module:documents,cli,ui; topic:auto-discovery,generated-files,error-states
 - [Local tooling gotchas: stale snapshots and ephemeral restarts](lessons/db-generate-re-emits-an-unrelated-stale-snapshot.md) — area:module-data,testing,debugging; module:cli,ai_assistant; topic:database-migrations,dev-runtime,regeneration
+- [Coordinate integration snapshot refreshes through one owner](lessons/coordinate-integration-snapshot-refreshes.md) — area:testing,debugging; module:cli; topic:integration-tests,dev-runtime,source-freshness
 - [`dbMigrate` must not write migration snapshots during initialize flows](lessons/dbmigrate-must-not-write-migration-snapshots-during.md) — area:module-data,architecture; module:cli,create_app; topic:generated-files,database-migrations,runtime-startup
 - [A self-request needs data committed outside the caller's transaction](lessons/a-self-request-needs-data-committed-outside-the-callers.md) — area:module-data; module:auth,checkout,query_index; topic:data-integrity,query-index,workers
 - [Avoid identity-map stale snapshots in command logs](lessons/avoid-identity-map-stale-snapshots-in-command-logs.md) — area:module-data,debugging; module:audit_logs,cache; topic:command-pattern,data-integrity,generated-files
@@ -193,4 +196,5 @@ This catalog indexes 144 focused lessons. Route the task first, then read only r
 
 ### spec-pr
 
+- [Photographer registry linkage needs explicit evidence](lessons/photographer-registry-link-needs-explicit-evidence.md) — area:spec-pr,module-data; module:photographers; topic:identity,source-data
 - [Credit the author, not the merger, when generating a changelog](lessons/credit-the-author-not-the-merger-in-a-changelog.md) — area:spec-pr,ai-workflow; module:platform; topic:data-integrity,generated-files

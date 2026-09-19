@@ -1,0 +1,96 @@
+{
+  "status": "applied_and_verified",
+  "runner": "local",
+  "module": "photographers",
+  "migration": "Migration20260919114825",
+  "appliedAt": "2026-09-19T12:57:14.439Z",
+  "columns": [
+    {
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "column_name": "tenant_id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "column_name": "organization_id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "column_name": "operation_id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "column_name": "evaluation_id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "column_name": "photographer_id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "column_name": "person_id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "column_name": "registration_id",
+      "data_type": "uuid",
+      "is_nullable": "YES"
+    },
+    {
+      "column_name": "deal_id",
+      "data_type": "uuid",
+      "is_nullable": "YES"
+    },
+    {
+      "column_name": "kind",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "column_name": "schema_version",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "column_name": "byte_length",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "column_name": "checksum",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "column_name": "body",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    }
+  ],
+  "indexes": [
+    "photographers_evaluation_materials_pkey",
+    "photographers_materials_scope_evaluation_idx",
+    "photographers_materials_scope_operation_unique"
+  ],
+  "frameworkSourceChanged": false,
+  "note": "Applied original migration through MikroORM migrationsList matching historic unsuffixed names. Initial file-discovery attempt rolled back. Post-apply verification corrected an erroneous expected column count (actual schema has 16) and confirmed exact column names."
+}
