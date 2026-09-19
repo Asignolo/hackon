@@ -1,0 +1,47 @@
+{
+  "test": "TC-PHOTOGRAPHERS-023",
+  "runner": "official CLI / isolated snapshot",
+  "cases": [
+    {
+      "title": "starts from the demo page and exposes full materials for a pending human decision",
+      "status": "unexpected",
+      "attempts": [
+        {
+          "status": "timedOut",
+          "retry": 0,
+          "durationMs": 60065,
+          "errors": [
+            "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m",
+            "Error: page.waitForResponse: Test timeout of 60000ms exceeded.\n\n  23 |     await page.goto('/backend/photographers/demo', { waitUntil: 'domcontentloaded' })\n  24 |     await expect(page.getByRole('heading', { name: 'Demonstration scenario', exact: true })).toBeVisible()\n> 25 |     const started = page.waitForResponse((response) => response.url().endsWith('/api/photographers/demo-evaluations') && response.request().method() === 'POST')\n     |                          ^\n  26 |     await page.getByRole('button', { name: 'Create a fictional photographer and start', exact: true }).click()\n  27 |     const response = await started\n  28 |     expect(response.status(), await response.text()).toBe(202)\n    at /private/tmp/photographers-demo-qa-rhsn5zmo/apps/mercato/src/modules/photographers/__integration__/TC-PHOTOGRAPHERS-023-demo-start.spec.ts:25:26"
+          ]
+        },
+        {
+          "status": "failed",
+          "retry": 1,
+          "durationMs": 21220,
+          "errors": [
+            "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('link', { name: 'Open decision in Caseload', exact: true })\nExpected: visible\nTimeout: 20000ms\nError: element(s) not found\n\n"
+          ]
+        }
+      ]
+    }
+  ],
+  "finalBrowserPass": false,
+  "liveProofBeforeLastFix": {
+    "startHttpStatus": 202,
+    "statusHttpStatus": 200,
+    "rawAndCrmOwnersCreated": true,
+    "processStatus": "running",
+    "workflowStatus": "FORKED",
+    "materialReviewReached": false
+  },
+  "fixesAfterFailedRun": [
+    "Disable Start until client hydration is ready",
+    "Extract raw-data creation helper from command registration module to prevent duplicate registry entries in workers"
+  ],
+  "focusedRegression": {
+    "suites": 2,
+    "testsPassed": 61
+  },
+  "manualAcceptance": "Pending user start and decision after original application deployment"
+}

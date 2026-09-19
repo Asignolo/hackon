@@ -1,0 +1,54 @@
+{
+  "runner": "supported repository CLI",
+  "baseUrl": "disposable localhost",
+  "redis": "Dedicated disposable Redis; developer Redis never used.",
+  "stats": {
+    "startTime": "2026-09-19T12:42:44.285Z",
+    "duration": 83577.887,
+    "expected": 3,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "tests": [
+    {
+      "title": "local: parallel reference callbacks join and leave the synthetic review paused",
+      "file": "apps/mercato/src/modules/photographers/__integration__/TC-PHOTOGRAPHERS-022-synthetic-workflow.spec.ts",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "durationMs": 4918
+        }
+      ]
+    },
+    {
+      "title": "async: parallel reference callbacks join and leave the synthetic review paused",
+      "file": "apps/mercato/src/modules/photographers/__integration__/TC-PHOTOGRAPHERS-022-synthetic-workflow.spec.ts",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "durationMs": 3594
+        }
+      ]
+    },
+    {
+      "title": "local: review dispatch failure reaches FAILED without locking callback recovery",
+      "file": "apps/mercato/src/modules/photographers/__integration__/TC-PHOTOGRAPHERS-022-synthetic-workflow.spec.ts",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "durationMs": 2361
+        }
+      ]
+    }
+  ],
+  "scope": "Real database, generated workflow DI and worker, local and async platform queues. Synthetic refs only; review remains paused.",
+  "limitationsEvidence": "synthetic-workflow-limitations.json",
+  "redisCleanup": "Owned disposable container removed successfully after all three cases passed."
+}

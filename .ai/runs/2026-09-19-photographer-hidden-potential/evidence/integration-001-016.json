@@ -1,0 +1,36 @@
+{
+  "runner": "supported repository CLI",
+  "baseUrl": "disposable localhost",
+  "stats": {
+    "startTime": "2026-09-19T12:33:15.952Z",
+    "duration": 80083.643,
+    "expected": 2,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "tests": [
+    {
+      "title": "TC-PHOTOGRAPHERS-001: immutable encrypted submissions respect access and organization scope",
+      "file": "apps/mercato/src/modules/photographers/__integration__/TC-PHOTOGRAPHERS-001.spec.ts",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2064
+        }
+      ]
+    },
+    {
+      "title": "real commands preserve an encrypted snapshot through replay and CRM edit, delete and undo",
+      "file": "apps/mercato/src/modules/photographers/__integration__/TC-PHOTOGRAPHERS-016-material-history.spec.ts",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 1303
+        }
+      ]
+    }
+  ]
+}

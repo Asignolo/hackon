@@ -1,0 +1,17 @@
+{
+  "scope": "Application-only synthetic workflow proof; disabled outside OM_INTEGRATION_TEST=true.",
+  "productionReadiness": false,
+  "limitations": [
+    "Review queue work deliberately leaves WAIT_FOR_SIGNAL paused. No canonical proposal disposal or human approval is claimed.",
+    "No production LLM execution, durable outbox, or automatic recovery scheduler is implemented.",
+    "Receipt operation identity and latest wait status protect tested deliveries, but do not bind callbacks to the original StepInstance attempt. Native rerun-step retains workflow context and re-enters executeStep without the incoming dispatch transition. Production use requires attempt binding or an application route guard before enabling reruns.",
+    "The queue-outage regression covers bounded observed failure handling; it does not establish every core rollback or restart scenario."
+  ],
+  "appOnlyRerunGuardSeam": {
+    "supported": "modules.ts entry.overrides.routes.api",
+    "key": "POST /api/workflows/instances/[id]/rerun-step",
+    "futureImplementation": "Application wrapper authenticates, resolves organization scope, loads the scoped workflow, rejects rerun for owned workflow IDs, and delegates ordinary workflows to the original route with metadata preserved.",
+    "notAvailable": "There is no rerun command; the custom route does not invoke before API interceptors.",
+    "implemented": false
+  }
+}

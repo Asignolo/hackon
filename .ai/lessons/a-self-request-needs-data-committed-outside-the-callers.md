@@ -1,6 +1,6 @@
 ---
 title: "A self-request needs data committed outside the caller's transaction"
-modules: ["auth","checkout","query_index"]
+modules: ["auth","checkout","query_index","photographers"]
 areas: ["module-data"]
 topics: ["data-integrity","query-index","workers"]
 ---
@@ -14,3 +14,5 @@ topics: ["data-integrity","query-index","workers"]
 **Rule**: When code must write a row that a subsequent out-of-band request (self `fetch`, worker, another connection) has to read, create/flush it on a context-detached EM: `em.fork({ clear: true, freshEventManager: true, useContext: false })`. That fork commits on its own pooled connection, matching the query_index/webhooks isolated-EM convention.
 
 **Applies to**: `activity-executor` `CALL_API`, any one-time credential minted for a self-request, and anything that persists data then reads it back over HTTP or from a second connection while a transaction is open.
+
+**Advisory-lock variant**: A lock-only `em.fork().transactional(...)` callback also installs an ambient transaction. Container-backed services may write inside it while a later plain `fork()` cannot see those rows, causing false conflicts even without HTTP. For workflows intentionally composed of separately committed commands and durable recovery receipts, hold the advisory lock on an isolated manager with explicit `begin` / `commit` / `rollback`; do not inject that manager into the child commands. If atomic data writes are intended instead, use the transaction manager for every dependent read and explicitly preserve transaction context in nested forks. A unit mock returning the same manager from every fork cannot detect this; include distinct-manager regression coverage and a real database smoke test.
