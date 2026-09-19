@@ -57,8 +57,8 @@ The source specification is included in this implementation branch because it ex
 
 ### Phase 1: Provider foundation
 
-- [ ] 1.1 Correct the configured base branch and scaffold provider foundation
-- [ ] 1.2 Implement environment preset, CLI, client, and health check
+- [x] 1.1 Correct the configured base branch and scaffold provider foundation — 5066f43e
+- [x] 1.2 Implement environment preset, CLI, client, and health check — 5066f43e
 
 ### Phase 2: Runtime safety foundation
 
@@ -74,4 +74,3 @@ The source specification is included in this implementation branch because it ex
 
 - [ ] 4.1 Add comprehensive automated coverage and Agent Orchestrator smoke fixture
 - [ ] 4.2 Generate registries, finalize documentation, and complete validation
-
