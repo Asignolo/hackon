@@ -67,8 +67,8 @@ The source specification is included in this implementation branch because it ex
 
 ### Phase 3: Research tools
 
-- [ ] 3.1 Implement Instagram and Facebook research tools
-- [ ] 3.2 Implement Google Maps place and reviews tools
+- [x] 3.1 Implement Instagram and Facebook research tools — 46906855
+- [x] 3.2 Implement Google Maps place and reviews tools — 46906855
 
 ### Phase 4: Verification and operational readiness
 
