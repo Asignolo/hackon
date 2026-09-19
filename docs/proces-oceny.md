@@ -29,6 +29,15 @@ Etapy w kolejności wędrówki szansy:
 6. **Skontaktowana**: wiadomość poszła.
 7. **Zamknięta**: wygrana (fotograf zamówił) albo przegrana z powodem.
 
+### 3.1 Zamknięcie szansy
+
+- **Wygrana**: fotograf złożył pierwsze zamówienie. Na weekend przesuwa człowiek ręcznie; docelowo zdarzenie „nowe zamówienie” z modułu zamówień, gdy ten będzie w Open Mercato. Wartość szansy w PLN staje się wtedy przychodem, nie potencjałem.
+- **Przegrana**: tylko człowiek, z powodem z listy: nie odpowiada, nie jest fotografem, drukuje gdzie indziej i nie chce zmieniać, inny. Powód wraca do ewaluacji wag.
+
+### 3.2 Miara sukcesu
+
+Jedna liczba: ilu fotografów ze stanu „Skontaktowana” złożyło pierwsze zamówienie w ciągu 90 dni i za ile. Punkty, liczba ocen i pewność to miary pracy, nie wyniku. „Żywa baza” jest środkiem; celem jest pierwsze zamówienie od kogoś, kto dziś nie zamawia.
+
 „Nie ustalono” nie jest flagą. Jest sygnałem „nieznane”, który nie daje punktów i zostawia szansę w „Obserwowana”. Flagą jest tylko to, co agent ustalił na pewno i co jest złe: działalność zawieszona, wykreślona, PKD niefotograficzne.
 
 ## 4. Wyzwalacze
@@ -48,6 +57,10 @@ Data następnej oceny siedzi w polu „następna interakcja” na fotografie. Pa
 4. **Szansa u człowieka (Do weryfikacji, Do kontaktu) → zegar stoi.** Po decyzji zegar rusza od 14 dni. Zamknięta szansa: bez ocen.
 
 Na weekend: karta pokazuje datę następnej oceny, reguła jest w konfiguracji, drugiego przebiegu na scenie nie pokazujemy.
+
+### 4.2 Kadencja partii
+
+Konfigurowalna, do ustalenia po weekendzie. Punkt wyjścia: nowe rejestracje natychmiast, zaległość i ponowne oceny w dziennym limicie.
 
 ## 5. Fazy oceny i ich mapowanie na Agent Orchestrator
 
