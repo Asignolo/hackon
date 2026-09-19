@@ -1,0 +1,3 @@
+# Fotograf jest rekordem typu osoba, nie firma
+
+Crystal Albums to laboratorium B2B, więc naturalne byłoby modelować klientów jako firmy. Zdecydowaliśmy inaczej: każdy fotograf to rekord typu osoba w module `customers`, a fakty o firmie (NIP, status CEIDG, PKD, VAT) są polami własnymi profilu osoby. Powody: rejestracja daje imię, nazwisko, e-mail i portfolio, nie firmę; odkrycie w CEIDG szuka po imieniu i nazwisku; klienci to w większości jednoosobowe działalności bez działu kontaktowego, a część nie ma zarejestrowanej działalności wcale. Rekord firmy pojawi się dopiero przy migracji zamówień i fakturowania.
