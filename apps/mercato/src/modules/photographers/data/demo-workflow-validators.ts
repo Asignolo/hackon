@@ -8,11 +8,20 @@ export const preparedPhotographerDemoSchema = z.object({
 export type PreparedPhotographerDemo = z.infer<typeof preparedPhotographerDemoSchema>
 
 export const demoWorkflowScopeSchema = z.object({ tenantId: z.string().uuid(), organizationId: z.string().uuid() })
-export const demoWorkflowJobSchema = z.discriminatedUnion('kind', [
+const demoWorkflowDomainJobSchema = z.discriminatedUnion('kind', [
   demoWorkflowScopeSchema.extend({ kind: z.literal('execution'), executionId: z.string().uuid() }).strict(),
   demoWorkflowScopeSchema.extend({ kind: z.literal('disposition'), proposalId: z.string().uuid() }).strict(),
   demoWorkflowScopeSchema.extend({ kind: z.literal('sweep'), afterId: z.string().uuid().optional() }).strict(),
 ])
+export const demoWorkflowJobSchema = demoWorkflowScopeSchema.extend({
+  scope: demoWorkflowScopeSchema.strict().optional(),
+  _idempotencyKey: z.string().optional(),
+  _jobOrigin: z.literal('scheduler').optional(),
+}).passthrough().superRefine((payload, context) => {
+  if (payload.scope && (payload.scope.tenantId !== payload.tenantId || payload.scope.organizationId !== payload.organizationId)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['scope'], message: '[internal] Scheduler scope does not match demo job scope' })
+  }
+}).transform(({ scope: _scope, _idempotencyKey, _jobOrigin, ...payload }) => payload).pipe(demoWorkflowDomainJobSchema)
 export type DemoWorkflowJob = z.infer<typeof demoWorkflowJobSchema>
 
 export const demoDispatchSchema = z.object({ lane: z.enum(['portfolio', 'social', 'review']) }).strict()

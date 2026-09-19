@@ -16,7 +16,7 @@ function fixture(phase?: 'revoke_stage' | 'revoke_interaction') {
   const proposal = { id: randomUUID(), workflowInstanceId: randomUUID(), runId: randomUUID(), agentId: 'photographers.message_review', stepId: 'wait_review', disposition: 'approved', dispositionBy: randomUUID(), selectedOptionId: 'accept', payload: {}, updatedAt: new Date() }
   const digest = reviewDigest({ payload: proposal.payload, disposition: proposal.disposition, selectedOptionId: proposal.selectedOptionId, updatedAt: proposal.updatedAt.toISOString() })
   const checkpoint = { proposalId: proposal.id, disposition: 'approved', digest, interactionId: randomUUID(), personUpdatedAt: new Date().toISOString(), dealUpdatedAt: new Date().toISOString(), interactionUpdatedAt: new Date().toISOString(), beforeStageId: randomUUID(), pipelineId: randomUUID() }
-  const log = { contextJson: { phase }, snapshotAfter: checkpoint, actorUserId: proposal.dispositionBy }
+  const log = { commandId: 'photographers.demo.message.phase', contextJson: { phase }, snapshotAfter: checkpoint, actorUserId: proposal.dispositionBy }
   const em = { fork: jest.fn() }
   em.fork.mockReturnValue(em)
   const userHasAllFeatures = jest.fn(async (userId: string) => userId === viewerId)
@@ -40,7 +40,7 @@ test.each([
   expect(setup.userHasAllFeatures).toHaveBeenCalledTimes(1)
   expect(setup.userHasAllFeatures).toHaveBeenCalledWith(setup.ctx.auth.sub, ['photographers.evaluations.view', 'agent_orchestrator.proposals.view', 'workflows.instances.view'], setup.scope)
   expect(jest.mocked(findOneWithDecryption).mock.calls.every((call) => [AgentProposal, AgentRun, WorkflowInstance].includes(call[1] as never))).toBe(true)
-  expect(findWithDecryption).toHaveBeenCalledWith(expect.anything(), ActionLog, expect.objectContaining({ ...setup.scope, resourceId: setup.proposal.id, commandId: 'photographers.demo.message.phase', executionState: 'done' }), expect.anything(), setup.scope)
+  expect(findWithDecryption).toHaveBeenCalledWith(expect.anything(), ActionLog, expect.objectContaining({ ...setup.scope, resourceId: setup.proposal.id, executionState: 'done' }), expect.anything(), setup.scope)
 })
 
 test('a foreign actor or changed proposal digest cannot forge revocation history', async () => {
@@ -58,4 +58,14 @@ test('cross-scope and missing run correlation fail before journal access', async
   jest.mocked(findOneWithDecryption).mockImplementation(async (_em, entity) => (entity === AgentProposal ? setup.proposal : entity === WorkflowInstance ? { id: setup.proposal.workflowInstanceId } : null) as never)
   await expect(readDemoRevocationHistory({ ...setup.scope, proposalId: setup.proposal.id }, setup.ctx)).rejects.toThrow('material_conflict')
   expect(findWithDecryption).not.toHaveBeenCalled()
+})
+
+
+test('finds encrypted command identifiers by filtering after decryption', async () => {
+  const setup = fixture('revoke_interaction')
+  jest.mocked(findWithDecryption).mockImplementation(async (_manager, _entity, where) => {
+    if ('commandId' in where) return []
+    return [{ ...setup.log, commandId: 'unrelated.command', snapshotAfter: null }, setup.log] as never
+  })
+  await expect(readDemoRevocationHistory({ ...setup.scope, proposalId: setup.proposal.id }, setup.ctx)).resolves.toBe('revoked')
 })

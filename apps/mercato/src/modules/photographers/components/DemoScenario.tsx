@@ -4,7 +4,7 @@ import * as React from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
-import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
+import { getCurrentOrganizationScope, subscribeOrganizationScopeChanged } from '@open-mercato/shared/lib/frontend/organizationEvents'
 import { readApiResultOrThrow } from '@open-mercato/ui/backend/utils/apiCall'
 import { useGuardedMutation } from '@open-mercato/ui/backend/injection/useGuardedMutation'
 import { ErrorMessage, LoadingMessage } from '@open-mercato/ui/backend/detail'
@@ -17,7 +17,17 @@ import { demoExecutionSchema, demoRequestSchema, type DemoExecution } from '../d
 const finished = new Set(['completed', 'rejected', 'revoked', 'cancelled'])
 
 export default function DemoScenario() {
-  const scopeVersion = useOrganizationScopeVersion()
+  const [scopeVersion, setScopeVersion] = React.useState(0)
+  const previousScope = React.useRef(getCurrentOrganizationScope())
+  const scopeInitialized = React.useRef(Boolean(previousScope.current.tenantId || previousScope.current.organizationId))
+  React.useEffect(() => subscribeOrganizationScopeChanged((scope) => {
+    const previous = previousScope.current
+    previousScope.current = scope
+    if (scopeInitialized.current && (previous.tenantId !== scope.tenantId || previous.organizationId !== scope.organizationId)) {
+      setScopeVersion((version) => version + 1)
+    }
+    scopeInitialized.current = true
+  }), [])
   return <ScopedDemoScenario key={scopeVersion} />
 }
 

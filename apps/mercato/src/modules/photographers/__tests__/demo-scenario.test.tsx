@@ -19,6 +19,19 @@ const response = { requestId: id, executionId: id, workflowInstanceId: id, statu
 beforeAll(() => { Object.defineProperty(globalThis, 'TextEncoder', { value: TextEncoder, configurable: true }) })
 beforeEach(() => { jest.clearAllMocks(); window.history.replaceState(null, '', '/backend/photographers/demo') })
 
+test('keeps an in-flight start when the initial organization scope arrives', async () => {
+  emitOrganizationScopeChanged({ tenantId: null, organizationId: null })
+  let finishStart: (value: unknown) => void = () => undefined
+  const read = jest.mocked(readApiResultOrThrow)
+  read.mockImplementationOnce(() => new Promise((resolve) => { finishStart = resolve }))
+  renderWithProviders(<DemoScenario />, { dict: en })
+  fireEvent.click(screen.getByRole('button', { name: 'Create a fictional photographer and start' }))
+  act(() => { emitOrganizationScopeChanged({ tenantId: 'initial', organizationId: 'initial' }) })
+  await act(async () => { finishStart(response) })
+  await screen.findByRole('link', { name: 'Open decision in Caseload' })
+  expect(read).toHaveBeenCalledTimes(1)
+})
+
 test('retries an uncertain start with the same request ID', async () => {
   const read = jest.mocked(readApiResultOrThrow)
   read.mockRejectedValueOnce(new Error('Connection interrupted')).mockResolvedValue(response)
@@ -35,6 +48,7 @@ test('retries an uncertain start with the same request ID', async () => {
 })
 
 test('removes previous organization links and ignores a late refresh after scope change', async () => {
+  emitOrganizationScopeChanged({ tenantId: 'original', organizationId: 'original' })
   window.history.replaceState(null, '', `/backend/photographers/demo?requestId=${id}`)
   let resolveOld: (value: unknown) => void = () => undefined
   const read = jest.mocked(readApiResultOrThrow)

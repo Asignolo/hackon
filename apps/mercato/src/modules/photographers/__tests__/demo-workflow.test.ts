@@ -3,20 +3,22 @@ import { TransactionContext } from '@mikro-orm/core'
 import { asValue, createContainer } from 'awilix'
 import { createModuleQueue } from '@open-mercato/queue'
 import { findOneWithDecryption, findWithDecryption } from '@open-mercato/shared/lib/encryption/find'
-import { WorkflowInstance, StepInstance } from '@open-mercato/core/modules/workflows/data/entities'
+import { WorkflowInstance, StepInstance, WorkflowDefinition } from '@open-mercato/core/modules/workflows/data/entities'
+import * as signalHandler from '@open-mercato/core/modules/workflows/lib/signal-handler'
+import { executeFunction } from '@open-mercato/core/modules/workflows/lib/activity-executor'
 import { AgentProposal, AgentRun, ProcessInstance } from '@open-mercato/enterprise/modules/agent_orchestrator/data/entities'
 import { workflowDefinitionDataSchema } from '@open-mercato/core/modules/workflows/data/validators'
 import type { ActivityContext } from '@open-mercato/core/modules/workflows/lib/activity-executor'
 import { createDemoWorkflowDefinition, DEMO_WORKFLOW_ID, DEMO_REVIEW_SIGNAL } from '../lib/demo-workflow'
 import { dispatchPhotographerDemoWorkflow, finalizePhotographerDemoWorkflow, getDemoReviewBinding, getPhotographerDemoExecution, processPhotographerDemoJob, startDemoWorkflowOnce } from '../lib/demo-workflow-runtime'
-import { probeDemoReviewEffectStatus, readDemoEffectResult } from '../lib/demo-proposal-effects'
+import { probeDemoReviewEffectStatus, readDemoEffectResult, resolveDemoReview } from '../lib/demo-proposal-effects'
 import { readDemoRevocationHistory } from '../lib/demo-workflow-history'
 
 jest.mock('@open-mercato/queue', () => ({ createModuleQueue: jest.fn() }))
 jest.mock('@open-mercato/shared/lib/encryption/find', () => ({ findOneWithDecryption: jest.fn(), findWithDecryption: jest.fn() }))
 jest.mock('@open-mercato/shared/lib/i18n/server', () => ({ resolveTranslations: async () => ({ translate: (key: string) => key }) }))
 jest.mock('../lib/demo-preparation', () => ({ assertPreparedPhotographerDemo: jest.fn(async () => undefined) }))
-jest.mock('../lib/demo-proposal-effects', () => ({ readDemoEffectResult: jest.fn(), probeDemoReviewEffectStatus: jest.fn() }))
+jest.mock('../lib/demo-proposal-effects', () => ({ readDemoEffectResult: jest.fn(), probeDemoReviewEffectStatus: jest.fn(), resolveDemoReview: jest.fn() }))
 jest.mock('../lib/demo-workflow-history', () => ({ readDemoRevocationHistory: jest.fn() }))
 
 function fixture() {
@@ -234,4 +236,51 @@ test.each([
   expect(probeDemoReviewEffectStatus).not.toHaveBeenCalled()
   expect(setup.instance.status).toBe('COMPLETED')
   expect(setup.enqueue).not.toHaveBeenCalled()
+})
+
+test.each(['approved', 'rejected'] as const)('real signal finalizes %s using the completed attempt inside its transaction', async (disposition) => {
+  const setup = fixture()
+  const definition = createDemoWorkflowDefinition()
+  const transition = definition.transitions.find((entry) => entry.transitionId === 'review_end')!
+  const proposal = { id: randomUUID(), agentId: 'photographers.message_review', workflowInstanceId: setup.instance.id, runId: randomUUID(), disposition }
+  const run = { id: proposal.runId, invocationId: setup.step.id }
+  const effect = { proposalId: proposal.id, interactionId: randomUUID(), disposition }
+  const transactionStep = { ...setup.step }
+  const transaction = { ...setup.em, flush: jest.fn() }
+  let committed = false
+  setup.em.transactional.mockImplementation(async (callback: (value: typeof transaction) => Promise<unknown>) => {
+    const result = await callback(transaction)
+    committed = true
+    return result
+  })
+  jest.mocked(resolveDemoReview).mockResolvedValue(effect)
+  jest.mocked(readDemoEffectResult).mockResolvedValue(effect)
+  jest.mocked(findOneWithDecryption).mockImplementation(async (manager, entity) => (
+    entity === WorkflowInstance ? setup.instance : entity === ProcessInstance ? setup.execution
+      : entity === AgentProposal ? proposal : entity === AgentRun ? run
+        : entity === WorkflowDefinition ? { definition }
+          : entity === StepInstance ? (manager === transaction ? transactionStep : setup.step) : null
+  ) as never)
+  jest.mocked(findWithDecryption).mockImplementation(async (manager, entity) => (
+    entity === StepInstance ? [manager === transaction ? transactionStep : setup.step] : []
+  ) as never)
+  const executeWorkflow = jest.fn(async () => { expect(committed).toBe(true) })
+  const executeTransition = jest.fn(async (_manager, container, instance, _from, _to, context) => {
+    expect(committed).toBe(false)
+    await executeFunction(transition.activities![0].config, { workflowInstance: instance, workflowContext: context.workflowContext }, container)
+    return { success: true }
+  })
+  setup.container.register({
+    signalHandler: asValue(signalHandler),
+    workflowExecutor: asValue({ executeWorkflow }),
+    eventLogger: asValue({ logWorkflowEvent: jest.fn() }),
+    stepHandler: asValue({ exitStep: jest.fn(async () => { transactionStep.status = 'COMPLETED' }) }),
+    transitionHandler: asValue({ findValidTransitions: jest.fn(async () => [{ isValid: true, transition }]), executeTransition }),
+    'workflowFunction:photographers.demo.finalize': asValue((raw: unknown, context: ActivityContext) => finalizePhotographerDemoWorkflow(raw, context, setup.container)),
+  })
+  await expect(processPhotographerDemoJob({ kind: 'disposition', ...setup.scope, proposalId: proposal.id }, setup.container)).resolves.toBeUndefined()
+  expect(executeTransition).toHaveBeenCalledTimes(1)
+  expect(executeWorkflow).toHaveBeenCalledTimes(1)
+  expect(setup.step.status).toBe('ACTIVE')
+  expect(transactionStep.status).toBe('COMPLETED')
 })

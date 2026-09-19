@@ -61,7 +61,7 @@ export async function prepareDemoScenarioFixture(request: APIRequestContext) {
       ['customers:customer_person_profile', ['first_name', 'last_name']],
       ['customers:customer_deal', ['title']],
       ['customers:customer_interaction', ['title', 'body']],
-      ['audit_logs:action_log', ['command_payload', 'snapshot_before', 'snapshot_after', 'changes_json', 'context_json']],
+      ['audit_logs:action_log', ['command_id', 'command_payload', 'snapshot_before', 'snapshot_after', 'changes_json', 'context_json']],
     ] as const) {
       const response = await apiRequestWithSelectedOrg(request, 'POST', '/api/entities/encryption', { token: adminToken, selectedOrgId: organizationId, data: { entityId, fields: fields.map((field) => ({ field })), isActive: true } })
       expect(response.status(), await response.text()).toBe(200)
@@ -87,8 +87,15 @@ export async function prepareDemoScenarioFixture(request: APIRequestContext) {
         const deliveries = await client.query<{ count: string }>('select count(*)::text as count from customer_interactions where tenant_id = $1 and organization_id = $2 and external_message_id is not null', [tenantId, organizationId])
         return { registrations: registrations.rows, processes: processes.rows, proposals: proposals.rows, outboundMessageLinks: Number(deliveries.rows[0].count) }
       })
-      return { interactions, deal, processInput: process?.input, workflowContext: workflow?.context, persistence }
+      return { interactions, deal, workflowStatus: workflow?.status, processStatus: process?.status, processInput: process?.input, workflowContext: workflow?.context, persistence }
     }
-    return { token, adminToken, ...scope, userId, installed, inspect, cleanup }
+    async function replayDecision(execution: DemoExecution) {
+      if (!execution.proposalId) throw new Error('[internal] Completed demo proposal required')
+      const registry = await import(pathToFileURL(targetRequire.resolve('@open-mercato/shared/lib/modules/registry')).href) as typeof import('@open-mercato/shared/lib/modules/registry')
+      const worker = registry.getModules().find((module) => module.id === 'photographers')?.workers?.find((entry) => entry.id === 'photographers:demo-workflow')
+      if (!worker) throw new Error('[internal] Discovered demo worker required')
+      await worker.handler({ id: randomUUID(), payload: { kind: 'disposition', ...scope, proposalId: execution.proposalId } }, {})
+    }
+    return { token, adminToken, ...scope, userId, installed, inspect, replayDecision, cleanup }
   } catch (error) { await cleanup(); throw error }
 }

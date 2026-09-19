@@ -1,6 +1,6 @@
 # Lessons
 
-This catalog indexes 151 focused lessons. Route the task first, then read only records whose modules, areas, or topics match the work.
+This catalog indexes 152 focused lessons. Route the task first, then read only records whose modules, areas, or topics match the work.
 
 ## How to use this catalog
 
@@ -201,5 +201,6 @@ This catalog indexes 151 focused lessons. Route the task first, then read only r
 
 - [Photographer registry linkage needs explicit evidence](lessons/photographer-registry-link-needs-explicit-evidence.md) — area:spec-pr,module-data; module:photographers; topic:identity,source-data
 - [Credit the author, not the merger, when generating a changelog](lessons/credit-the-author-not-the-merger-in-a-changelog.md) — area:spec-pr,ai-workflow; module:platform; topic:data-integrity,generated-files
+- [Read encrypted audit command IDs after scoped retrieval](lessons/encrypted-audit-command-id-lookups.md) — area:module-data,debugging,testing; module:photographers,audit_logs; topic:encryption,command-pattern,idempotency
 
 - [Photographer order absence is an entry assumption](lessons/photographers-no-orders-is-entry-assumption.md) — area:architecture,backend-ui; module:photographers; topic:scope,business-rules

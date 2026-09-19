@@ -11,8 +11,9 @@ import { reviewError } from './proposal-review-materials'
 
 type Decision = Awaited<ReturnType<typeof loadDemoDecision>>
 export async function readDemoCheckpoint(decision: Pick<Decision, 'scope' | 'proposal' | 'digest'>, phase: 'stage' | 'interaction' | 'revoke_stage' | 'revoke_interaction', ctx: CommandRuntimeContext) {
-  const logs = await findWithDecryption(ctx.container.resolve<EntityManager>('em').fork(), ActionLog, { ...decision.scope, resourceId: decision.proposal.id, commandId: 'photographers.demo.message.phase', executionState: 'done', deletedAt: null }, { limit: 100, orderBy: { createdAt: 'desc' } }, decision.scope)
+  const logs = await findWithDecryption(ctx.container.resolve<EntityManager>('em').fork(), ActionLog, { ...decision.scope, resourceId: decision.proposal.id, executionState: 'done', deletedAt: null }, { limit: 100, orderBy: { createdAt: 'desc' } }, decision.scope)
   for (const log of logs) {
+    if (log.commandId !== 'photographers.demo.message.phase') continue
     if (log.contextJson?.phase !== phase) continue
     const result = demoEffectCheckpointSchema.safeParse(log.snapshotAfter)
     if (!result.success || result.data.digest !== decision.digest || result.data.proposalId !== decision.proposal.id || log.actorUserId !== decision.proposal.dispositionBy) return reviewError(409, 'material_conflict')

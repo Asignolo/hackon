@@ -1,11 +1,11 @@
 import { asValue, createContainer } from 'awilix'
 import type { CommandRuntimeContext } from '@open-mercato/shared/lib/commands'
-import { findOneWithDecryption } from '@open-mercato/shared/lib/encryption/find'
+import { findWithDecryption } from '@open-mercato/shared/lib/encryption/find'
 import { authorizeDemoCommand, demoInstallation, loadDemoOwners, setDemoStage } from '../lib/demo-proposal-support'
 import { getDemoReviewBinding } from '../lib/demo-workflow-runtime'
 import { prepareDemoProposal } from '../lib/demo-proposal-prepare'
 
-jest.mock('@open-mercato/shared/lib/encryption/find', () => ({ findOneWithDecryption: jest.fn() }))
+jest.mock('@open-mercato/shared/lib/encryption/find', () => ({ findWithDecryption: jest.fn() }))
 jest.mock('@open-mercato/core/modules/audit_logs/data/entities', () => ({ ActionLog: class ActionLog {} }))
 jest.mock('../lib/demo-proposal-support', () => ({ authorizeDemoCommand: jest.fn(), demoInstallation: jest.fn(), loadDemoOwners: jest.fn(), setDemoStage: jest.fn() }))
 jest.mock('../lib/demo-workflow-runtime', () => ({ getDemoReviewBinding: jest.fn() }))
@@ -27,17 +27,27 @@ beforeEach(() => {
   jest.mocked(demoInstallation).mockResolvedValue({ pipelineId: uuid(16), stageIds: { new: uuid(17), contact_ready: uuid(18) } } as never)
 })
 test('contact-ready without a committed preparation receipt is not adopted on replay', async () => {
-  jest.mocked(findOneWithDecryption).mockResolvedValue(null)
+  jest.mocked(findWithDecryption).mockResolvedValue([])
   await expect(prepareDemoProposal(input, context())).rejects.toMatchObject({ status: 409 })
   expect(setDemoStage).not.toHaveBeenCalled()
 })
 test('a verified preparation checkpoint replays without another stage mutation', async () => {
-  jest.mocked(findOneWithDecryption).mockResolvedValue({ snapshotAfter: checkpoint } as never)
+  jest.mocked(findWithDecryption).mockResolvedValue([{ commandId: 'photographers.demo.review.prepare', snapshotAfter: checkpoint }] as never)
   await expect(prepareDemoProposal(input, context())).resolves.toEqual(checkpoint)
   expect(setDemoStage).not.toHaveBeenCalled()
 })
 test('a later operator edit cannot replace the persisted expected version', async () => {
-  jest.mocked(findOneWithDecryption).mockResolvedValue({ snapshotAfter: { ...checkpoint, dealUpdatedAt: changed } } as never)
+  jest.mocked(findWithDecryption).mockResolvedValue([{ commandId: 'photographers.demo.review.prepare', snapshotAfter: { ...checkpoint, dealUpdatedAt: changed } }] as never)
   await expect(prepareDemoProposal(input, context())).rejects.toMatchObject({ status: 409 })
+  expect(setDemoStage).not.toHaveBeenCalled()
+})
+
+
+test('replays preparation when the command identifier is encrypted in storage', async () => {
+  jest.mocked(findWithDecryption).mockImplementation(async (_manager, _entity, where) => {
+    if ('commandId' in where) return []
+    return [{ commandId: 'unrelated.command', snapshotAfter: null }, { commandId: 'photographers.demo.review.prepare', snapshotAfter: checkpoint }] as never
+  })
+  await expect(prepareDemoProposal(input, context())).resolves.toEqual(checkpoint)
   expect(setDemoStage).not.toHaveBeenCalled()
 })

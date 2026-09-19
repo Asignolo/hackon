@@ -5,6 +5,7 @@ import { hasAllFeatures } from '@open-mercato/shared/security/features'
 import { readEvaluationMaterial } from '../lib/material-store'
 import { readProposalReviewMaterials, recordProposalReviewAccess, proposalReviewAccessInterceptor } from '../lib/proposal-review-access'
 import type { MessageReviewEnvelope } from '../data/proposal-review-validators'
+import { loadReviewProposal } from '../lib/proposal-review-materials'
 
 jest.mock('@open-mercato/shared/lib/i18n/server', () => ({ resolveTranslations: async () => ({ translate: (key: string) => key }) }))
 jest.mock('@open-mercato/shared/lib/encryption/find', () => ({ findOneWithDecryption: jest.fn() }))
@@ -17,6 +18,14 @@ const tenantId = uuid(1), organizationId = uuid(2), userId = uuid(3), proposalId
 const photographerId = uuid(5), personId = uuid(6), dealId = uuid(7), evaluationId = uuid(8), factsRef = uuid(9)
 const timestamp = '2026-09-19T12:00:00.000Z'
 const now = Date.parse(timestamp)
+
+test('proposal lookup projects tenant scope from a richer decision input', async () => {
+  const ctx = context()
+  await expect(loadReviewProposal(proposalId, input(), ctx)).resolves.toMatchObject({ id: proposalId })
+  expect(findOneWithDecryption).toHaveBeenCalledWith(expect.anything(), expect.anything(), {
+    id: proposalId, tenantId, organizationId, deletedAt: null, source: 'runtime',
+  }, {}, { tenantId, organizationId })
+})
 const expectedVersions = { personUpdatedAt: timestamp, dealUpdatedAt: timestamp, factsRef }
 const originalPayload = (): MessageReviewEnvelope => ({ options: ['first', 'second'].map((id, index) => ({
   id, label: `Option ${index + 1}`, actions: [{ type: 'photographers.message.accept', payload: {

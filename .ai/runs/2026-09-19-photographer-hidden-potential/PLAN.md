@@ -76,7 +76,7 @@ The request ID is stable across HTTP retries. A tenant/organization/actor-bound 
 - [x] Implement proposal publication, audited CRM decision effects and conservative undo; live verification remains below.
 - [ ] Validate native Caseload approval/rejection, recovery and scoping on a disposable database and browser.
 - [x] Run focused checks and independent review, record full-gate limitations, and rebuild/configure/restart the developer application.
-- [ ] User manual acceptance: completion remains blocked. The user reached the decision step, but both approval and rejection displayed a scenario-completion failure. CRM effects are not confirmed. The user explicitly requested no diagnosis at this stage; this commit preserves the current implementation and known limitation.
+- [ ] User manual acceptance: the earlier user run failed after both decisions. The later decision-completion fix below resolves the technical blocker and verifies both paths; a new manual confirmation by the user is still separate from automated proof.
 
 User testing preference: the user offered to perform the scenario acceptance check. Finish the concrete startup defect found during the live probe, verify the minimal start-to-review path, and expose the page in the developer application. Leave the full manual approval/rejection acceptance exercise to the user rather than extending the automated test matrix before handoff.
 
@@ -91,6 +91,35 @@ The next browser probe confirmed Start returns 202 and creates the scoped CRM/pr
 The full repository gate is not green. Root typecheck, repeated after generation in the isolated snapshot, fails in core modules whose entity IDs are absent from the app's enabled-module registry (including resources and wms). The full unit run passes all 791 application tests available at that run, but the core ACL catalog test requires app-specific photographer labels in the core auth locale; the same five missing keys exist at HEAD. Runtime labels are supplied in this app module's own locale files, preserving the no-framework-change constraint. A README setup instruction fixed the documentation test (4/4 pass on recheck); the metadata icon check passes after using existing registered icons. Later preparation identity, historical-material and transaction-isolation regressions are included in the 212-test module total. These checks do not substitute for the pending live end-to-end scenario proof.
 
 Developer deployment: the full standard build passed, including the production application build. `seed:defaults --module photographers` installed the missing configuration in the three active organizations; read-only checks confirmed the pipeline and all four referenced stages in each. The supported encryption-map helper inserted only absent maps required by this demo, preserving all existing mappings; boolean probes passed for every required field in all three organizations. A controlled restart refreshed the running application's mapping cache. The new application listens on port 3001, the login page returns 200, and an unauthenticated request to the protected demo route redirects to session refresh. The original environment-file hash and PostgreSQL service are unchanged. No synthetic scenario was created in the developer database on the user's behalf. [Deployment evidence](evidence/demo-deployment.json). [TC-023 evidence and remaining manual acceptance](evidence/integration-023-incomplete.json).
+
+## Decision-completion diagnosis and fix — 2026-09-19
+
+The user authorized diagnosis and repair of both demo dispositions, superseding the earlier request to leave final acceptance manual. Scope remains the app-local photographers module; no framework edits, migrations, environment reset, stage renaming or live AI/message delivery.
+
+The initial read-only database/browser investigation found four existing decisions (three approvals, one rejection), all with workflow PAUSED at wait_review and process running. All deals were still Ready for contact and had zero interactions. The worker failed before CRM effects because a richer disposition input was spread into an AgentProposal query, producing the nonexistent AgentProposal.proposalId predicate. The status read also failed on this query. The recovery scheduler independently failed strict job validation on its injected transport metadata. See [initial evidence](evidence/decision-diagnosis-before.json).
+
+Fixes and subsequent findings:
+
+- Project the proposal lookup scope explicitly to tenantId and organizationId; preserve ID, source and deleted filters.
+- Validate and remove scheduler transport metadata, checking nested scope agrees with the domain scope; retain rejection of unknown domain fields.
+- Read the completed review step inside the signal transaction during inline finalization. Real signal-handler/function-dispatch regressions first reproduced invalid_attempt with an isolated read double; completed-state and attempt checks remain intact.
+- After the first rebuild, existing decisions progressed to the intended stages. Their phase receipts were present, but default audit encryption includes command_id; a plaintext WHERE predicate could not find them. Query only scoped resource references, then filter decrypted command IDs for both decision and publication checkpoints. No unaudited write is adopted and no later version conflict is bypassed.
+- TC-023 also reproduced initial organization synchronization remounting the demo during its start request: GET returned404 before POST202, leaving no polling state. Ignore only the initial unknown-scope synchronization; real scope changes still clear prior data.
+
+Runner: local (both configured compose probes found no running app container). Browser/test runner attached to the user-specified app at localhost:3001, using a dedicated temporary organization and test user with cleanup. Tests retain the real worker, PostgreSQL, canonical Caseload disposition, CRM commands and encrypted audit configuration (including command_id). No test environment/database reset or migration was run.
+
+- [x] Reproduce the reported failure and record actual proposal, workflow, process and CRM state.
+- [x] Implement app-local fixes and focused regression coverage.
+- [x] Verify both native decisions and existing-case recovery on the running application.
+- [x] Record final test/build results and cleanup evidence.
+
+Final result: **TC-023 2/2 PASS**, no retries or skips, including awaited duplicate callback through the discovered compiled worker. Both decisions finish the native workflow and its process projection, create exactly one CRM interaction, and retain the requested stage names. Approved message body equals the displayed immutable draft exactly; rejection records the decision. No outbound message links are created and the body is absent from workflow context/process input. Final screenshots were visually checked. [Test evidence](evidence/integration-023-decisions.json), [approval](evidence/demo-approved-completed.png), [rejection](evidence/demo-rejected-completed.png).
+
+All four original user scenarios recovered through the normal scheduler/worker: three approvals at Contacted, one rejection at Observed; each has one interaction, COMPLETED workflow at end, and completed process. Decisions were not changed or resubmitted. [Scoped recovery evidence](evidence/decision-recovery-after.json).
+
+Final checks: 26 unit suites / 221 tests PASS; app typecheck PASS; focused photographers ESLint PASS; generation PASS; production app build PASS; lesson catalog and diff whitespace checks PASS. The test-only Jest invocation sets transformer rootDir and allows transformation of the existing ESM kysely dependency; without the latter one unchanged suite cannot load. No repository Jest configuration or framework file was modified. The full repository gate remains subject to the previously documented unrelated limitations and is not claimed green.
+
+The production application was restarted through the existing CLI on port3001. No schema migration, environment-file edit, dependency change, stage rename, reset or direct repair of business rows occurred. Test fixtures removed their own scoped records/user/organization in the successful teardown. The app remains running. Changes are local and have not been committed or pushed in this correction task.
 
 ## Agreed increment 1 — registration to CRM (2026-09-19)
 

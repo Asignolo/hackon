@@ -1,7 +1,7 @@
 import type { EntityManager } from '@mikro-orm/postgresql'
 import type { CommandRuntimeContext } from '@open-mercato/shared/lib/commands'
 import { ActionLog } from '@open-mercato/core/modules/audit_logs/data/entities'
-import { findOneWithDecryption } from '@open-mercato/shared/lib/encryption/find'
+import { findWithDecryption } from '@open-mercato/shared/lib/encryption/find'
 import { demoPublicationCheckpointSchema, demoReviewInputSchema } from '../data/demo-proposal-validators'
 import { authorizeDemoCommand, demoInstallation, loadDemoOwners, setDemoStage } from './demo-proposal-support'
 import { reviewDigest, reviewError } from './proposal-review-materials'
@@ -13,7 +13,8 @@ export async function prepareDemoProposal(rawInput: unknown, ctx: CommandRuntime
   const { getDemoReviewBinding } = await import('./demo-workflow-runtime')
   const binding = await getDemoReviewBinding({ ...scope, workflowInstanceId: input.workflowInstanceId }, ctx.container)
   if (binding.invocationId !== input.invocationId || reviewDigest(binding.prepared) !== reviewDigest(input.prepared)) return reviewError(409, 'material_conflict')
-  const existing = await findOneWithDecryption(ctx.container.resolve<EntityManager>('em').fork(), ActionLog, { ...scope, commandId: 'photographers.demo.review.prepare', resourceId: input.invocationId, executionState: 'done', deletedAt: null }, { orderBy: { createdAt: 'desc' } }, scope)
+  const logs = await findWithDecryption(ctx.container.resolve<EntityManager>('em').fork(), ActionLog, { ...scope, resourceId: input.invocationId, executionState: 'done', deletedAt: null }, { limit: 100, orderBy: { createdAt: 'desc' } }, scope)
+  const existing = logs.find((log) => log.commandId === 'photographers.demo.review.prepare')
   const before = await loadDemoOwners(input, ctx.container)
   if (existing) {
     const checkpoint = demoPublicationCheckpointSchema.parse(existing.snapshotAfter)

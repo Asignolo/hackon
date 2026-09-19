@@ -1,0 +1,18 @@
+{
+  "date": "2026-09-19",
+  "sourceCommit": "c1f482c2",
+  "app": "http://localhost:3001",
+  "observedExistingScenarios": 4,
+  "decisions": {
+    "approved": 3,
+    "rejected": 1
+  },
+  "workflowStatus": "All PAUSED at wait_review",
+  "processStatus": "All running",
+  "crmStage": "All Ready for contact",
+  "crmInteractions": 0,
+  "workerError": "Trying to query by not existing property AgentProposal.proposalId",
+  "schedulerError": "Unrecognized keys: scope, _idempotencyKey, _jobOrigin",
+  "browser": "Existing scenario renders Could not load the scenario. Try again.",
+  "databaseMutationsDuringDiagnosis": false
+}

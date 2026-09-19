@@ -36,9 +36,10 @@ export async function authorizeProposalReview(ctx: CommandRuntimeContext, dispos
 
 export async function loadReviewProposal(id: string, scope: { tenantId: string; organizationId: string }, ctx: Pick<CommandRuntimeContext, 'container'>) {
   z.string().uuid().parse(id)
+  const proposalScope = { tenantId: scope.tenantId, organizationId: scope.organizationId }
   const { AgentProposal } = await import('@open-mercato/enterprise/modules/agent_orchestrator/data/entities')
   const em = ctx.container.resolve<EntityManager>('em').fork()
-  const proposal = await findOneWithDecryption(em, AgentProposal, { id, ...scope, deletedAt: null, source: 'runtime' }, {}, scope)
+  const proposal = await findOneWithDecryption(em, AgentProposal, { id, ...proposalScope, deletedAt: null, source: 'runtime' }, {}, proposalScope)
   if (!proposal) return reviewError(404, 'material_not_found')
   return proposal
 }

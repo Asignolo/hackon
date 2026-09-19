@@ -218,7 +218,7 @@ export async function dispatchPhotographerDemoWorkflow(raw: unknown, context: Ac
   return { operationId: materialOperationId(prepared.requestId, lane) }
 }
 
-export async function finalizePhotographerDemoWorkflow(_raw: unknown, context: ActivityContext, container: AwilixContainer) {
+export async function finalizePhotographerDemoWorkflow(_raw: unknown, context: ActivityContext, container: AwilixContainer, signalEm?: EntityManager) {
   const instance = context.workflowInstance
   if (instance.workflowId !== DEMO_WORKFLOW_ID) return demoError(409, 'invalid_execution')
   const scope = { tenantId: instance.tenantId, organizationId: instance.organizationId }
@@ -228,7 +228,7 @@ export async function finalizePhotographerDemoWorkflow(_raw: unknown, context: A
   if (!proposal) return demoError(409, 'invalid_attempt')
   const run = await findOneWithDecryption(em, AgentRun, { id: proposal.runId, workflowInstanceId: instance.id, stepId: DEMO_REVIEW_STEP, invocationId: references.reviewAttemptId, ...scope }, {}, scope)
   if (!run) return demoError(409, 'invalid_attempt')
-  const step = await loadWait(instance, DEMO_REVIEW_STEP, null, container)
+  const step = await loadWait(instance, DEMO_REVIEW_STEP, null, container, signalEm)
   if (step.id !== references.reviewAttemptId || step.status !== 'COMPLETED') return demoError(409, 'invalid_attempt')
   const { readDemoEffectResult } = await import('./demo-proposal-effects')
   const effect = await readDemoEffectResult({ ...scope, proposalId: proposal.id }, container)
@@ -236,9 +236,9 @@ export async function finalizePhotographerDemoWorkflow(_raw: unknown, context: A
   return references
 }
 
-async function loadWait(instance: WorkflowInstance, stepId: string, branchInstanceId: string | null, container: AwilixContainer) {
+async function loadWait(instance: WorkflowInstance, stepId: string, branchInstanceId: string | null, container: AwilixContainer, manager?: EntityManager) {
   const scope = { tenantId: instance.tenantId, organizationId: instance.organizationId }
-  const steps = await findWithDecryption(container.resolve<EntityManager>('em').fork(), StepInstance, { ...scope, workflowInstanceId: instance.id, stepId, branchInstanceId }, { limit: 2, orderBy: { createdAt: 'asc' } }, scope)
+  const steps = await findWithDecryption(manager ?? container.resolve<EntityManager>('em').fork(), StepInstance, { ...scope, workflowInstanceId: instance.id, stepId, branchInstanceId }, { limit: 2, orderBy: { createdAt: 'asc' } }, scope)
   if (steps.length !== 1) return demoError(409, 'invalid_attempt')
   return steps[0]
 }
@@ -274,6 +274,9 @@ async function deliverSignal(container: AwilixContainer, input: Scope & { workfl
   const em = container.resolve<EntityManager>('em').fork()
   try {
     await em.transactional(async (transaction) => {
+      signalContainer.register({
+        'workflowFunction:photographers.demo.finalize': asValue((raw: unknown, context: ActivityContext) => finalizePhotographerDemoWorkflow(raw, context, container, transaction)),
+      })
       const scope = { tenantId: input.tenantId, organizationId: input.organizationId }
       const instance = await findOneWithDecryption(transaction, WorkflowInstance, { id: input.workflowInstanceId, workflowId: DEMO_WORKFLOW_ID, ...scope }, { lockMode: LockMode.PESSIMISTIC_WRITE }, scope)
       if (!instance || ['COMPLETED', 'FAILED', 'CANCELLED'].includes(instance.status)) return

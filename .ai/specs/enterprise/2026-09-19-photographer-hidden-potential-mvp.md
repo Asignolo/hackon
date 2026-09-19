@@ -453,7 +453,7 @@ Testy w `apps/mercato/src/modules/photographers/__integration__/`, jeden plik na
 | TC-PHOTOGRAPHERS-022 | Syntetyczny proces na bazie i kolejce local/async: dwie równoległe gałęzie, połączenie wyników, zatrzymanie przed decyzją, duplikat callbacku bez drugiego sygnału i jawna awaria kolejki bez zawieszenia. Nie zastępuje TC-010 ani pełnego testu decyzji człowieka. |
 | TC-PHOTOGRAPHERS-023 | Połączone demo: ekran i POST start, GET stanu, POST odzyskania, prawdziwe wykonanie i run/proposal, odczyt materiałów oraz native dispose approve/reject; pojedynczy skutek CRM, brak wysyłki, ponowienie requestId, izolacja zakresu i brak PII w kontekście procesu. |
 
-Obecny plik TC-023 obejmuje uruchomienie z ekranu, dojście do propozycji oraz wyświetlenie materiałów i natywnych przycisków decyzji. Użytkownik wybrał ręczne sprawdzenie akceptacji i odrzucenia; pozostała macierz TC-023 nie jest oznaczona jako ukończona.
+TC-023 obejmuje teraz dwa pełne przebiegi w przeglądarce: akceptację i odrzucenie. Sprawdza dokładną zaakceptowaną treść, pojedynczą interakcję CRM, właściwy etap, zakończenie workflow i procesu oraz ponowienie decyzji bez duplikacji. Test używa szyfrowanego command_id w dzienniku, zgodnie z konfiguracją aplikacji. Pozostała macierz izolacji i awarii TC-023 oraz pełna specyfikacja pozostają otwarte.
 
 Testy jednostkowe obejmują matcher tożsamości, formuły punktowe, walidatory snapshotów, plan następnego terminu, wybór zatwierdzonej opcji, odrzucanie niedozwolonych akcji i redakcję payloadów. Nie piszemy testów, które tylko kopiują strukturę implementacji.
 
@@ -516,6 +516,8 @@ Po decyzji użytkownika projekt nie dopuszcza zmian frameworka. Wcześniejszy pr
 Syntetyczny workflow dostępny wyłącznie przy `OM_INTEGRATION_TEST=true` służy sprawdzeniu mechanizmu. Jego worker zatrzymuje się przed decyzją; jawny sterownik testu może zasymulować sygnał, ale nie zastępuje propozycji ani decyzji operatora. Nie ma jeszcze produkcyjnego odbiorcy decyzji ani odzyskiwania zadań po wyczerpaniu prób kolejki. Natywne ponowienie od kroku zachowuje kontekst i tworzy nową próbę; obecny worker testowy nie wiąże dowodu operacji z pierwotnym identyfikatorem tej próby. Przed produkcją potrzebne jest takie powiązanie lub kontrola ponowienia przez rozszerzenie aplikacji. Testy jednostkowe nie zamykają tych warunków.
 
 ## Changelog
+
+- 2026-09-19: Naprawiono zakończenie demonstracji po akceptacji i odrzuceniu: ograniczono pola zapytania o propozycję, poprawiono odczyt szyfrowanych potwierdzeń komend i stan kroku widziany przez finalizator oraz walidację metadanych harmonogramu. Usunięto też wyścig początkowej inicjalizacji organizacji z przyciskiem Start. TC-023 obejmuje obie decyzje, a cztery wcześniej zatrzymane demonstracje odzyskano przez istniejący mechanizm. Nazwy etapów, brak wysyłki i zakres MVP pozostają bez zmian. Dowody i końcowe wyniki w PLAN.md.
 
 - 2026-09-19: Połączono gotowe elementy w jawnie fikcyjny scenariusz: ekran startu, przygotowanie CRM, proces dwóch adapterów, Caseload oraz zapis wyniku. Dodano kontrakty trzech tras demo i TC-023; aplikację zbudowano i uruchomiono na porcie 3001. Próba integracyjna ujawniła błędy transakcji, gotowości przycisku i ponownej rejestracji komendy; poprawiono je w module aplikacyjnym. TC-023 nie ma jeszcze końcowego wyniku PASS. Użytkownik wybrał ręczne sprawdzenie pełnego przebiegu po ostatniej poprawce.
 

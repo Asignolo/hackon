@@ -1,0 +1,44 @@
+{
+  "date": "2026-09-19",
+  "scope": "Authenticated browser organization only",
+  "existingScenarios": [
+    {
+      "disposition": "approved",
+      "workflow_status": "COMPLETED",
+      "current_step_id": "end",
+      "process_status": "completed",
+      "stage": "Contacted",
+      "interactions": 1,
+      "outbound_message_links": 0
+    },
+    {
+      "disposition": "approved",
+      "workflow_status": "COMPLETED",
+      "current_step_id": "end",
+      "process_status": "completed",
+      "stage": "Contacted",
+      "interactions": 1,
+      "outbound_message_links": 0
+    },
+    {
+      "disposition": "rejected",
+      "workflow_status": "COMPLETED",
+      "current_step_id": "end",
+      "process_status": "completed",
+      "stage": "Observed",
+      "interactions": 1,
+      "outbound_message_links": 0
+    },
+    {
+      "disposition": "approved",
+      "workflow_status": "COMPLETED",
+      "current_step_id": "end",
+      "process_status": "completed",
+      "stage": "Contacted",
+      "interactions": 1,
+      "outbound_message_links": 0
+    }
+  ],
+  "schemaMigrationsApplied": false,
+  "manualBusinessRecordWrites": false
+}
