@@ -153,7 +153,18 @@ export async function executeApifyActor<T>(input: {
     return errorResult({ platform: input.platform, sourceUrl, code: 'run_context_missing', message: safeMessage('run_context_missing') })
   }
 
-  const config = readApifyConfig(input.dependencies?.env)
+  let config
+  try {
+    config = readApifyConfig(input.dependencies?.env)
+  } catch (error) {
+    await reportFailure({ container: ctx.container, ctx, agentRunId, actorRunId: null, code: 'budget_exceeded', error })
+    return errorResult({
+      platform: input.platform,
+      sourceUrl,
+      code: 'budget_exceeded',
+      message: safeMessage('budget_exceeded'),
+    })
+  }
   const chargeLimitUsd = Math.max(config.maxChargeUsd, input.entry.minimumChargeUsd)
   const reservedMilliUsd = Math.ceil(chargeLimitUsd * 1000)
   let lease

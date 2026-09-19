@@ -2,14 +2,13 @@ import { z } from 'zod'
 
 const INSTAGRAM_RESERVED_PATHS = new Set(['p', 'reel', 'reels', 'stories', 'explore', 'accounts'])
 const FACEBOOK_RESERVED_PATHS = new Set(['groups', 'events', 'profile.php', 'posts', 'watch', 'marketplace'])
-const PLACE_ID_PATTERN = /^(?:ChIJ|GhIJ)[A-Za-z0-9_-]{23}$/
+const PLACE_ID_PATTERN = /^[A-Za-z0-9_-]{10,200}$/
 
 function parseHttpsUrl(value: string, hosts: (hostname: string) => boolean): URL {
   const url = new URL(value)
   if (url.protocol !== 'https:' || !hosts(url.hostname.toLowerCase())) {
     throw new Error('[internal] Unsupported public target host.')
   }
-  url.search = ''
   url.hash = ''
   return url
 }
@@ -55,8 +54,12 @@ export function normalizeGoogleMapsTarget(input: {
   }
   const url = parseHttpsUrl(input.placeUrl?.trim() ?? '', (host) =>
     host === 'maps.app.goo.gl' || /^(?:www\.)?google\.[a-z.]+$/.test(host))
-  if (url.hostname !== 'maps.app.goo.gl' && !url.pathname.startsWith('/maps')) {
+  const queryPlaceId = url.searchParams.get('query_place_id')
+  const isConcreteGooglePlace = url.pathname.startsWith('/maps/place/')
+    || (url.pathname.startsWith('/maps/search') && Boolean(queryPlaceId))
+  if (url.hostname !== 'maps.app.goo.gl' && !isConcreteGooglePlace) {
     throw new Error('[internal] URL must identify a Google Maps place.')
   }
+  url.search = queryPlaceId ? `?api=1&query_place_id=${queryPlaceId}` : ''
   return { placeUrl: url.toString(), canonicalUrl: url.toString() }
 }
