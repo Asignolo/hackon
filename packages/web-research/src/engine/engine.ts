@@ -14,6 +14,7 @@ import {
 import type { SearchStep, SearchStepEvent, SearchStepMetrics, StepSink } from '../contract/steps'
 import { classifyPage } from '../extract/classify'
 import { extractMainContent } from '../extract/content'
+import { extractPageLinks } from '../extract/links'
 import { extractTitle, htmlToText } from '../extract/text'
 import { fuseResults, type FusionInput } from '../fusion/fuse'
 import { buildCacheKey, createSingleFlight } from './cache'
@@ -167,6 +168,7 @@ export function createSearchEngine(options: SearchEngineOptions): SearchEngine {
         })
         const isHtml = response.contentType === null || response.contentType.includes('html')
         const text = isHtml ? extractMainContent(response.body) || htmlToText(response.body) : response.body
+        const linkExtraction = isHtml ? extractPageLinks(response.body, response.url) : undefined
         const classification = classifyPage({
           status: response.status,
           contentType: response.contentType,
@@ -181,6 +183,10 @@ export function createSearchEngine(options: SearchEngineOptions): SearchEngine {
           status: response.status,
           truncated: response.truncated,
           renderedWith: 'http',
+          ...(linkExtraction ? {
+            ...linkExtraction,
+            linksTruncated: response.truncated || linkExtraction.linksTruncated,
+          } : {}),
         }
         if (classification.verdict === 'ok' || render === 'never') return { status: 'ok', page }
 

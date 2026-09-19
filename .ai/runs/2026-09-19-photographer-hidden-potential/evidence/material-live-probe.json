@@ -1,0 +1,17 @@
+{
+  "status": "passed",
+  "environment": "disposable PostgreSQL and isolated production app",
+  "kind": "exploratory real command and HTTP proof before Playwright regression run",
+  "checks": [
+    "Generated real CommandBus stores eligibility material",
+    "HTTP GET returns unchanged top-level material contract and no-store",
+    "Physical PostgreSQL body is ciphertext without source marker",
+    "Identical replay preserves original id, ciphertext and timestamp",
+    "Conflicting replay returns409",
+    "Generic CRM interaction with same UUID can be edited/deleted without snapshot change",
+    "Person deletion hides GET with404 while physical snapshot survives",
+    "Real command undo restores owner and original material GET",
+    "Material command does not produce undo token"
+  ],
+  "fixtureCleanup": "Scoped own organization rows removed in finally"
+}

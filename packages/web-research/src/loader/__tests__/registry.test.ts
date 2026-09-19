@@ -39,6 +39,13 @@ describe('readAdapterManifest', () => {
 })
 
 describe('resolveAdapterModules', () => {
+  it('continues accepting version 1 adapters without optional page links', () => {
+    const registry = resolveAdapterModules([
+      { packageName: 'existing-adapter', module: { ...workingModule, contractVersion: 1 } },
+    ])
+    expect(registry.rejected).toEqual([])
+    expect(registry.loaded).toHaveLength(1)
+  })
   it('accepts a valid descriptor and unwraps a default export', () => {
     const registry = resolveAdapterModules([
       { packageName: 'a', module: workingModule },

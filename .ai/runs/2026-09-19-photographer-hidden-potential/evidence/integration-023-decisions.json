@@ -1,0 +1,67 @@
+{
+  "test": "TC-PHOTOGRAPHERS-023",
+  "runner": "repository Playwright / local / existing application / isolated temporary organization",
+  "baseUrl": "http://localhost:3001",
+  "cases": [
+    {
+      "title": "completes the approved decision with exactly one CRM interaction",
+      "status": "expected",
+      "attempts": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "durationMs": 7037
+        }
+      ]
+    },
+    {
+      "title": "completes the rejected decision with exactly one CRM interaction",
+      "status": "expected",
+      "attempts": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "durationMs": 6677
+        }
+      ]
+    }
+  ],
+  "proof": [
+    "Both native Caseload decisions return200",
+    "Exact approved draft equals the persisted CRM interaction body",
+    "Exactly one interaction per decision",
+    "Expected deal stage retained without renaming",
+    "Workflow COMPLETED and ProcessInstance completed",
+    "No outbound message links",
+    "No message body in workflow context or process input",
+    "Awaited duplicate disposition through discovered worker creates no second interaction",
+    "Reconcile endpoint and completed demo page pass"
+  ],
+  "validation": {
+    "unitSuites": 26,
+    "unitTestsPassed": 221,
+    "appTypecheck": "passed",
+    "moduleLint": "passed",
+    "generate": "passed",
+    "productionAppBuild": "passed",
+    "frameworkFilesChanged": false,
+    "migrationsApplied": false
+  },
+  "testDevelopmentFailures": [
+    {
+      "case": "Original TC023 start",
+      "reason": "Initial organization synchronization remounted component while POST was pending; GET404 arrived before POST202. Fixed in DemoScenario.",
+      "owner": "Product/module"
+    },
+    {
+      "case": "Additional duplicate-worker assertion",
+      "reason": "Direct source import required JSON import attributes; switched to discovered compiled worker. Corrected registry path on follow-up. Both final cases passed without retries.",
+      "owner": "Agent/test"
+    }
+  ],
+  "limitations": [
+    "No claim of complete MVP/specification",
+    "Broader TC023 tenant/conflict/failure matrix remains open",
+    "Full repository validation gate not rerun for this app-only correction"
+  ]
+}

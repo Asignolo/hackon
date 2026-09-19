@@ -1,0 +1,64 @@
+{
+  "runner": "supported repository CLI",
+  "baseUrl": "disposable localhost",
+  "stats": {
+    "startTime": "2026-09-19T12:35:35.826Z",
+    "duration": 88463.622,
+    "expected": 0,
+    "skipped": 2,
+    "unexpected": 1,
+    "flaky": 0
+  },
+  "tests": [
+    {
+      "title": "local: parallel reference callbacks join and leave the synthetic review paused",
+      "file": "apps/mercato/src/modules/photographers/__integration__/TC-PHOTOGRAPHERS-022-synthetic-workflow.spec.ts",
+      "status": "unexpected",
+      "results": [
+        {
+          "status": "failed",
+          "retry": 0,
+          "durationMs": 4809,
+          "failure": "Fixture cleanup used tenant_id on customer_deal_people/companies, which are scoped through their parent deal."
+        },
+        {
+          "status": "failed",
+          "retry": 1,
+          "durationMs": 4740,
+          "failure": "Fixture cleanup used tenant_id on customer_deal_people/companies, which are scoped through their parent deal."
+        }
+      ]
+    },
+    {
+      "title": "async: parallel reference callbacks join and leave the synthetic review paused",
+      "file": "apps/mercato/src/modules/photographers/__integration__/TC-PHOTOGRAPHERS-022-synthetic-workflow.spec.ts",
+      "status": "skipped",
+      "results": [
+        {
+          "status": "skipped",
+          "retry": 0
+        },
+        {
+          "status": "skipped",
+          "retry": 1
+        }
+      ]
+    },
+    {
+      "title": "local: review dispatch failure reaches FAILED without locking callback recovery",
+      "file": "apps/mercato/src/modules/photographers/__integration__/TC-PHOTOGRAPHERS-022-synthetic-workflow.spec.ts",
+      "status": "skipped",
+      "results": [
+        {
+          "status": "skipped",
+          "retry": 0
+        },
+        {
+          "status": "skipped",
+          "retry": 1
+        }
+      ]
+    }
+  ],
+  "resolution": "Original fixture corrected to delete junctions through scoped customer_deals; rerun pending."
+}

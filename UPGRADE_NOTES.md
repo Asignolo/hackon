@@ -24,6 +24,39 @@ most of the patterns listed below in a user's codebase.
 
 ## 0.7.0 → 0.8.0 (2026-09-17)
 
+### Photographer discovery: O1 replaces the O2 file agent
+
+New `photographers.hidden_potential` definitions invoke only
+`agent_examples.portfolio_reader_o1`, then store its research with
+`workflowFunction:photographers.o1.store_result`. Pass the four O1 fields:
+`originalPortfolio`, `registrationEmail`, `firstName`, and `lastName`.
+The `photographers.trace_finder` file agent is removed; do not start new O2 runs.
+Existing persisted O2 runs and material remain readable. The deprecated
+`trace-finder-*` adapters and `workflowFunction:photographers.o2.store_result`
+retain their existing input and behavior solely for historical completed O2 runs,
+with removal no earlier than 0.9.0. Existing instances retain their saved graph;
+restart pending O2 discovery from a new O1 definition rather than rewriting history.
+Trace material additionally accepts `nip` and `city` kinds; provenance values allow
+up to 4096 characters to preserve source evidence together with discovery diagnostics. Consumers of trace-kind
+switches should handle those as unconfirmed discovery clues; K1 remains responsible
+for identity confirmation and registry checks still own verified business facts.
+
+
+### Web research source links (additive; existing adapters need no changes)
+
+`FetchedPage` optionally exposes `links: { url, originalHref, text }[]` and
+`linksTruncated`. The HTTP HTML reader includes navigation/footer anchors;
+`agent_orchestrator.web_fetch` filters candidates through its existing domain
+policy. These are observed source links, not fetched or identity-verified pages.
+Missing `links` means extraction was unavailable; an empty list means extraction
+returned no eligible links. Check `linksTruncated` before treating an inventory
+as complete. Non-HTML responses and existing browser adapters may omit both fields.
+
+The adapter contract version is now 2, retaining support for version 1 adapters.
+Existing page text/status fields and tool inputs are unchanged. See the
+[O1 discovery specification](.ai/specs/enterprise/2026-09-19-o1-portfolio-reader-agent.md)
+for the consuming agent and its separately approved, pre-release input/output revision.
+
 Companion skill: [`om-auto-upgrade-0.7.0-to-0.8.0`](.ai/skills/om-auto-upgrade-0.7.0-to-0.8.0/SKILL.md).
 
 ### `Locale` is now derived from an augmentable `LocaleRegistry` (no action required)

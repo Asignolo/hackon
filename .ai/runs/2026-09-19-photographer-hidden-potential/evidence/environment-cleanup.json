@@ -1,0 +1,15 @@
+{
+  "status": "cleaned",
+  "ownedAppProcessesRemaining": 0,
+  "disposablePostgresContainersRemoved": 5,
+  "ownedRedisRemoved": true,
+  "ownedRyukRemoved": true,
+  "isolatedSnapshotRemoved": true,
+  "originalAppPid": 83003,
+  "originalAppAlive": true,
+  "originalAppLoginHttpStatus": 200,
+  "originalPostgresContainerId": "691809f6b674",
+  "originalPostgresPort": 55432,
+  "frameworkWorkingTreeClean": true,
+  "note": "Earlier initial attempts rebuilt original app output before detecting its active runtime lock. Original process and database were not stopped or migrated. Subsequent builds used the disposable snapshot."
+}

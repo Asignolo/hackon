@@ -1,0 +1,61 @@
+{
+  "increment": "registration-to-crm",
+  "runner": "local",
+  "source": "current working tree; concurrent demo repair preserved",
+  "unitTests": {
+    "suites": 29,
+    "passed": 245
+  },
+  "integration": {
+    "case": "TC-PHOTOGRAPHERS-002",
+    "passed": 3,
+    "retries": 0,
+    "skipped": 0,
+    "checks": [
+      "concurrent replay yields one CRM person and deal",
+      "second registration reuses same person and deal",
+      "same-email conflicting name returns 409",
+      "scoped reads, anonymous access denial, ciphertext",
+      "no evaluation workflow started",
+      "simulator save, both CRM links, reload",
+      "persistent registration subscriber without simulator"
+    ]
+  },
+  "checks": {
+    "buildPackages": "passed",
+    "generate": "passed",
+    "buildApp": "passed (28.36 seconds; sandbox build stall retried outside sandbox)",
+    "appTypecheck": "passed",
+    "moduleLint": "passed",
+    "translationSync": "passed",
+    "diffWhitespace": "passed"
+  },
+  "scope": {
+    "frameworkFilesChanged": false,
+    "migrationsApplied": false,
+    "environmentReset": false,
+    "researchStarted": false
+  },
+  "appUrl": "http://localhost:3001/backend/photographers/simulator",
+  "screenshot": "registration-crm-ready.png",
+  "testDevelopmentNotes": [
+    "Initial browser test used mismatching labels/heading role; corrected against observed UI. No product code change was needed."
+  ],
+  "manualAcceptance": "Awaiting user feedback",
+  "cleanup": {
+    "remainingOwnedTestOrganizations": 0,
+    "remainingOwnedTestUsers": 0,
+    "testFailureCleanup": "afterEach with independent teardown time; removed two earlier timed-out fixture scopes"
+  },
+  "latestCorrection": {
+    "decision": "No orders is an entry assumption; no operator confirmation required",
+    "responseStatus": "ready",
+    "unitTestsPassed": 245,
+    "integrationPassed": 3,
+    "retries": 0,
+    "build": "passed",
+    "appTypecheck": "passed",
+    "translations": "passed",
+    "screenshot": "registration-crm-ready.png"
+  }
+}

@@ -78,11 +78,38 @@ export const enabledModules: ModuleEntry[] = [
   { id: 'configs', from: '@open-mercato/core' },
   { id: 'query_index', from: '@open-mercato/core' },
   { id: 'audit_logs', from: '@open-mercato/core' },
-  { id: 'attachments', from: '@open-mercato/core' },
-  { id: 'catalog', from: '@open-mercato/core' },
+  {
+    id: 'attachments',
+    from: '@open-mercato/core',
+    overrides: {
+      routes: {
+        pages: {
+          '/backend/config/attachments': null,
+          '/backend/storage/attachments': null,
+        },
+      },
+    },
+  },
+  {
+    id: 'catalog',
+    from: '@open-mercato/core',
+    overrides: {
+      routes: {
+        pages: {
+          '/backend/catalog/categories': null,
+          '/backend/catalog/categories/[id]/edit': null,
+          '/backend/catalog/categories/create': null,
+          '/backend/catalog/products': null,
+          '/backend/catalog/products/[id]': null,
+          '/backend/catalog/products/[productId]/variants/[variantId]': null,
+          '/backend/catalog/products/[productId]/variants/create': null,
+          '/backend/catalog/products/create': null,
+          '/backend/config/catalog': null,
+        },
+      },
+    },
+  },
   { id: 'sales', from: '@open-mercato/core' },
-  { id: 'warranty_claims', from: '@open-mercato/core' },
-  { id: 'wms', from: '@open-mercato/core' },
   { id: 'api_keys', from: '@open-mercato/core' },
   { id: 'devices', from: '@open-mercato/core' },
   { id: 'dictionaries', from: '@open-mercato/core' },
@@ -99,8 +126,51 @@ export const enabledModules: ModuleEntry[] = [
   { id: 'search', from: '@open-mercato/search' },
   { id: 'currencies', from: '@open-mercato/core' },
   { id: 'planner', from: '@open-mercato/core' },
-  { id: 'resources', from: '@open-mercato/core' },
-  { id: 'staff', from: '@open-mercato/core' },
+  {
+    id: 'staff',
+    from: '@open-mercato/core',
+    overrides: {
+      routes: {
+        pages: {
+          '/backend/staff/leave-requests': null,
+          '/backend/staff/leave-requests/[id]': null,
+          '/backend/staff/leave-requests/create': null,
+          '/backend/staff/my-availability': null,
+          '/backend/staff/my-leave-requests': null,
+          '/backend/staff/my-leave-requests/[id]': null,
+          '/backend/staff/my-leave-requests/create': null,
+          '/backend/staff/profile/create': null,
+          '/backend/staff/team-members': null,
+          '/backend/staff/team-members/[id]': null,
+          '/backend/staff/team-members/create': null,
+          '/backend/staff/team-roles': null,
+          '/backend/staff/team-roles/[id]/edit': null,
+          '/backend/staff/team-roles/create': null,
+          '/backend/staff/teams': null,
+          '/backend/staff/teams/[id]/edit': null,
+          '/backend/staff/teams/create': null,
+          '/backend/staff/time-tracking': null,
+          '/backend/staff/time-tracking/board': null,
+          '/backend/staff/time-tracking/entries': null,
+          '/backend/staff/time-tracking/projects': null,
+          '/backend/staff/time-tracking/projects/[id]': null,
+          '/backend/staff/time-tracking/projects/[id]/board': null,
+          '/backend/staff/time-tracking/projects/[id]/edit': null,
+          '/backend/staff/time-tracking/projects/create': null,
+          '/backend/staff/time-tracking/reports': null,
+          '/backend/staff/time-tracking/reports/[id]': null,
+          '/backend/staff/time-tracking/reports/create': null,
+          '/backend/staff/time-tracking/settings': null,
+          '/backend/staff/time-tracking/timesheet': null,
+          '/backend/staff/timesheets': null,
+          '/backend/staff/timesheets/projects': null,
+          '/backend/staff/timesheets/projects/[id]': null,
+          '/backend/staff/timesheets/projects/[id]/edit': null,
+          '/backend/staff/timesheets/projects/create': null,
+        },
+      },
+    },
+  },
   { id: 'events', from: '@open-mercato/events' },
   { id: 'notifications', from: '@open-mercato/core' },
   { id: 'progress', from: '@open-mercato/core' },
@@ -115,7 +185,15 @@ export const enabledModules: ModuleEntry[] = [
   // Push notification rails — `push` delivery strategy + delivery log + send-push worker.
   // Fans out to `devices` tokens and sends through the `communication_channels` hub.
   { id: 'push_notifications', from: '@open-mercato/core' },
-  { id: 'phone_calls', from: '@open-mercato/core' },
+  {
+    id: 'phone_calls',
+    from: '@open-mercato/core',
+    overrides: {
+      routes: {
+        pages: { '/backend/phone_calls': null },
+      },
+    },
+  },
   { id: 'ai_assistant', from: '@open-mercato/ai-assistant' },
   // agent_orchestrator moved to the enterprise catalog — enabled below behind
   // OM_ENABLE_ENTERPRISE_MODULES + OM_ENABLE_ENTERPRISE_MODULES_AGENTS.
@@ -123,8 +201,6 @@ export const enabledModules: ModuleEntry[] = [
   { id: 'scheduler', from: '@open-mercato/scheduler' },
   { id: 'inbox_ops', from: '@open-mercato/core' },
   { id: 'payment_gateways', from: '@open-mercato/core' },
-  { id: 'checkout', from: '@open-mercato/checkout' },
-  { id: 'documents', from: '@open-mercato/documents' },
   { id: 'gateway_stripe', from: '@open-mercato/gateway-stripe' },
   // Per-user email channels for the Communications Hub (SPEC-045d / email
   // integration spec). Each provider package registers its `ChannelAdapter`
@@ -146,37 +222,37 @@ export const enabledModules: ModuleEntry[] = [
   { id: 'sync_akeneo', from: '@open-mercato/sync-akeneo' },
   { id: 'tillio', from: '@open-mercato/tillio' },
   { id: 'shipping_carriers', from: '@open-mercato/core' },
-  { id: 'eudr', from: '@open-mercato/core' },
-  { id: 'webhooks', from: '@open-mercato/webhooks' },
-  { id: 'customer_accounts', from: '@open-mercato/core' },
-  { id: 'portal', from: '@open-mercato/core' },
   {
-    id: 'example',
-    from: '@app',
+    id: 'eudr',
+    from: '@open-mercato/core',
     overrides: {
-      acl: {
-        features: { 'example.manage': null },
-      },
-      // Keep the real-bootstrap nav override probe isolated from normal app behavior. The integration
-      // runner sets OM_INTEGRATION_TEST, while development and production keep Example at the tail.
-      nav: parseBooleanWithDefault(process.env.OM_INTEGRATION_TEST, false)
-        ? { groupOrder: ['example.nav.group'] }
-        : undefined,
       routes: {
-        api: {
-          'GET /api/example/override-probe': {
-            handler: async () => Response.json({
-              ok: true,
-              source: 'modules.ts override',
-              route: 'example.override-probe',
-            }),
-            metadata: { requireAuth: false },
-          },
+        pages: {
+          '/backend/eudr': null,
+          '/backend/eudr/evidence-submissions': null,
+          '/backend/eudr/evidence-submissions/[id]': null,
+          '/backend/eudr/evidence-submissions/create': null,
+          '/backend/eudr/plots': null,
+          '/backend/eudr/plots/[id]': null,
+          '/backend/eudr/plots/create': null,
+          '/backend/eudr/product-mappings': null,
+          '/backend/eudr/product-mappings/[id]': null,
+          '/backend/eudr/product-mappings/create': null,
+          '/backend/eudr/risk-assessments': null,
+          '/backend/eudr/risk-assessments/[id]': null,
+          '/backend/eudr/risk-assessments/create': null,
+          '/backend/eudr/statements': null,
+          '/backend/eudr/statements/[id]': null,
+          '/backend/eudr/statements/create': null,
         },
       },
     },
   },
+  { id: 'webhooks', from: '@open-mercato/webhooks' },
+  { id: 'customer_accounts', from: '@open-mercato/core' },
+  { id: 'portal', from: '@open-mercato/core' },
   { id: 'ratelimit_probe', from: '@app' },
+  { id: 'photographers', from: '@app' },
 ]
 
 // Official modules activated via official-modules.json / official-modules.local.json

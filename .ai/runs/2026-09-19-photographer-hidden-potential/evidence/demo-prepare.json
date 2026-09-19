@@ -1,0 +1,27 @@
+{
+  "phase": "disposable preparation",
+  "runner": "local isolated snapshot",
+  "sourceState": "frozen demo source before final undo display review",
+  "steps": [
+    {
+      "command": "yarn build:packages",
+      "exitCode": 0,
+      "tasksPassed": 38,
+      "seconds": 32.055
+    },
+    {
+      "command": "yarn generate",
+      "exitCode": 0,
+      "seconds": 11.395
+    },
+    {
+      "command": "yarn build:packages",
+      "exitCode": 0,
+      "tasksPassed": 38,
+      "seconds": 2.587
+    }
+  ],
+  "applicationStarted": false,
+  "developerRuntimeModified": false,
+  "limitation": "Application build and integration execution pending."
+}
