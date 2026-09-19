@@ -62,8 +62,8 @@ The source specification is included in this implementation branch because it ex
 
 ### Phase 2: Runtime safety foundation
 
-- [ ] 2.1 Implement configuration, validation, actor catalog, and result contracts
-- [ ] 2.2 Implement guarded execution, quotas, AgentRun correlation, cleanup, and telemetry
+- [x] 2.1 Implement configuration, validation, actor catalog, and result contracts — 10204284
+- [x] 2.2 Implement guarded execution, quotas, AgentRun correlation, cleanup, and telemetry — 10204284
 
 ### Phase 3: Research tools
 
