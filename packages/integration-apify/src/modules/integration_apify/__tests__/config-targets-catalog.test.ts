@@ -34,10 +34,20 @@ describe('Apify runtime contracts', () => {
       placeId: 'ChIJ12345678901234567890123',
       canonicalUrl: 'https://www.google.com/maps/search/?api=1&query_place_id=ChIJ12345678901234567890123',
     })
+    expect(normalizeGoogleMapsTarget({
+      placeUrl: 'https://www.google.com/maps/search/?api=1&query_place_id=ChIJ12345678901234567890123',
+    })).toEqual({
+      placeId: 'ChIJ12345678901234567890123',
+      canonicalUrl: 'https://www.google.com/maps/search/?api=1&query_place_id=ChIJ12345678901234567890123',
+    })
     expect(() => normalizeInstagramTarget('https://instagram.com/reel/123')).toThrow()
     expect(() => normalizeFacebookTarget('https://facebook.com/groups/123')).toThrow()
     expect(() => normalizeGoogleMapsTarget({ placeUrl: 'https://example.com/place' })).toThrow()
+    expect(() => normalizeGoogleMapsTarget({ placeUrl: 'https://www.google.evil.com/maps/place/x' })).toThrow()
+    expect(() => normalizeGoogleMapsTarget({ placeId: 'arbitrary-but-long-enough' })).toThrow()
+    expect(() => normalizeGoogleMapsTarget({ placeUrl: 'https://maps.app.goo.gl/short-link' })).toThrow()
     expect(() => normalizeGoogleMapsTarget({ placeUrl: 'https://maps.google.com/maps/place/x', placeId: 'x' })).toThrow()
+    expect(() => normalizeFacebookTarget('https://facebook.com/%67roups')).toThrow()
   })
 
   it('uses only exact numeric builds and closed actor inputs', () => {
@@ -47,6 +57,7 @@ describe('Apify runtime contracts', () => {
       expect(entry.build).not.toMatch(/latest|beta/i)
       expect(entry.buildId).toMatch(/^[A-Za-z0-9]+$/)
       expect(entry.inputSchemaHash).toMatch(/^[a-f0-9]{64}$/)
+      expect(entry.pricingFingerprint).toMatch(/^[a-f0-9]{64}$/)
       expect(entry.pricingModel).toBe('pay_per_event')
     }
     expect(ACTOR_CATALOG.google_maps_reviews.buildInput({

@@ -10,6 +10,7 @@ Ship an independently installable `@open-mercato/integration-apify` Marketplace 
 
 - Add the provider package, Marketplace registration, encrypted tenant-wide credential flow, health check, env preset, CLI, i18n, and app wiring.
 - Add the official Apify client behind a provider-owned adapter, a closed pinned actor catalog, fail-closed configuration, AgentRun correlation, reservations/leases, bounded execution, normalization, redaction, cleanup, and telemetry.
+- Add a scoped AgentRun session lookup and generic shared limiter lease primitive required to enforce tenant/organization correlation and real per-holder concurrency expiry.
 - Add four `defineAiTool` registrations for Instagram, Facebook, Google Maps place, and Google Maps reviews.
 - Add unit and integration coverage, a test-only Agent Orchestrator smoke fixture, operator documentation, generator output, and the configured validation gate.
 - Correct `.ai/agentic.config.json` from the nonexistent `develop` base to the repository's real `main` base, as explicitly authorized for this run.
@@ -18,7 +19,7 @@ The source specification is included in this implementation branch because it ex
 
 ## Non-goals
 
-- Do not add or modify a production discovery agent, `agent_examples.portfolio_reader_o1`, enterprise Agent Orchestrator source, public REST routes, database entities, migrations, webhooks, provider-specific UI, background workers, snapshots, or scheduled refresh.
+- Do not add or modify a production discovery agent, `agent_examples.portfolio_reader_o1`, Agent Orchestrator behavior beyond the additive scoped session lookup, public REST routes, database entities, migrations, webhooks, provider-specific UI, background workers, snapshots, or scheduled refresh.
 - Do not expose generic Actor execution, arbitrary actor IDs/input, Apify MCP, raw datasets, reviewer identities, private/personal targets, or automatic retries that could create a second paid run.
 - Do not run a paid live canary in CI or without an explicitly provided test token; provide an opt-in canary contract and runbook instead.
 

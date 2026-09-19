@@ -23,14 +23,18 @@ describe('Apify AI tools', () => {
   })
 
   it('returns a safe diagnostic for a syntactically valid but unsupported target', async () => {
+    const rejectedTarget = 'https://user:password@www.instagram.com/reel/123/?secret=private'
     const result = await instagramProfileTool.handler(
-      { profileUrlOrUsername: 'https://www.instagram.com/reel/123/' },
+      { profileUrlOrUsername: rejectedTarget },
       {} as never,
     )
     expect(result).toMatchObject({
       ok: false,
       status: 'error',
       diagnostics: [{ code: 'invalid_target', retryable: false }],
+      sourceUrl: null,
     })
+    expect(JSON.stringify(result)).not.toContain('password')
+    expect(JSON.stringify(result)).not.toContain('private')
   })
 })

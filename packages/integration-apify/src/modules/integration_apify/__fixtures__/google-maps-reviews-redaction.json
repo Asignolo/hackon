@@ -3,16 +3,12 @@
   "title": "Open Mercato Lab",
   "totalScore": 4.8,
   "reviewsCount": 12,
-  "reviews": [
-    {
-      "stars": 5,
-      "text": "Helpful team.",
-      "publishedAtDate": "2026-09-01T10:00:00.000Z",
-      "responseFromOwner": { "text": "Thank you." },
-      "name": "Reviewer Identity",
-      "reviewerId": "private-reviewer-id",
-      "reviewerUrl": "https://example.invalid/reviewer",
-      "reviewerPhotoUrl": "https://example.invalid/avatar"
-    }
-  ]
+  "stars": 5,
+  "text": "Helpful team.",
+  "publishedAtDate": "2026-09-01T10:00:00.000Z",
+  "responseFromOwnerText": "Thank you.",
+  "name": "Reviewer Identity",
+  "reviewerId": "private-reviewer-id",
+  "reviewerUrl": "https://example.invalid/reviewer",
+  "reviewerPhotoUrl": "https://example.invalid/avatar"
 }

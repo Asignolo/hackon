@@ -34,6 +34,17 @@ export interface RateLimitResult {
   degraded?: boolean
 }
 
+export interface RateLimitLeaseConfig {
+  limit: number
+  ttlMs: number
+  keyPrefix?: string
+}
+
+export interface RateLimitLeaseResult {
+  allowed: boolean
+  degraded?: boolean
+}
+
 export type RateLimitStrategy = 'memory' | 'redis'
 
 export interface RateLimitGlobalConfig {

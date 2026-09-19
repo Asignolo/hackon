@@ -17,15 +17,44 @@ export type InstagramProfileData = {
 }
 
 function resolveAccountType(record: Record<string, unknown>): InstagramProfileData['accountType'] | null {
-  const raw = record.accountType ?? record.account_type
-  if (typeof raw === 'string') {
-    const normalized = raw.toLowerCase()
-    if (normalized === 'business') return 'business'
-    if (normalized === 'creator') return 'creator'
+  return record.isBusinessAccount === true ? 'business' : null
+}
+
+function instagramErrorResult(input: {
+  error: unknown
+  actorRunId: string
+  sourceUrl: string | null
+}): ApifyResearchResult<InstagramProfileData> | null {
+  if (input.error === undefined || input.error === null) return null
+  const base = {
+    ok: false as const,
+    platform: 'instagram' as const,
+    canonicalUrl: input.sourceUrl,
+    sourceUrl: input.sourceUrl,
+    observedAt: new Date().toISOString(),
+    actorRunId: input.actorRunId,
+    data: null,
+    unavailableFields: [],
   }
-  if (record.isBusinessAccount === true) return 'business'
-  if (record.isProfessionalAccount === true && record.isBusinessAccount === false) return 'creator'
-  return null
+  if (input.error === 'not_found') {
+    return {
+      ...base,
+      status: 'no_data',
+      diagnostics: [diagnostic('no_data', 'info', 'The Instagram profile was not found.')],
+    }
+  }
+  if (input.error === 'blocked') {
+    return {
+      ...base,
+      status: 'error',
+      diagnostics: [diagnostic('platform_blocked', 'error', 'Instagram blocked the public profile lookup.')],
+    }
+  }
+  return {
+    ...base,
+    status: 'error',
+    diagnostics: [diagnostic('schema_changed', 'error', 'Instagram returned an unsupported error code.')],
+  }
 }
 
 export function normalizeInstagramProfile(input: {
@@ -34,8 +63,7 @@ export function normalizeInstagramProfile(input: {
   sourceUrl: string | null
   expectedUsername: string
 }): ApifyResearchResult<InstagramProfileData> {
-  const record = input.items[0]
-  if (!record) {
+  if (input.items.length === 0) {
     return {
       ok: false,
       status: 'no_data',
@@ -49,8 +77,15 @@ export function normalizeInstagramProfile(input: {
       diagnostics: [diagnostic('no_data', 'info', 'No public Instagram profile data was returned.')],
     }
   }
-  const username = record.username
-  if (typeof username !== 'string' || username.toLowerCase() !== input.expectedUsername.toLowerCase()) {
+  const upstreamError = instagramErrorResult({
+    error: input.items[0]?.error,
+    actorRunId: input.actorRunId,
+    sourceUrl: input.sourceUrl,
+  })
+  if (upstreamError) return upstreamError
+  const record = input.items.find((item) => typeof item.username === 'string'
+    && item.username.toLowerCase() === input.expectedUsername.toLowerCase())
+  if (!record) {
     return {
       ok: false,
       status: 'error',
@@ -64,8 +99,29 @@ export function normalizeInstagramProfile(input: {
       diagnostics: [diagnostic('schema_changed', 'error', 'Instagram profile identity could not be verified.')],
     }
   }
+  const username = record.username as string
   const accountType = resolveAccountType(record)
-  if (!accountType || record.isPrivate === true || record.private === true) {
+  const privacyValues = [record.isPrivate, record.private].filter((value) => value !== undefined)
+  const privacyFlags = privacyValues.filter((value): value is boolean => typeof value === 'boolean')
+  const privacyIsConsistent = privacyValues.length > 0
+    && privacyFlags.length === privacyValues.length
+    && privacyFlags.every((value) => value === privacyFlags[0])
+  if (!privacyIsConsistent) {
+    return {
+      ok: false,
+      status: 'error',
+      platform: 'instagram',
+      canonicalUrl: input.sourceUrl,
+      sourceUrl: input.sourceUrl,
+      observedAt: new Date().toISOString(),
+      actorRunId: input.actorRunId,
+      data: null,
+      unavailableFields: [{ field: 'isPrivate', reason: 'schema_changed' }],
+      diagnostics: [diagnostic('schema_changed', 'error', 'Instagram profile privacy could not be verified.')],
+    }
+  }
+  const privacy = privacyFlags[0]
+  if (!accountType || privacy) {
     return {
       ok: false,
       status: 'error',
@@ -76,7 +132,7 @@ export function normalizeInstagramProfile(input: {
       actorRunId: input.actorRunId,
       data: null,
       unavailableFields: [],
-      diagnostics: [diagnostic('unsupported_public_scope', 'error', 'Only confirmed public business or creator profiles are supported.')],
+      diagnostics: [diagnostic('unsupported_public_scope', 'error', 'Only confirmed public business profiles are supported by the pinned Actor contract.')],
     }
   }
   const state = createNormalizerState()
@@ -94,7 +150,7 @@ export function normalizeInstagramProfile(input: {
       followingCount: optionalNumber(record, ['followsCount', 'followingCount'], 'followingCount', state),
       postsCount: optionalNumber(record, ['postsCount'], 'postsCount', state),
       isVerified: optionalBoolean(record, ['verified', 'isVerified'], 'isVerified', state),
-      isPrivate: optionalBoolean(record, ['private', 'isPrivate'], 'isPrivate', state),
+      isPrivate: privacy,
       accountType,
       businessCategory: optionalString(record, ['businessCategoryName', 'businessCategory'], 'businessCategory', state, 500),
       externalUrl: optionalString(record, ['externalUrl', 'external_url'], 'externalUrl', state, 2_048),

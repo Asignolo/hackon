@@ -1,11 +1,21 @@
 import type { AwilixContainer } from 'awilix'
-import type { RateLimitConfig, RateLimitResult } from '@open-mercato/shared/lib/ratelimit/types'
+import { randomUUID } from 'node:crypto'
+import type {
+  RateLimitConfig,
+  RateLimitLeaseConfig,
+  RateLimitLeaseResult,
+  RateLimitResult,
+} from '@open-mercato/shared/lib/ratelimit/types'
 import type { ApifyConfig } from './config'
+import { createLogger } from '@open-mercato/shared/lib/logger'
+import { getTelemetryRuntime } from '@open-mercato/shared/lib/telemetry/runtime'
 
 type RateLimiterLike = {
   consume(key: string, config: RateLimitConfig): Promise<RateLimitResult>
   penalty(key: string, points: number, config: RateLimitConfig): Promise<RateLimitResult>
   reward(key: string, points: number, config: RateLimitConfig): Promise<RateLimitResult>
+  acquireLease(key: string, holderId: string, config: RateLimitLeaseConfig): Promise<RateLimitLeaseResult>
+  releaseLease(key: string, holderId: string, config: RateLimitLeaseConfig): Promise<void>
 }
 
 type AppliedReservation = {
@@ -27,10 +37,46 @@ export class ApifyQuotaError extends Error {
 }
 
 export type ApifyQuotaLease = {
-  release(): Promise<void>
+  release(options?: { retainDistributed?: boolean }): Promise<void>
 }
 
 let processActiveRuns = 0
+const logger = createLogger('integration_apify').child({ component: 'quota' })
+const DEFAULT_LIMITER_OPERATION_TIMEOUT_MS = 5_000
+
+class ApifyLimiterTimeoutError extends Error {
+  constructor() {
+    super('[internal] Apify quota limiter operation timed out.')
+    this.name = 'ApifyLimiterTimeoutError'
+  }
+}
+
+async function settleWithin<T>(
+  operation: Promise<T>,
+  timeoutMs: number,
+  onLateResult?: (result: T) => Promise<void>,
+): Promise<T> {
+  let timedOut = false
+  let timeout: NodeJS.Timeout | undefined
+  const tracked = operation.then(async (result) => {
+    if (timedOut && onLateResult) await onLateResult(result)
+    return result
+  })
+  try {
+    return await Promise.race([
+      tracked,
+      new Promise<T>((_resolve, reject) => {
+        timeout = setTimeout(() => {
+          timedOut = true
+          reject(new ApifyLimiterTimeoutError())
+        }, timeoutMs)
+        timeout.unref?.()
+      }),
+    ])
+  } finally {
+    if (timeout) clearTimeout(timeout)
+  }
+}
 
 function resolveLimiter(container: AwilixContainer): RateLimiterLike | null {
   try {
@@ -59,12 +105,29 @@ async function rollback(limiter: RateLimiterLike, applied: AppliedReservation[])
   )
 }
 
+async function boundedRollback(
+  limiter: RateLimiterLike,
+  applied: AppliedReservation[],
+  timeoutMs: number,
+): Promise<void> {
+  try {
+    await settleWithin(rollback(limiter, applied), timeoutMs)
+  } catch (error) {
+    logger.error('Apify quota rollback did not complete within its deadline', { err: error })
+    getTelemetryRuntime()?.reportError(new Error('[internal] Apify quota rollback timed out.'), {
+      module: 'integration_apify',
+      code: 'integration_apify.quota_rollback_failed',
+    })
+  }
+}
+
 export async function reserveApifyQuota(input: {
   container: AwilixContainer
   agentRunId: string
   tenantId: string
   reservedMilliUsd: number
   config: ApifyConfig
+  operationTimeoutMs?: number
 }): Promise<ApifyQuotaLease> {
   const limiter = resolveLimiter(input.container)
   if (!limiter) throw new ApifyQuotaError('budget_exceeded')
@@ -81,7 +144,7 @@ export async function reserveApifyQuota(input: {
 
   const hourSeconds = 60 * 60
   const runSeconds = 24 * hourSeconds
-  const leaseSeconds = input.config.timeoutSeconds + 30
+  const leaseSeconds = input.config.timeoutSeconds + 60
   const reservations: Array<{
     key: string
     points: number
@@ -121,53 +184,69 @@ export async function reserveApifyQuota(input: {
       kind: 'penalty',
       rejection: 'budget_exceeded',
     },
-    {
-      key: input.tenantId,
-      points: 1,
-      config: {
-        points: input.config.maxConcurrencyPerTenant,
-        duration: leaseSeconds,
-        keyPrefix: 'apify:tenant:concurrency',
-      },
-      kind: 'consume',
-      rejection: 'concurrency_limited',
-    },
   ]
 
   const applied: AppliedReservation[] = []
+  const operationTimeoutMs = input.operationTimeoutMs ?? DEFAULT_LIMITER_OPERATION_TIMEOUT_MS
   for (const reservation of reservations) {
     let result: RateLimitResult
     try {
-      result = reservation.kind === 'consume'
-        ? await limiter.consume(reservation.key, reservation.config)
-        : await limiter.penalty(reservation.key, reservation.points, reservation.config)
+      const operation = reservation.kind === 'consume'
+        ? limiter.consume(reservation.key, reservation.config)
+        : limiter.penalty(reservation.key, reservation.points, reservation.config)
+      result = await settleWithin(operation, operationTimeoutMs, async (lateResult) => {
+        if (!lateResult.degraded && lateResult.consumedPoints > 0) {
+          await limiter.reward(reservation.key, reservation.points, reservation.config)
+        }
+      })
     } catch {
-      await rollback(limiter, applied)
       releaseProcessSlot()
+      await boundedRollback(limiter, applied, operationTimeoutMs)
       throw new ApifyQuotaError(reservation.rejection)
     }
     if (!isRealAllowed(result, reservation.config, reservation.kind)) {
-      await rollback(limiter, applied)
+      const rejectedReservation = !result.degraded && result.consumedPoints > 0
+        ? [{ key: reservation.key, points: reservation.points, config: reservation.config }]
+        : []
       releaseProcessSlot()
+      await boundedRollback(limiter, [...applied, ...rejectedReservation], operationTimeoutMs)
       throw new ApifyQuotaError(reservation.rejection)
     }
     applied.push({ key: reservation.key, points: reservation.points, config: reservation.config })
   }
 
+  const holderId = randomUUID()
+  const concurrencyConfig: RateLimitLeaseConfig = {
+    limit: input.config.maxConcurrencyPerTenant,
+    ttlMs: leaseSeconds * 1000,
+    keyPrefix: 'apify:tenant:concurrency',
+  }
+  let concurrencyLease: RateLimitLeaseResult
+  try {
+    concurrencyLease = await settleWithin(
+      limiter.acquireLease(input.tenantId, holderId, concurrencyConfig),
+      operationTimeoutMs,
+      async (lateLease) => {
+        if (lateLease.allowed) await limiter.releaseLease(input.tenantId, holderId, concurrencyConfig)
+      },
+    )
+  } catch {
+    concurrencyLease = { allowed: false, degraded: true }
+  }
+  if (!concurrencyLease.allowed || concurrencyLease.degraded) {
+    releaseProcessSlot()
+    await boundedRollback(limiter, applied, operationTimeoutMs)
+    throw new ApifyQuotaError('concurrency_limited')
+  }
+
   let released = false
-  const concurrencyReservation = applied.at(-1)
   return {
-    async release() {
+    async release(options) {
       if (released) return
       released = true
       releaseProcessSlot()
-      if (concurrencyReservation) {
-        await limiter.reward(
-          concurrencyReservation.key,
-          concurrencyReservation.points,
-          concurrencyReservation.config,
-        ).catch(() => undefined)
-      }
+      if (options?.retainDistributed) return
+      await limiter.releaseLease(input.tenantId, holderId, concurrencyConfig)
     },
   }
 }

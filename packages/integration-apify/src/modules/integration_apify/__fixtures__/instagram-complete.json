@@ -7,7 +7,7 @@
   "postsCount": 42,
   "verified": false,
   "private": false,
-  "accountType": "business",
+  "isBusinessAccount": true,
   "businessCategoryName": "Software company",
   "externalUrl": "https://openmercato.com"
 }

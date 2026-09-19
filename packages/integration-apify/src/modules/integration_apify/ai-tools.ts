@@ -35,11 +35,10 @@ const mapsReviewsInputSchema = mapsPlaceInputSchema.extend({
 
 function invalidTarget<T>(
   platform: ApifyResearchResult<T>['platform'],
-  sourceUrl: string | null,
 ): ApifyResearchResult<T> {
   return errorResult({
     platform,
-    sourceUrl,
+    sourceUrl: null,
     code: 'invalid_target',
     message: 'The target is not a supported public profile, Page, or place.',
   })
@@ -51,7 +50,7 @@ export const instagramProfileTool = defineAiTool<
 >({
   name: APIFY_INSTAGRAM_TOOL_ID,
   displayName: 'Research Instagram profile',
-  description: 'Read one public Instagram business or creator profile with bounded cost. Personal and private profiles are rejected.',
+  description: 'Read one confirmed public Instagram business profile with bounded cost. Personal, unclassified, and private profiles are rejected.',
   inputSchema: instagramInputSchema,
   requiredFeatures: [APIFY_RESEARCH_FEATURE],
   isMutation: false,
@@ -62,7 +61,7 @@ export const instagramProfileTool = defineAiTool<
     try {
       target = normalizeInstagramTarget(input.profileUrlOrUsername)
     } catch {
-      return invalidTarget('instagram', input.profileUrlOrUsername)
+      return invalidTarget('instagram')
     }
     return executeApifyActor({
       ctx,
@@ -98,7 +97,7 @@ export const facebookPageTool = defineAiTool<
     try {
       target = normalizeFacebookTarget(input.pageUrl)
     } catch {
-      return invalidTarget('facebook', input.pageUrl)
+      return invalidTarget('facebook')
     }
     return executeApifyActor({
       ctx,
@@ -129,7 +128,7 @@ export const googleMapsPlaceTool = defineAiTool<
     try {
       target = normalizeGoogleMapsTarget(input)
     } catch {
-      return invalidTarget('google_maps', input.placeUrl ?? null)
+      return invalidTarget('google_maps')
     }
     return executeApifyActor({
       ctx,
@@ -138,7 +137,11 @@ export const googleMapsPlaceTool = defineAiTool<
       platform: 'google_maps',
       canonicalUrl: target.canonicalUrl,
       sourceUrl: target.canonicalUrl,
-      normalize: normalizeGoogleMapsPlace,
+      normalize: (context) => normalizeGoogleMapsPlace({
+        ...context,
+        expectedPlaceId: target.placeId,
+        expectedPlaceUrl: target.placeUrl,
+      }),
     })
   },
 })
@@ -160,20 +163,26 @@ export const googleMapsReviewsTool = defineAiTool<
     try {
       target = normalizeGoogleMapsTarget(input)
     } catch {
-      return invalidTarget('google_maps', input.placeUrl ?? null)
+      return invalidTarget('google_maps')
     }
+    const maxReviews = Math.min(25, Math.max(1, input.maxReviews ?? 10))
     return executeApifyActor({
       ctx,
       entry: ACTOR_CATALOG.google_maps_reviews,
       target: {
         ...(target.placeId ? { placeId: target.placeId } : { placeUrl: target.placeUrl }),
-        maxReviews: input.maxReviews,
+        maxReviews,
         sort: input.sort,
       },
       platform: 'google_maps',
       canonicalUrl: target.canonicalUrl,
       sourceUrl: target.canonicalUrl,
-      normalize: normalizeGoogleMapsReviews,
+      normalize: (context) => normalizeGoogleMapsReviews({
+        ...context,
+        maxReviews,
+        expectedPlaceId: target.placeId,
+        expectedPlaceUrl: target.placeUrl,
+      }),
     })
   },
 })

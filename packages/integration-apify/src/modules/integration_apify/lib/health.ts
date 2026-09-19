@@ -1,7 +1,7 @@
 import type { IntegrationScope } from '@open-mercato/shared/modules/integrations/types'
 import { createHash } from 'node:crypto'
 import { ACTOR_CATALOG_ENTRIES } from './actor-catalog'
-import { createApifyClient, type ApifyClientLike } from './client'
+import { createApifyHealthClient, type ApifyClientLike } from './client'
 
 export type ApifyHealthReason =
   | 'healthy'
@@ -33,15 +33,73 @@ function stableJson(value: unknown): string {
   return JSON.stringify(value) ?? 'null'
 }
 
-function resolveSchemaHash(build: Record<string, unknown>): string | null {
+export function resolveApifyInputSchemaHash(build: Record<string, unknown>): string | null {
   if (typeof build.inputSchemaHash === 'string') return build.inputSchemaHash
   const actorDefinition = build.actorDefinition
   if (!actorDefinition || typeof actorDefinition !== 'object') return null
   const input = (actorDefinition as Record<string, unknown>).input
   if (!input || typeof input !== 'object') return null
-  const schema = (input as Record<string, unknown>).schema
-  if (!schema || typeof schema !== 'object') return null
-  return createHash('sha256').update(stableJson(schema)).digest('hex')
+  return createHash('sha256').update(stableJson(input)).digest('hex')
+}
+
+export function resolveApifyPricingFingerprint(
+  actor: Record<string, unknown>,
+  now = Date.now(),
+): string | null {
+  if (typeof actor.pricingFingerprint === 'string') return actor.pricingFingerprint
+  if (!Array.isArray(actor.pricingInfos)) return null
+  const activePricing = actor.pricingInfos
+    .filter((entry): entry is Record<string, unknown> => {
+      if (!entry || typeof entry !== 'object') return false
+      const startedAt = (entry as Record<string, unknown>).startedAt
+      const startedAtMs = startedAt instanceof Date
+        ? startedAt.getTime()
+        : typeof startedAt === 'string' ? Date.parse(startedAt) : Number.NaN
+      return Number.isFinite(startedAtMs) && startedAtMs <= now
+    })
+    .sort((left, right) => {
+      const rightStartedAt = right.startedAt instanceof Date
+        ? right.startedAt.getTime()
+        : Date.parse(String(right.startedAt))
+      const leftStartedAt = left.startedAt instanceof Date
+        ? left.startedAt.getTime()
+        : Date.parse(String(left.startedAt))
+      return rightStartedAt - leftStartedAt
+    })[0]
+  if (!activePricing || typeof activePricing.pricingModel !== 'string') return null
+  const pricingPerEvent = activePricing.pricingPerEvent
+  const actorChargeEvents = pricingPerEvent && typeof pricingPerEvent === 'object'
+    ? (pricingPerEvent as Record<string, unknown>).actorChargeEvents
+    : null
+  const events = actorChargeEvents && typeof actorChargeEvents === 'object'
+    ? Object.entries(actorChargeEvents as Record<string, unknown>).map(([key, rawEvent]) => {
+        const event = rawEvent && typeof rawEvent === 'object' ? rawEvent as Record<string, unknown> : {}
+        const tiers = event.eventTieredPricingUsd
+        return {
+          key,
+          eventPriceUsd: typeof event.eventPriceUsd === 'number' ? event.eventPriceUsd : null,
+          tiers: tiers && typeof tiers === 'object'
+            ? Object.entries(tiers as Record<string, unknown>).map(([tierKey, rawTier]) => {
+                const tier = rawTier && typeof rawTier === 'object' ? rawTier as Record<string, unknown> : {}
+                return {
+                  key: tierKey,
+                  price: typeof tier.tieredEventPriceUsd === 'number' ? tier.tieredEventPriceUsd : null,
+                }
+              }).sort((left, right) => left.key.localeCompare(right.key))
+            : [],
+        }
+      }).sort((left, right) => left.key.localeCompare(right.key))
+    : []
+  return createHash('sha256').update(stableJson({
+    pricingModel: activePricing.pricingModel,
+    minimalMaxTotalChargeUsd: typeof activePricing.minimalMaxTotalChargeUsd === 'number'
+      ? activePricing.minimalMaxTotalChargeUsd
+      : null,
+    pricePerUnitUsd: typeof activePricing.pricePerUnitUsd === 'number'
+      ? activePricing.pricePerUnitUsd
+      : null,
+    events,
+  })).digest('hex')
 }
 
 async function withDeadline<T>(operation: Promise<T>, timeoutMs: number): Promise<T> {
@@ -60,14 +118,18 @@ async function withDeadline<T>(operation: Promise<T>, timeoutMs: number): Promis
 
 async function validateCatalog(client: ApifyClientLike): Promise<ApifyHealthReason> {
   const entries = await Promise.all(ACTOR_CATALOG_ENTRIES.map(async (entry) => {
-    const [actor, build] = await Promise.all([
+    const [rawActor, build] = await Promise.all([
       client.actor(entry.actorId).get(),
       client.build(entry.buildId).get(),
     ])
-    if (!actor || !build) return 'catalog_unavailable' as const
+    if (!rawActor || typeof rawActor !== 'object' || !build) return 'catalog_unavailable' as const
+    const actor = rawActor as Record<string, unknown>
     const buildNumber = build.buildNumber
-    if (typeof buildNumber === 'string' && buildNumber !== entry.build) return 'catalog_unavailable' as const
-    return resolveSchemaHash(build) === entry.inputSchemaHash ? 'healthy' as const : 'schema_mismatch' as const
+    if (buildNumber !== entry.build) return 'catalog_unavailable' as const
+    return resolveApifyInputSchemaHash(build) === entry.inputSchemaHash
+      && resolveApifyPricingFingerprint(actor) === entry.pricingFingerprint
+      ? 'healthy' as const
+      : 'schema_mismatch' as const
   }))
   if (entries.includes('catalog_unavailable')) return 'catalog_unavailable'
   if (entries.includes('schema_mismatch')) return 'schema_mismatch'
@@ -75,7 +137,7 @@ async function validateCatalog(client: ApifyClientLike): Promise<ApifyHealthReas
 }
 
 export function createApifyHealthCheck(
-  createClient: (credentials: Record<string, unknown>) => ApifyClientLike = createApifyClient,
+  createClient: (credentials: Record<string, unknown>) => ApifyClientLike = createApifyHealthClient,
 ) {
   return {
     async check(credentials: Record<string, unknown> | null, _scope: IntegrationScope): Promise<HealthResult> {
@@ -96,7 +158,7 @@ export function createApifyHealthCheck(
           return {
             status: 'unhealthy',
             message: catalogReason === 'schema_mismatch'
-              ? 'An Apify actor input schema no longer matches the pinned contract.'
+              ? 'An Apify actor schema or pricing model no longer matches the pinned contract.'
               : 'A pinned Apify actor build is unavailable.',
             details: { reason: catalogReason },
           }

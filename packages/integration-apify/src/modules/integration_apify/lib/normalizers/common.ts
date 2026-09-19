@@ -79,14 +79,15 @@ export function optionalStringArray(
   field: string,
   state: NormalizerState,
   limit: number,
+  maxItemLength = 500,
 ): string[] | null {
   const selected = select(record, keys)
   if (!selected.found || selected.value === null) return unavailable(state, field, 'not_exposed')
   if (!Array.isArray(selected.value) || selected.value.some((entry) => typeof entry !== 'string')) {
     return unavailable(state, field, 'schema_changed')
   }
-  const unique = [...new Set(selected.value)]
-  if (unique.length > limit) {
+  const unique = [...new Set(selected.value.map((entry) => entry.slice(0, maxItemLength)))]
+  if (unique.length > limit || selected.value.some((entry) => entry.length > maxItemLength)) {
     state.diagnostics.push(diagnostic('output_truncated', 'warning', `The field ${field} was truncated to its safe limit.`, true))
   }
   return unique.slice(0, limit)

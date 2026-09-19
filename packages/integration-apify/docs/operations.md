@@ -4,7 +4,7 @@
 
 ## Enablement
 
-Configure one tenant-wide API token in the Integrations Marketplace, enable the integration for that tenant and organization, and explicitly grant `integration_apify.research` to the role that runs Agent Orchestrator research. The permission depends on `agent_orchestrator.agents.run` and is intentionally absent from default role grants.
+Configure one tenant-wide API token in the Integrations Marketplace, enable the integration for that tenant and organization, run the Marketplace health check, and explicitly grant `integration_apify.research` to the role that runs Agent Orchestrator research. The permission depends on `agent_orchestrator.agents.run` and is intentionally absent from default role grants. Paid execution requires a successful health result from the preceding 15 minutes so build, schema, and pricing drift fail closed.
 
 Environment preconfiguration is optional:
 
@@ -32,13 +32,13 @@ Every call requires an active `AgentRun` and reserves its worst-case cost before
 | Concurrent runs/process | 4 | 8 |
 | Concurrent runs/tenant | 2 | 4 |
 
-The Google Maps place Actor currently requires a USD 0.50 minimum charge, so that catalog entry reserves and passes USD 0.50 even when the general default is USD 0.25. The provider fails closed when the shared rate limiter is disabled, missing, or degraded. Production multi-process deployments must use the shared Redis limiter; the memory limiter is suitable only for development or one process.
+The Google Maps place Actor currently requires a USD 0.50 minimum charge. Set `OM_INTEGRATION_APIFY_MAX_CHARGE_USD=0.50` before enabling that tool; with the USD 0.25 default, the provider fails closed with `budget_exceeded` before quota or credentials are consumed. The provider also fails closed when the shared rate limiter is disabled, missing, or degraded. Production multi-process deployments must use the shared Redis limiter; the memory limiter is suitable only for development or one process.
 
 The matching environment variables are listed in `apps/mercato/.env.example`. Invalid values do not loosen a limit; paid execution is refused with a sanitized diagnostic.
 
 ## Privacy and retention
 
-Use the tools only for a documented lawful purpose and public-business research. Instagram personal/private profiles and Facebook personal profiles, groups, posts, and events are outside scope. Google Maps review requests force `personalData: false`; reviewer name, profile URL, avatar, and identifiers are never included in normalized results.
+Use the tools only for a documented lawful purpose and public-business research. The pinned Instagram Actor currently exposes a positive discriminator only for business accounts, so creator accounts fail closed as unclassified; Instagram personal/private profiles and Facebook personal profiles, groups, posts, and events are outside scope. Google Maps review requests force `personalData: false`; reviewer name, profile URL, avatar, and identifiers are never included in normalized results.
 
 Raw datasets stay in process memory only until normalization. The provider then attempts to delete the exact dataset, key-value store, and request queue attached to the run. It preserves the Actor run record and `actorRunId` for audit. Configure an appropriate Apify workspace retention policy and DPA independently of this best-effort cleanup.
 
@@ -46,19 +46,19 @@ When a `cleanup_failed` diagnostic appears, use `actorRunId` in the Apify consol
 
 ## Pinned-build update runbook
 
-Actor IDs, numeric builds, Apify build IDs, input-schema hashes, pricing model, and fixture versions live only in `lib/actor-catalog.ts`. Never replace a pin with `latest`, `beta`, or an environment-selected build.
+Actor IDs, numeric builds, Apify build IDs, input-schema hashes, active-pricing fingerprints, and fixture versions live only in `lib/actor-catalog.ts`. Never replace a pin with `latest`, `beta`, or an environment-selected build.
 
 For an update:
 
 1. Confirm the Actor pricing model and minimum charge in Apify.
 2. Record the exact numeric build and immutable build ID.
-3. Hash the canonical input schema and update the catalog entry.
+3. Hash the canonical input schema and the effective active pricing contract, then update the catalog entry.
 4. Refresh only anonymized contract fixtures and run the package tests.
 5. With an explicitly authorized test workspace/token, run one minimum-size public target per changed Actor and record only status, shape/hash, and cost.
 6. Review the normalized output for new personal fields, schema drift, larger output, and changed platform-block behavior.
 7. Ship the build change as its own reviewed PR.
 
-CI never performs paid live canaries. The Marketplace health check authenticates and verifies the four pinned builds and schema hashes without starting an Actor.
+CI never performs paid live canaries. The Marketplace health check authenticates and verifies the four pinned builds, schema hashes, and active pricing fingerprints without starting an Actor.
 
 ## Incident response and rollback
 
