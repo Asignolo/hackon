@@ -1,0 +1,82 @@
+{
+  "date": "2026-09-19",
+  "scope": "Flagged score → publication-only Caseload review",
+  "runner": "local",
+  "baseUrl": "http://localhost:3001",
+  "checks": {
+    "unit": {
+      "suites": 40,
+      "passed": 429
+    },
+    "integration": {
+      "passed": 6,
+      "retries": 0,
+      "cases": [
+        "TC-PHOTOGRAPHERS-021: existing message review, materials, rejection",
+        "TC-PHOTOGRAPHERS-025: qualified, flagged, unconfirmed sources",
+        "TC-PHOTOGRAPHERS-026: flagged publication and unflagged no-op"
+      ]
+    },
+    "packageBuild": "passed, 39 tasks",
+    "generation": "passed",
+    "appTypecheck": "passed",
+    "scopedLint": "passed",
+    "translationSync": "passed, 5 locales",
+    "whitespace": "passed"
+  },
+  "observed": [
+    "Native engine reaches PAUSED review from a 60-point flagged score",
+    "Real local queue and discovered worker publish a pending proposal and assigned task",
+    "Concurrent retries leave one run, one proposal and one task",
+    "Materials API and browser show points, rules, sources and flag",
+    "Approve, edit and reject return 409 without changing disposition or CRM stage",
+    "Unflagged score stays at disposition without queue job or proposal"
+  ],
+  "deployment": {
+    "definitionId": "9fc49c7f-1f8d-4d3f-b6ac-fda3d0ec67f6",
+    "updatedAt": "2026-09-19T19:27:20.450Z",
+    "enabled": false,
+    "otherStepsUnchanged": true,
+    "method": "scoped API with optimistic lock"
+  },
+  "limits": [
+    "Upstream real facts not connected; verification uses owned controlled facts",
+    "Decision execution, CRM transitions, messages and resuming after decision are out of scope",
+    "Orphan task after partial link failure blocks retries; automatic link recovery not implemented",
+    "Multiple persisted review attempts rejected",
+    "Local queue verified; async Redis strategy not exercised",
+    "Production application build not run",
+    "Existing runtime health warning remained visible; tested API and UI paths succeeded"
+  ],
+  "failedIterations": [
+    {
+      "cause": "Test discovery with OM_TEST_APP_ROOT omitted conditional enterprise modules",
+      "resolution": "Used repository-default monorepo discovery with enterprise enabled in test process"
+    },
+    {
+      "cause": "Test edit/reject requests did not follow native payload contract",
+      "resolution": "Supplied edit payload and omitted selectedOptionId for rejection"
+    },
+    {
+      "cause": "Exact UI assertion omitted point suffix",
+      "resolution": "Asserted actual full rule label"
+    },
+    {
+      "cause": "Existing message test assumed one material GET in development mode",
+      "resolution": "Validate every access record; allow repeated reads"
+    },
+    {
+      "cause": "Root Jest configuration fails TS6 rootDir inference for application tests",
+      "resolution": "Used existing application Jest configuration"
+    },
+    {
+      "cause": "Translation check IPC sandbox and unsorted new keys",
+      "resolution": "Ran supported script with node --import tsx; sorted module locale keys"
+    }
+  ],
+  "screenshot": "flagged-score-caseload.png",
+  "migrationsApplied": false,
+  "environmentReset": false,
+  "frameworkModified": false,
+  "testData": "Owned fixtures cleaned in finally/teardown"
+}

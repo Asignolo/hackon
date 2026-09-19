@@ -25,7 +25,7 @@ test('the inactive authored graph is accepted by the existing API schema', () =>
   expect(createWorkflowDefinitionInputCheckedSchema.safeParse(definition).success).toBe(true)
   expect(definition.enabled).toBe(false)
   expect(definition.definition.triggers).toEqual([])
-  expect(definition.definition.transitions.filter((route) => route.trigger === 'auto').map((route) => route.fromStepId)).toEqual(['start', 'prepare', 'o1', 'fork', 'fork', 'fork', 'score'])
+  expect(definition.definition.transitions.filter((route) => route.trigger === 'auto').map((route) => route.fromStepId)).toEqual(['start', 'prepare', 'o1', 'fork', 'fork', 'fork', 'score', 'disposition'])
 })
 
 test('the real executor refuses the disabled skeleton even with a pinned version, before writing anything', async () => {

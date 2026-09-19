@@ -147,7 +147,7 @@
         "stepId": "score",
         "stepName": "Punktacja i propozycja etapu",
         "stepType": "AUTOMATED",
-        "description": "factsRef, evaluatedAt i rulesVersion → szyfrowany scoreSnapshotSchema: punkty według 15 reguł, uzasadnienie, flagi i suggestedAction. Wyjście scoreResult.result zawiera scoreRef, factsRef i rulesVersion. Bez propozycji, zmiany CRM i kontaktu; następny krok pozostaje niewdrożony.",
+        "description": "factsRef, evaluatedAt, rulesVersion i rulesSnapshot → szyfrowany wynik 15 reguł. scoreResult.result przekazuje scoreRef, factsRef, rulesVersion i reviewRequired; bez zmiany CRM i kontaktu.",
         "_editorPosition": {
           "x": 600,
           "y": 2740
@@ -157,7 +157,7 @@
         "stepId": "disposition",
         "stepName": "Dalsze postępowanie — polityka propozycji",
         "stepType": "AUTOMATED",
-        "description": "Wynik reguł → propozycja i pełna polityka platformy. Flaga zawsze wymaga człowieka; produktowy/komercyjny bez flag kieruje do obserwacji niezależnie od punktów. Pozostałe: poniżej 60 obserwacja, od 60 kwalifikacja. Punkty nie są pewnością.",
+        "description": "Wynik z potwierdzoną flagą → jedna propozycja do podglądu w Caseload. Polityka zawsze wymaga człowieka. Wyniki bez flag i wykonanie decyzji pozostają poza obecną partią.",
         "_editorPosition": {
           "x": 600,
           "y": 2980
@@ -166,11 +166,14 @@
       {
         "stepId": "review",
         "stepName": "Człowiek — dalsze postępowanie",
-        "stepType": "AUTOMATED",
-        "description": "Propozycja zatrzymana przez flagę lub politykę → Caseload: obserwacja, dopuszczenie kontaktu, jawne zamknięcie albo odrzucenie propozycji. Wyjątek kontaktu mimo flagi wymaga waiverSnapshotSchema i uzasadnienia; nie usuwa flagi.",
+        "stepType": "WAIT_FOR_SIGNAL",
+        "description": "Caseload pokazuje punkty, uzasadnienie i potwierdzone flagi. Publikacja i podgląd są dostępne; zatwierdzanie, odrzucanie oraz wykonanie decyzji pozostają zablokowane do kolejnej uzgodnionej partii.",
         "_editorPosition": {
           "x": 1100,
           "y": 3240
+        },
+        "signalConfig": {
+          "signalName": "photographers.evaluation.review.ready"
         }
       },
       {
@@ -437,8 +440,30 @@
         "transitionId": "disposition_review_19",
         "fromStepId": "disposition",
         "toStepId": "review",
-        "transitionName": "Flaga lub zatrzymanie przez politykę",
-        "trigger": "manual"
+        "transitionName": "Potwierdzona flaga — podgląd w Caseload",
+        "trigger": "auto",
+        "condition": {
+          "operator": "AND",
+          "rules": [
+            {
+              "field": "scoreResult.result.reviewRequired",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        },
+        "activities": [
+          {
+            "activityId": "request_evaluation_review",
+            "activityName": "evaluationReviewDispatch",
+            "activityType": "EXECUTE_FUNCTION",
+            "async": false,
+            "config": {
+              "functionName": "photographers.evaluation.request_review",
+              "args": {}
+            }
+          }
+        ]
       },
       {
         "transitionId": "disposition_observe_20",

@@ -156,8 +156,9 @@ to dowodu wykonania obecnego wycinka ani jakości wyszukiwania w sieci.
 
 Krok `score` oblicza 15 reguł bez modelu językowego. Przejście
 `score_disposition_18` wykonuje `photographers.evaluation.score` i przekazuje
-`scoreResult.result` do następnego kroku. `disposition` pozostaje niewdrożony;
-nie powstaje propozycja, kontakt, zmiana etapu CRM ani wysyłka.
+`scoreResult.result` do następnego kroku. Wynik zawiera odwołania oraz
+`reviewRequired`, bez danych źródłowych. Kontakt, zmiana etapu CRM i wysyłka
+pozostają poza zakresem.
 
 Warunki wejścia przygotowywane przez wcześniejsze kroki:
 
@@ -182,3 +183,37 @@ Nie podłączono dopływu faktów z O2/K1/badania. Nie należy włączać pełne
 szkieletu, aby sprawdzić tę partię. TC-PHOTOGRAPHERS-025 uruchamia rzeczywisty
 wycinek `start → score → disposition` z własnymi materiałami testowymi;
 w tym teście `disposition` jest końcem, a nie zastępczą decyzją biznesową.
+
+## Wynik z flagą — podgląd Caseload
+
+Przejście `disposition_review_19` uruchamia
+`photographers.evaluation.request_review` tylko dla `reviewRequired=true`.
+Publikacja korzysta z kolejki `photographers-evaluation-review`. Worker
+sprawdza zatwierdzone zlecenie, aktualny krok `review` w WAIT_FOR_SIGNAL,
+jedną aktywną próbę, aktora, scope oraz właścicieli materiałów.
+Tworzy rzeczywisty run kodu deterministycznego, guardrail, ślad publikacji
+i propozycję `photographers.evaluation_review`; polityka ma `alwaysAsk`.
+Nie używa LLM ani nie przypisuje punktom wartości confidence.
+
+Propozycja zawiera jedną intencję przeglądu i wyłącznie odwołania.
+Istniejący endpoint materiałów zwraca fakty i wynik; istniejący widget
+Caseload pokazuje punkty, flagi, reguły ze źródłami oraz brakujące fakty.
+Nie dodano ekranu ani demonstratora. Wszystkie dyspozycje tej propozycji
+są zablokowane jawnym komunikatem — dalsze postępowanie wymaga następnej
+uzgodnionej partii. Dotychczasowe propozycje wiadomości zachowują obsługę.
+
+Ponowiona i równoczesna publikacja korzysta z tego samego run/proposal/task.
+Jeśli awaria nastąpi pomiędzy utworzeniem zadania a zapisaniem jego linku,
+retry zatrzymuje się bez tworzenia drugiego zadania; automatyczna naprawa
+tego powiązania nie jest wdrożona. Kolejne utrwalone próby kroku review
+są odrzucane jako niejednoznaczne. Cały workflow pozostaje wyłączony.
+
+Weryfikacja: TC-PHOTOGRAPHERS-026 wykonuje rzeczywisty fragment
+`start → score → disposition → review`, kolejkę lokalną i worker,
+publikację, równoczesne ponowienia, API materiałów, blokadę decyzji,
+widok Caseload i brak zmiany etapu CRM. Wariant bez flagi pozostaje
+przed review bez propozycji. Test tworzy i usuwa własne dane.
+
+Ręczny podgląd konfiguracji: Automatyzacje → „Opiekun nowego fotografa” →
+„Dalsze postępowanie” i trasa do „Człowiek — dalsze postępowanie”.
+Pełnego workflow nie należy włączać do sprawdzenia tej partii.

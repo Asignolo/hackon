@@ -3,6 +3,8 @@ import type { AccessLogService } from '@open-mercato/core/modules/audit_logs/ser
 import type { CommandRuntimeContext } from '@open-mercato/shared/lib/commands'
 import type { CommandInterceptor } from '@open-mercato/shared/lib/commands/command-interceptor'
 import { proposalReviewMaterialsResponseSchema, type MessageReviewEnvelope } from '../data/proposal-review-validators'
+import { evaluationReviewEnvelopeSchema } from '../data/evaluation-review-validators'
+import { readEvaluationReviewMaterials } from './evaluation-review-materials'
 import { authorizeProposalReview, loadReviewProposal, manualReviewAgentIds, parseReviewEnvelope, readHistoricalMessageReviewMaterials, readMessageReviewMaterials, reviewDigest, reviewError, validateEditedReview } from './proposal-review-materials'
 
 const resourceKind = 'photographers.proposal_material'
@@ -31,6 +33,16 @@ export async function recordProposalReviewAccess(proposalId: string, ctx: Comman
   const proposal = await loadReviewProposal(proposalId, scope, ctx)
   const base = { proposalId, proposalUpdatedAt: proposal.updatedAt.toISOString(), options: [] }
   if (!manualReviewAgentIds.has(proposal.agentId)) return proposalReviewMaterialsResponseSchema.parse(base)
+  if (proposal.agentId === 'photographers.evaluation_review') {
+    if (edit) return reviewError(409, 'evaluation_decision_unavailable')
+    const envelope = evaluationReviewEnvelopeSchema.safeParse(proposal.payload)
+    if (!envelope.success) return reviewError(409, 'invalid_material')
+    const option = envelope.data.options[0]
+    return proposalReviewMaterialsResponseSchema.parse({
+      ...base,
+      options: [{ selectedOptionId: option.id, label: option.label, materials: await readEvaluationReviewMaterials(option.actions[0].payload, ctx) }],
+    })
+  }
   if (proposal.agentId !== 'photographers.message_review') return reviewError(409, 'review_unavailable')
   const original = await parseReviewEnvelope(proposal.payload)
   const envelope = edit ? await parseReviewEnvelope(edit.payload) : original
@@ -65,10 +77,12 @@ export const proposalReviewAccessInterceptor: CommandInterceptor = {
   priority: 10,
   async beforeExecute(rawInput, context) {
     const parsed = commandInputSchema.safeParse(rawInput)
-    if (!parsed.success || parsed.data.disposition === 'rejected') return
+    if (!parsed.success) return
     const input = parsed.data
     const scope = { tenantId: input.tenantId, organizationId: input.organizationId }
     const proposal = await loadReviewProposal(input.proposalId, scope, context)
+    if (proposal.agentId === 'photographers.evaluation_review') return reviewError(409, 'evaluation_decision_unavailable')
+    if (input.disposition === 'rejected') return
     if (!manualReviewAgentIds.has(proposal.agentId)) return
     if (context.auth && (context.auth.tenantId !== scope.tenantId || (context.selectedOrganizationId ?? context.auth.orgId) !== scope.organizationId)) return reviewError(403, 'forbidden')
     if (!context.auth?.sub || input.userId !== context.auth.sub || input.disposition === 'auto_approved') return reviewError(403, 'review_required')

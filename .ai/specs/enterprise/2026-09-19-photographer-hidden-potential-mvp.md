@@ -657,3 +657,31 @@ Pokrycie: TC-PHOTOGRAPHERS-025 — natywny krok, zaszyfrowany zapis i odczyt
 przez istniejące API materiałów, powtórzenie bez duplikatu, flaga przy
 progu kontaktu, odrzucenie niepotwierdzonego śladu oraz brak zmiany CRM.
 Wyniki wykonania zapisano w planie partii.
+
+### Przyrost — publikacja wyniku z flagą w Caseload (2026-09-19)
+
+Uzgodniony fragment punktu 3.2: zapisany wynik z flagą przechodzi przez
+`disposition` do oczekiwania `review` i jednej propozycji Caseload.
+`scoreResult.result` rozszerzono o bezpieczny znacznik `reviewRequired`.
+Worker publikuje po potwierdzeniu oczekiwania, sprawdza scope, aktora,
+operację i próbę oraz używa istniejących komend run/trace/proposal,
+guardrailów i polityki `alwaysAsk`. Payload przenosi wyłącznie odwołania;
+przydział zadania otrzymuje użytkownik uruchamiający ocenę.
+
+Istniejący endpoint i widget materiałów pokazują fakty oraz score, reguły
+z punktami i źródłami, flagi oraz nieznane fakty. Propozycja zawiera
+intencję przeglądu; zatwierdzanie, edycja, odrzucanie i auto-approve
+są jawnie zablokowane. Wykonanie decyzji, warianty obserwacja/kontakt/
+przegrana, przekazanie decyzji do workflow i CRM pozostają niewdrożone.
+Nie dodano modelu językowego, nowego ekranu ani demonstratora.
+
+Idempotencję publikacji chroni blokada operacji i trwałe powiązania.
+Osierocone zadanie po awarii zapisu linku blokuje retry zamiast powodować
+duplikat; naprawa linku i wielokrotne próby kroku pozostają ograniczeniem.
+Pełna definicja jest wyłączona, rzeczywisty dopływ faktów nadal niepodłączony.
+
+Pokrycie: TC-PHOTOGRAPHERS-026 — natywny workflow, lokalna kolejka/worker,
+pending proposal i zadanie, ponowienie równoczesne bez duplikatu,
+GET materiałów, POST dispose odmawiający wszystkich decyzji, widok
+Caseload i odświeżenie, brak zmian CRM oraz brak propozycji bez flagi.
+Regresja: TC-021 (wiadomości w Caseload), TC-025 (punktacja).

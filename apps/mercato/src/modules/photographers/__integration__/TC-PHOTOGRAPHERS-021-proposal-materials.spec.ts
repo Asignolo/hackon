@@ -56,9 +56,12 @@ test.describe('TC-PHOTOGRAPHERS-021: encrypted proposal materials in native Case
     await expect(region.getByText(current.body, { exact: true })).toBeVisible()
     await expect(region.getByText('Synthetic reasoning for a browser proof.', { exact: true })).toBeVisible()
     const evidence = await current.accessEvidence()
-    expect(evidence).toHaveLength(1)
-    expect(JSON.stringify(evidence[0].contextJson)).not.toContain('Synthetic review message.')
-    expect(JSON.stringify(evidence[0].contextJson)).not.toContain(current.sourceRef)
+    expect(evidence.length).toBeGreaterThan(0)
+    for (const entry of evidence) {
+      expect(entry.contextJson).toMatchObject({ proposalUpdatedAt: current.updatedAt, options: [{ selectedOptionId: 'accept' }] })
+      expect(JSON.stringify(entry.contextJson)).not.toContain('Synthetic review message.')
+      expect(JSON.stringify(entry.contextJson)).not.toContain(current.sourceRef)
+    }
 
     const refreshResponse = page.waitForResponse((response) => response.url().endsWith(materialPath))
     await region.getByRole('button', { name: 'Refresh materials', exact: true }).click()

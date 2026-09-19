@@ -103,7 +103,7 @@ test.describe('TC-PHOTOGRAPHERS-025: native scoring step', () => {
         await withClient(async (db) => {
           const workflow = (await db.query<{ current_step_id: string; context: { scoreResult: { result: unknown } } }>('select current_step_id,context from workflow_instances where id=$1', [instance.id])).rows[0]
           expect(workflow.current_step_id).toBe('disposition')
-          expect(workflow.context.scoreResult.result).toEqual({ scoreRef: rows[0].id, factsRef, rulesVersion: '2026-09-19.1' })
+          expect(workflow.context.scoreResult.result).toEqual({ scoreRef: rows[0].id, factsRef, rulesVersion: '2026-09-19.1', reviewRequired: scenario === 'flagged' })
           for (const table of ['workflow_instances', 'step_instances', 'workflow_events']) {
             const owner = table === 'workflow_instances' ? 'id' : 'workflow_instance_id'
             const state = await db.query(`select * from ${table} where ${owner}=$1 and tenant_id=$2 and organization_id=$3`, [instance.id, fixture.tenantId, fixture.organizationId])

@@ -209,3 +209,41 @@ Bez migracji, resetów i zmian packages/**.
 Użytkownik uznał dodatkową weryfikację ręczną za zbędną, jeśli krok jest
 uzupełniony. Partia zaliczona w powyższym zakresie. Praca zatrzymana;
 nie rozpoczęto kolejnej partii.
+
+## Uzgodniona partia — wynik z flagą w Caseload
+
+Cel: istniejący score → disposition → review publikuje jedną propozycję
+z punktacją, uzasadnieniem i flagą. Bez wykonania decyzji, CRM, wiadomości
+i wcześniejszych agentów. Decyzje zostają jawnie zablokowane.
+
+- [x] Podłączenie publikacji z kontrolą zakresu i ponowienia.
+- [x] Materiały punktacji w istniejącym Caseload.
+- [x] Testy rzeczywistego silnika, propozycji i odczytu oraz testy regresji.
+- [x] Aktualizacja działającego kroku, progresu i zatrzymanie na feedback.
+
+Zakończenie: local, 40 zestawów / 429 testów jednostkowych PASS.
+TC-021/025/026: 6/6 bez retries PASS (21,5 s): dotychczasowa wiadomość
+i odrzucenie, trzy przypadki punktacji, publikacja z flagą i brak publikacji
+bez flagi. Rzeczywisty silnik, lokalna kolejka, worker, komendy run/trace/
+proposal, zadanie, API i przeglądarka; kontrolowane źródła, bez agentów.
+Build pakietów (39 zadań), generate, typecheck aplikacji, scoped lint,
+synchronizacja pięciu języków i diff-check PASS. Produkcyjnego buildu
+aplikacji i strategii kolejki async/Redis nie uruchamiano.
+
+W istniejącej definicji przez API z kontrolą wersji uzupełniono score
+(opis), disposition (opis i wyjście dla flagi), review (oczekiwanie).
+Pozostałe kroki i konfiguracja zachowane; enabled=false. Dane testowe
+usunięto. Nie wykonano migracji, resetu ani zmian packages/**.
+
+Podgląd jest gotowy, wykonanie decyzji jest jawnie zablokowane.
+Upstream facts nadal niepodłączony. W razie awarii między utworzeniem
+zadania a zapisaniem linku retry nie dubluje zadania, ale zatrzymuje się
+do naprawy powiązania; automatyczna naprawa nie jest wdrożona.
+Odrzucamy też wiele utrwalonych prób review.
+
+Dowody: [wyniki](evidence/flagged-score-caseload-verification.json),
+[zrzut Caseload](evidence/flagged-score-caseload.png).
+Test TC-021 dostosowano do powtórnych odczytów w trybie developerskim:
+sprawdza każdy dowód dostępu zamiast zakładać dokładnie jeden GET.
+Pełną historię nieudanych prób testów i ich przyczyn zawiera plik dowodów.
+**Zatrzymano na informację zwrotną; kolejnej partii nie rozpoczęto.**

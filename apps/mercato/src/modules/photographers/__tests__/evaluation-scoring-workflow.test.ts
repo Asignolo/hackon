@@ -65,7 +65,7 @@ test('executes the registered workflow function, saves a real score and returns 
   const setup = fixture()
   await expect(executeFunction({ functionName: 'photographers.evaluation.score', args: { factsRef: setup.factsRef } }, setup.context, setup.container)).resolves.toEqual({
     executed: true, functionName: 'photographers.evaluation.score',
-    result: { scoreRef: setup.scoreRef, factsRef: setup.factsRef, rulesVersion: DEFAULT_HIDDEN_POTENTIAL_RULES.version },
+    result: { scoreRef: setup.scoreRef, factsRef: setup.factsRef, rulesVersion: DEFAULT_HIDDEN_POTENTIAL_RULES.version, reviewRequired: false },
   })
   expect(setup.execute).toHaveBeenCalledTimes(1)
   const [command, options] = setup.execute.mock.calls[0]
@@ -238,7 +238,7 @@ test('reads current scoring state inside the workflow transaction instead of a s
     return setup.records.get(entity) as never
   })
   await expect(TransactionContext.create(transactionalManager as unknown as EntityManager, setup.run)).resolves.toEqual({
-    scoreRef: setup.scoreRef, factsRef: setup.factsRef, rulesVersion: DEFAULT_HIDDEN_POTENTIAL_RULES.version,
+    scoreRef: setup.scoreRef, factsRef: setup.factsRef, rulesVersion: DEFAULT_HIDDEN_POTENTIAL_RULES.version, reviewRequired: false,
   })
   expect(setup.em.fork).not.toHaveBeenCalled()
   expect(transactionalManager.count).toHaveBeenCalledTimes(1)

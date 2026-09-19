@@ -32,7 +32,7 @@ const originalPayload = (): MessageReviewEnvelope => ({ options: ['first', 'seco
     evaluationId, photographerId, personId, dealId, factsRef, messageSnapshotId: uuid(10 + index), expectedVersions,
   } }],
 })) })
-let proposal = { id: proposalId, agentId: 'photographers.message_review', payload: originalPayload(), updatedAt: new Date(timestamp), disposition: 'pending' }
+let proposal: { id: string; agentId: string; payload: unknown; updatedAt: Date; disposition: string } = { id: proposalId, agentId: 'photographers.message_review', payload: originalPayload(), updatedAt: new Date(timestamp), disposition: 'pending' }
 type Entry = { tenantId: string; organizationId: string; actorUserId: string; resourceId: string; resourceKind: string; accessType: string; contextJson: unknown; createdAt: Date; deletedAt: Date | null }
 let entries: Entry[] = []
 let grants: string[] = []
@@ -107,10 +107,30 @@ test('automatic message approval cannot use a human receipt; ordinary agents ret
   expect((await readProposalReviewMaterials(proposalId, context())).options).toEqual([])
 })
 
-test.each(['photographers.identity_review', 'photographers.evaluation_review'])('unimplemented manual agent %s fails closed but permits reject', async (agentId) => {
+test.each(['photographers.identity_review'])('unimplemented manual agent %s fails closed but permits reject', async (agentId) => {
   proposal.agentId = agentId
   await expect(dispose()).rejects.toMatchObject({ status: 409 })
   await expect(dispose(input('rejected'))).resolves.toBeUndefined()
+})
+
+test.each(['approved', 'edited', 'rejected', 'auto_approved'] as const)('evaluation preview blocks %s without recording a decision', async (disposition) => {
+  proposal.agentId = 'photographers.evaluation_review'
+  await expect(dispose(input(disposition))).rejects.toMatchObject({ status: 409, body: { error: 'photographers.errors.evaluation_decision_unavailable' } })
+  expect(log).not.toHaveBeenCalled()
+})
+
+test('evaluation preview returns validated facts and score without a message approval receipt', async () => {
+  proposal.agentId = 'photographers.evaluation_review'
+  const payload = { evaluationId, registrationId: uuid(40), photographerId, personId, dealId, factsRef, scoreRef: uuid(41) }
+  proposal.payload = { options: [{ id: 'review', label: 'Review', actions: [{ type: 'photographers.evaluation.review', risk: 'high', payload }] }] }
+  jest.mocked(readEvaluationMaterial).mockImplementation(async (id) => {
+    if (id === factsRef) return { ...material(id), registrationId: payload.registrationId } as never
+    return { ...material(id), registrationId: payload.registrationId, kind: 'score', data: { schemaVersion: 1, evaluationId, factsRef, evaluatedAt: timestamp, rulesVersion: 'v1', score: 0, matchedRules: [], flags: ['business_suspended'], category: 'unknown', suggestedAction: 'review', unknownFactKeys: [] } } as never
+  })
+  const response = await readProposalReviewMaterials(proposalId, context())
+  expect(response.options[0].materials.map((item) => item.kind)).toEqual(['facts', 'score'])
+  expect(log).not.toHaveBeenCalled()
+  await expect(recordProposalReviewAccess(proposalId, context(), { payload: originalPayload(), selectedOptionId: 'review' })).rejects.toMatchObject({ status: 409 })
 })
 
 test('unrelated proposals preserve existing all-organizations direct command behavior', async () => {

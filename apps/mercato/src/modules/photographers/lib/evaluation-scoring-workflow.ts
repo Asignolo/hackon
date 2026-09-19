@@ -67,5 +67,5 @@ export async function scorePhotographerWorkflow(raw: unknown, context: ActivityC
       },
     }, ctx,
   })
-  return { scoreRef: z.string().uuid().parse(stored.result.id), factsRef, rulesVersion: score.rulesVersion }
+  return { scoreRef: z.string().uuid().parse(stored.result.id), factsRef, rulesVersion: score.rulesVersion, reviewRequired: score.flags.length > 0 }
 }
