@@ -34,13 +34,11 @@ Dla MVP stosujemy zachowawczą, wersjonowaną regułę: automatyczne potwierdzen
 
 Te ustalenia zastępują sprzeczne skróty w starszych dokumentach: nazwisko + PKD nie potwierdza tożsamości, a flaga nie musi sztucznie obniżać pewności ustalenia do zera. Wymusza decyzję człowieka przez regułę zatwierdzania.
 
-### Potwierdzenie braku zamówień
+### Założenie wejściowe: klienci bez zamówień
 
-Cztery pola rejestracji nie dowodzą, że fotograf nigdy nie zamówił. Przed oceną prawdziwej osoby operator sprawdza to w danych sklepu i zapisuje szyfrowane potwierdzenie `{status: no_orders_confirmed, checkedAt, confirmedBy, sourceRef, expiresAt}` powiązane z osobą i zakresem organizacji. `confirmedBy` pochodzi z uwierzytelnienia, nie z deklaracji klienta. Startowa ważność potwierdzenia dla demo wynosi 24 godziny; to parametr wdrożenia, nie twierdzenie o aktualności danych sklepu przez cały ten czas.
+Zgodnie z decyzją użytkownika każdy klient trafiający do tego procesu z definicji nie ma zamówień. Dobór klientów odbywa się przed wejściem do procesu. Nie wymagamy od operatora dodatkowego sprawdzania ani potwierdzania braku zamówień, nie zapisujemy takiego potwierdzenia i nie stosujemy okresu jego ważności. Dotyczy to symulatora, nowych rejestracji i partii.
 
-Partia zawiera wyłącznie sprawdzone osoby. Osoba użyta do nowej rejestracji na scenie jest sprawdzona przed pokazem, a jej potwierdzenie przypisane do CRM; zdarzenie symulatora odnajduje to powiązanie. Syntetyczne testy mają jawne `source=demo_fixture`. Brak lub wygaśnięcie potwierdzenia daje `eligibility_required`: zachowujemy rejestrację i nie uruchamiamy agentów. Nie interpretujemy braku lokalnego zamówienia w CRM jako dowodu braku zamówień w sklepie.
-
-Przed zastosowaniem akcji kontaktowej komenda sprawdza ważność tego potwierdzenia i brak lokalnie odnotowanego pierwszego zamówienia/zamknięcia. Bez integracji zamówień nie wykryjemy samoczynnie zakupu w sklepie po sprawdzeniu — operator musi odnotować go ręcznie. Demo nie wysyła wiadomości; podłączenie bieżących zamówień jest wymaganiem późniejszej automatyzacji rzeczywistego kontaktu.
+Przygotowanie osoby i szansy kończy się stanem `ready`. Brak uruchomionego badania w pierwszym przyroście wynika wyłącznie z zakresu wdrożenia, a nie z oczekującego potwierdzenia. Lokalnie odnotowane pierwsze zamówienie lub zamknięcie szansy nadal unieważnia późniejsze akcje kontaktowe. Demo nie wysyła wiadomości.
 
 ### Przebieg i rozstrzygnięcia
 
@@ -254,7 +252,7 @@ Indeks `PhotographerRawData.customerEntityId` oraz `WorkflowInstance.correlation
 5. Po blokadzie osoby sprawdzamy aktywne procesy tej funkcjonalności we wszystkich wersjach definicji, włącznie z oczekiwaniem na człowieka i wykonaniami jeszcze bez workflow. Ten sam klucz rejestracji/oceny zwraca wcześniejsze wykonanie, także zakończone. Nowa jawna ocena wymaga nowego `evaluationId`; nie może wystartować obok aktywnej. Start używa trwałego unikalnego klucza `ProcessInstance`, nie samego `correlationKey`.
 6. Zapis snapshotu ma UUID wyprowadzony deterministycznie ze scoped operacji oraz unikalny indeks tenant/organizacja/operacja. Ponowienie porównuje rodzaj, właścicieli i treść; konflikt nie jest nadpisywany. Interakcja CRM jest osobną, idempotentną projekcją zawierającą odwołanie. Nie jest źródłem oryginalnego materiału.
 7. Każda propozycja i uruchomienie adaptera ma stabilny klucz ocena+krok+próba. Przed utworzeniem odzyskujemy istniejące rekordy. Krótka blokada kroku chroni lukę między odczytem a utworzeniem; samo `proposals.create` nie gwarantuje deduplikacji.
-8. Przed skutkiem akcji sprawdzamy zatwierdzoną propozycję, jej wybraną opcję, oczekiwane wersje osoby/szansy, snapshot faktów, aktywność oceny, ważność potwierdzenia braku zamówień i stan zamknięcia. Zapis interakcji jako potwierdzenia operacji pozwala dokończyć częściowy sukces, np. zapisana wiadomość, ale jeszcze niezmieniony etap. Nie ponawiamy całej operacji w ciemno.
+8. Przed skutkiem akcji sprawdzamy zatwierdzoną propozycję, jej wybraną opcję, oczekiwane wersje osoby/szansy, snapshot faktów, aktywność oceny, brak lokalnie odnotowanego pierwszego zamówienia i stan zamknięcia. Zapis interakcji jako potwierdzenia operacji pozwala dokończyć częściowy sukces, np. zapisana wiadomość, ale jeszcze niezmieniony etap. Nie ponawiamy całej operacji w ciemno.
 
 Ochrona obowiązuje dla wejść tego modułu. Ręczna zmiana markera lub utworzenie dodatkowej szansy w zwykłym CRM może naruszyć założenia; adapter wykrywa to i zatrzymuje ocenę do uzgodnienia danych. Markery `source` korzystają z istniejącego słownika źródeł i mogą dodać pozycje techniczne — to jawne ograniczenie MVP, bez przebudowy słowników lub nowej tabeli koordynacji.
 
@@ -295,14 +293,13 @@ Zatwierdzanie wymaga uprawnienia `agent_orchestrator.proposals.dispose` i ochron
 | `POST /api/photographers/demo-evaluations` | `{requestId: UUID}`; wyłącznie fikcyjne dane ustalone po stronie serwera. | `202` ze stanem scenariusza, odwołaniami do rejestracji/CRM/procesu/oceny oraz linkami. Ponowienie używa tego samego żądania. |
 | `GET /api/photographers/demo-evaluations/:requestId` | Zakres organizacji oraz prawa do oceny, CRM i procesu. | Bieżący stan i bezpieczne linki; bez uruchamiania efektów zapisu; `Cache-Control: no-store`. |
 | `POST /api/photographers/demo-evaluations/:requestId` | Jawne ponowienie istniejącego scenariusza. | Stan po próbie odzyskania; nie tworzy nowej oceny. |
-| `POST /api/photographers/evaluation-eligibility` | `{photographerId,requestId,status:'no_orders_confirmed',checkedAt,sourceRef}`; uprawniony operator potwierdza sprawdzenie sklepu. | `201 {id,photographerId,expiresAt}`; szyfrowany, idempotentny zapis, server-side confirmedBy. |
 | `POST /api/photographers/evaluations` | `{registrationIds: UUID[1..200], requestId: UUID}`; serwer rozpoznaje wcześniej przetworzone wejścia. Nowa ocena już przypisanej osoby jest jawnie wersjonowanym żądaniem, nie skutkiem ponowienia HTTP. | `202 {progressJobId, requestId}`; wyniki poszczególnych uruchomień w postępie/odwołaniach. |
 | `GET /api/photographers/evaluation-materials/:id` | UUID snapshotu + autoryzowany zakres. | `{id,kind,schemaVersion,evaluationId,data,updatedAt}`; wyłącznie po sprawdzeniu powiązanej osoby, szansy i dostępu. `Cache-Control: no-store`. |
 | `GET /api/photographers/proposals/:id/materials` | UUID propozycji; uprawniony operator i zakres organizacji. | `{proposalId,proposalUpdatedAt,options:[{selectedOptionId,label,materials}]}`; pełne fakty i wiadomości. Po walidacji całości zapisuje dowód udostępnienia przez AccessLogService. `Cache-Control: no-store`; niezwiązany agent zwraca `options: []`. |
 | `POST /api/photographers/evaluation-materials/:id/revisions` | `{proposalId,body,expectedProposalUpdatedAt}` dla edycji wiadomości, nie dla swobodnej zmiany faktów. | `201 {id,previousId,updatedAt,expectedVersions}`; kopia szkicu nie zmienia decyzji. Odświeżony podgląd i następny dispose wskazują ten snapshot i wersje. |
 | `POST /api/photographers/proposals/:id/waivers` | `{selectedOptionId,reason,expectedProposalUpdatedAt}`; wyłącznie wyjątek kontaktu mimo wskazanych flag. | `201 {waiverSnapshotId,expectedVersions}`; zaszyfrowany powód i odwołania do oceny/faktów. Sam zapis nie dopuszcza kontaktu. |
 
-`expectedVersions` ma postać `{personUpdatedAt,dealUpdatedAt,factsRef}`; timestampy są odczytane przez serwer po zapisaniu materiału, a factsRef wskazuje zwalidowany zestaw użyty do kwalifikacji. Serwer nie przyjmuje od klienta dowolnego podmienionego manifestu wersji. `checkedAt` i `expiresAt` to daty ISO 8601, UUID są walidowane, `sourceRef` ma do 2048 znaków i jest traktowany jako opis źródła bez automatycznego wywołania sieci.
+`expectedVersions` ma postać `{personUpdatedAt,dealUpdatedAt,factsRef}`; timestampy są odczytane przez serwer po zapisaniu materiału, a factsRef wskazuje zwalidowany zestaw użyty do kwalifikacji. Serwer nie przyjmuje od klienta dowolnego podmienionego manifestu wersji. UUID są walidowane, `sourceRef` ma do 2048 znaków i jest traktowany jako opis źródła bez automatycznego wywołania sieci.
 
 Dla nowych tras: Zod `.strict()`, per-method `metadata`, `requireAuth`, odpowiednie `requireFeatures` oraz `openApi`. Akcje niestandardowe przechodzą mutation guards, uwzględniają zmodyfikowany payload i callbacki po sukcesie. Nie dodajemy własnego endpointu zatwierdzania zastępującego Caseload. Błędy: 400 niepoprawne dane lub brak wybranej organizacji; 401 brak uwierzytelnienia; 403 brak uprawnień; 404 brak rekordu lub obcy zakres; 409 konflikt wersji/aktywnej oceny/powiązania; 503 niedostępna zależność lub szyfrowanie. Błędy nie ujawniają danych innej organizacji.
 
@@ -310,7 +307,6 @@ Dla nowych tras: Zod `.strict()`, per-method `metadata`, `requireAuth`, odpowied
 
 | Komenda modułu | Efekt i odwracalność |
 |---|---|
-| `photographers.eligibility.confirm` | Zapis operatora o sprawdzeniu sklepu jako szyfrowany snapshot we własnym magazynie modułu. Odwołanie tworzy nową wersję unieważniającą start/kontakt; nie usuwa poprzedniego dowodu. |
 | `photographers.proposal.store_waiver` | Zapis zaszyfrowanego uzasadnienia wyjątku; bez skutku kontaktowego do canonical dispose. Ponowienie odczytuje tę samą wersję operacji. |
 | `photographers.evaluation.request` | Przygotowanie/odzyskanie powiązań i start procesu. Idempotentne; anulowanie istniejącymi komendami workflow. Anulowanie nie usuwa rejestracji ani historii. |
 | `photographers.evaluation.store_material` | Jedyny zapis niezmiennego snapshotu do własnej tabeli modułu; powtórzenie zwraca ten sam rekord po porównaniu. Korekta tworzy nowy zapis, nie niszczy dowodów poprzedniej oceny. |
@@ -323,7 +319,7 @@ Komendy domenowe wywołują istniejące komendy `customers.people.update`, `cust
 
 Przy mutacji kilku rekordów nie kopiujemy nagłówka wersji szansy na osobę lub interakcję. Każdy zapis ma własne expectedUpdatedAt. Zmiana podczas oczekiwania kończy się 409 i ponownym przygotowaniem propozycji; nie podmieniamy jej treści pod wcześniejszą akceptacją. Zmiany CRM uruchamiają standardowe indeksowanie, audyt i unieważnianie cache.
 
-Nowe ACL: `photographers.evaluations.run`, `photographers.evaluations.view`, `photographers.evaluations.manage`. Są addytywne, deklarowane w `acl.ts` i `setup.ts`; role istniejących organizacji wymagają synchronizacji. Proces ma minimalne `grantedFeatures`, w tym potrzebne prawa CRM i osobno włączone prawa sieci. Narzędzia agentów nie otrzymują uprawnień mutacji. Dostęp do materiału wymaga zarówno prawa modułu, jak i powiązanych danych CRM. Potwierdzanie braku zamówień i zapis wyjątku wymagają `photographers.evaluations.manage`; uruchamianie partii — `.run`; odczyt materiałów — `.view`; rewizja wiadomości — `.manage` oraz `agent_orchestrator.proposals.dispose`.
+Nowe ACL: `photographers.evaluations.run`, `photographers.evaluations.view`, `photographers.evaluations.manage`. Są addytywne, deklarowane w `acl.ts` i `setup.ts`; role istniejących organizacji wymagają synchronizacji. Proces ma minimalne `grantedFeatures`, w tym potrzebne prawa CRM i osobno włączone prawa sieci. Narzędzia agentów nie otrzymują uprawnień mutacji. Dostęp do materiału wymaga zarówno prawa modułu, jak i powiązanych danych CRM. Zapis wyjątku wymaga `photographers.evaluations.manage`; uruchamianie partii — `.run`; odczyt materiałów — `.view`; rewizja wiadomości — `.manage` oraz `agent_orchestrator.proposals.dispose`.
 
 ## 📝 UI/UX
 
@@ -435,7 +431,7 @@ Testy w `apps/mercato/src/modules/photographers/__integration__/`, jeden plik na
 | ID | Zakres i warunek zaliczenia |
 |---|---|
 | TC-PHOTOGRAPHERS-002 | Symulator + POST/GET raw-data: cztery oryginalne pola, event, osoba i szansa, widoczne wykonanie; regresja istniejącego TC-001 pozostaje. |
-| TC-PHOTOGRAPHERS-003 | POST eligibility + POST evaluations + GET executions: partia, progressJobId, 200 rekordów, limit współbieżności, ponowienie requestId, odrzucenie 201 identyfikatorów; brak/wygaśnięcie potwierdzenia sklepu blokuje ocenę. |
+| TC-PHOTOGRAPHERS-003 | POST evaluations + GET executions: partia, progressJobId, 200 rekordów, limit współbieżności, ponowienie requestId, odrzucenie 201 identyfikatorów; wejście zakłada brak zamówień bez dodatkowego potwierdzenia operatora. |
 | TC-PHOTOGRAPHERS-004 | Powtórzenia i wyścig wejścia: ten sam event, częściowy commit osoby/szansy, restart, jedna szansa i jedno aktywne wykonanie; brak cofania zakończonego replay. |
 | TC-PHOTOGRAPHERS-005 | Q1: zgodne imię/nazwisko/miasto/e-mail daje powiązanie; nazwisko+PKD nie; sprzeczność/wielu kandydatów nie daje faktów. |
 | TC-PHOTOGRAPHERS-006 | Caseload tożsamości: niska/brakująca pewność zatrzymuje; akceptacja dopuszcza tylko wybrany ślad, odrzucenie go wyklucza, reszta badania pozostaje możliwa. |
@@ -475,7 +471,7 @@ Każda faza jest wdrażalnym przyrostem jednej funkcjonalności; nie włącza ni
 ### Faza 1 — integracja i bezpieczeństwo wykonania
 
 - [ ] **1.1. Kontrakty i instalacja.** Zdefiniować walidatory, wersjonowaną konfigurację, pola własne, lejek, etapy i ACL; konfiguracja procesu domyślnie nie uruchamia starej bazy. Test: dwukrotna instalacja nie duplikuje pól/lejka, rejestracja nadal działa bez enterprise.
-- [ ] **1.2. Wejście i odzyskiwanie.** Komenda przygotowania i potwierdzenie braku zamówień, persistent subscriber, powiązania CRM, markery, krótkie blokady i jedna ścieżka startu procesu. Test: TC-002/004/015/020, w tym awaria po commit osoby.
+- [ ] **1.2. Wejście i odzyskiwanie.** Komenda przygotowania klientów bez zamówień, persistent subscriber, powiązania CRM, markery, krótkie blokady i jedna ścieżka startu procesu. Test: TC-002/004/015/020, w tym awaria po commit osoby.
 - [ ] **1.3. Materiały i ochrona danych.** Szyfrowane niezmienne snapshoty we własnej tabeli technicznej, fail-closed, GET materiałów i kontrola ich właściciela; interakcje CRM tylko jako projekcja. Test: TC-015/016, pełne przeszukanie tabel workflow/task/event/job pod kątem syntetycznych znaczników PII.
 - [ ] **1.4. Adaptery Automatyzacji.** Połączyć EXECUTE_FUNCTION na przejściach z WAIT_FOR_SIGNAL, funkcjami DI, workerem, trwałym przekazaniem decyzji i korelacją prób; bez nowych aktywności. Zdefiniować synthetic mock i jawne output contracts. Syntetyczne wyniki przechodzą prawdziwe run/proposal/trace/disposition, bez LLM. Test: TC-010, early approve, restart i utrata sygnału; bez zaliczenia nie uruchamiać dalszej automatyzacji.
 - [ ] **1.5. Materiały w istniejącym Caseload.** Widget aplikacyjny w istniejącym backend:layout:top, podgląd na stronie szczegółów, dowód udostępnienia i serwerowa kontrola canonical dispose. Osobno dodać edycję rewizji i wyjątki. Lista/inbox prowadzi do szczegółów, bez nowego hosta. Test: TC-011/021, regresja zwykłych propozycji innych agentów i test hydratacji.
@@ -570,3 +566,18 @@ Syntetyczny workflow dostępny wyłącznie przy `OM_INTEGRATION_TEST=true` słu�
 - [ ] **1.5:** Gotowy widget w backend:layout:top, odczyt pełnych faktów/wiadomości, AccessLog evidence i interceptor canonical dispose. Obsługiwany jest kontrakt wiadomości; zatwierdzanie tożsamości/oceny jest blokowane do ukończenia ich walidacji. TC-021 przeszedł w rzeczywistej przeglądarce: pełne fakty, źródła i wiadomość, blokada zatwierdzenia przed pobraniem materiałów, odświeżenie i natywne odrzucenie. Pozostają edycja/wyjątki, pełna ścieżka zatwierdzenia i pomiar wydajności.
 
 Runner walidacji: **local**, po sprawdzeniu braku uruchomionego kontenera compose app. Szczegóły wykonania i dowody: [PLAN.md](../../runs/2026-09-19-photographer-hidden-potential/PLAN.md). Przeszło 128 testów jednostkowych i 6 przypadków integracyjnych (TC-001, wycinek TC-016, TC-021 i trzy warianty TC-022), bez ponowień ani pominięć w końcowych uruchomieniach. Pełna bramka implementacji, pozostałe scenariusze integracyjne i demo live nie są zaliczone. Ocena prawdziwych danych pozostaje nieaktywna.
+
+
+### Przyrost 1 — rejestracja → CRM, 2026-09-19
+
+Na wyraźny wybór użytkownika wykonano tylko wycinek 1.2: zwykła rejestracja przygotowuje osobę CRM i jedną szansę w lejku „Ukryty potencjał”. Odbiorca `photographers.raw_data.created` jest trwały i ponownie sprawdza uprawnienia autora; zdarzenie zwykłej rejestracji zawiera addytywne `userId` oraz `prepareCrm`, a syntetyczna ścieżka demo nie uruchamia tego odbiorcy. Brak autora/uprawnień nie usuwa zapisanej rejestracji.
+
+Nowe GET/POST `/api/photographers/registrations/:id/crm`: GET odczytuje stan, POST z `{}` idempotentnie przygotowuje lub odzyskuje powiązania. Odpowiedź ma `registrationId`, `status: pending|ready` i po przygotowaniu `photographerId`, `personId`, `dealId`, `links`. Odczyt wymaga `photographers.view` i praw podglądu osób, szans i lejków; zapis dodatkowo `photographers.evaluations.run`, `customers.people.manage`, `customers.deals.manage`. Obie odpowiedzi są `no-store`. Konflikt tożsamości/powiązań daje 409; niedostępna konfiguracja lub szyfrowanie 503.
+
+Symulator pokazuje linki do istniejących kart osoby i szansy oraz informację o gotowości do dalszej pracy. Identyfikator rejestracji w URL pozwala odświeżyć wynik lub ponowić przygotowanie bez ponownego zapisu czterech pól źródłowych. Nie uruchamia agentów ani oceny. Nie przetwarza automatycznie historycznej bazy. Dopasowanie e-maila używa normalizacji istniejącego CRM (trim/lowercase); nie jest regułą Q1 przypisania działalności rejestrowej. Z powodu szyfrowania i braku hasha e-maila dopasowanie czyta osoby danej organizacji stronicami po 100 i porównuje odszyfrowane wartości. Wykryta niejednoznaczność zatrzymuje przygotowanie.
+
+Walidacja lokalna: 245 testów modułu; TC-002 3/3 obejmuje API i ponowienia, formularz i obie karty CRM, odświeżenie oraz automatyczny odbiornik zdarzenia. Kompilacja aplikacji, typecheck aplikacji, lint modułu i zgodność tłumaczeń przeszły. Brak zmian `packages/**`, migracji i resetu środowiska. Dowody w [PLAN.md](../../runs/2026-09-19-photographer-hidden-potential/PLAN.md). Pozostała część 1.2 (start/odzyskiwanie procesu oceny) i pozostałe fazy nie są ukończone. Praca zatrzymana na ręczną ocenę przyrostu przez użytkownika.
+
+### Korekta założenia o zamówieniach — 2026-09-19
+
+Użytkownik usunął wymóg potwierdzenia braku zamówień: jest to założenie wejścia do procesu. Zastąpiono wynik przygotowania CRM przez `ready` i usunięto komunikat/formularz potwierdzenia z planowanego przebiegu. Nie dodano startu badania ani kolejnego przyrostu. Dawne kontrakty materiału `eligibility` i pole konfiguracji ważności pozostają wyłącznie dla zgodności z istniejącymi danymi/testami magazynu; nie są warunkiem procesu ani zadaniem do wdrożenia. Schemat odpowiedzi przyjmuje dawny status dla zgodności, ale serwer zwraca `ready`.

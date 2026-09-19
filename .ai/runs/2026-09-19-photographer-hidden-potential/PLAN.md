@@ -91,3 +91,26 @@ The next browser probe confirmed Start returns 202 and creates the scoped CRM/pr
 The full repository gate is not green. Root typecheck, repeated after generation in the isolated snapshot, fails in core modules whose entity IDs are absent from the app's enabled-module registry (including resources and wms). The full unit run passes all 791 application tests available at that run, but the core ACL catalog test requires app-specific photographer labels in the core auth locale; the same five missing keys exist at HEAD. Runtime labels are supplied in this app module's own locale files, preserving the no-framework-change constraint. A README setup instruction fixed the documentation test (4/4 pass on recheck); the metadata icon check passes after using existing registered icons. Later preparation identity, historical-material and transaction-isolation regressions are included in the 212-test module total. These checks do not substitute for the pending live end-to-end scenario proof.
 
 Developer deployment: the full standard build passed, including the production application build. `seed:defaults --module photographers` installed the missing configuration in the three active organizations; read-only checks confirmed the pipeline and all four referenced stages in each. The supported encryption-map helper inserted only absent maps required by this demo, preserving all existing mappings; boolean probes passed for every required field in all three organizations. A controlled restart refreshed the running application's mapping cache. The new application listens on port 3001, the login page returns 200, and an unauthenticated request to the protected demo route redirects to session refresh. The original environment-file hash and PostgreSQL service are unchanged. No synthetic scenario was created in the developer database on the user's behalf. [Deployment evidence](evidence/demo-deployment.json). [TC-023 evidence and remaining manual acceptance](evidence/integration-023-incomplete.json).
+
+## Agreed increment 1 — registration to CRM (2026-09-19)
+
+The user approved only this increment after reviewing the CRM concept and existing UI. Deliver an ordinary simulator registration linked to one CRM person and one Hidden Potential deal, with visible links and `eligibility_required`. Reuse matching people and deals, preserve original input, handle retries without duplicate records. No research, scoring, eligibility confirmation, agent execution, batch processing, framework changes, migrations or environment reset. Demo decision repair belongs to another concurrent task.
+
+- [x] Add scoped, guarded CRM preparation and persistent registration-event handling; preserve POST raw-data response.
+- [x] Expose existing CRM records from the simulator, including reload/retry and a clear order-check prerequisite.
+- [x] Verify matching, replay, conflicts and UI on the running application with owned test fixtures.
+- [x] Record evidence, expose the result and stop for user feedback.
+
+Validation runner: local (both standard compose app probes empty). No new database schema is required. Existing application data/configuration must remain intact; tests own their fixture scope.
+
+Delivered on the existing application at http://localhost:3001/backend/photographers/simulator. TC-002 passed 3/3 without retries or skips: real API/concurrent replay, browser save→person→deal→reload, and durable subscriber without simulator. Focused module run: 29 suites / 245 unit tests passed. Package build, generation, production app build, app typecheck, module lint, translation synchronization and whitespace checks passed. A sandbox-only app-build stall was stopped and the same app build passed outside the sandbox; no source workaround. Temporary test organizations/accounts were cleaned up. Framework files and schema unchanged.
+
+Evidence: [verification](evidence/registration-crm-verification.json), [screenshot](evidence/registration-crm-ready.png). These checks establish only the agreed entry slice; evaluation startup/recovery and subsequent phases remain unfinished. The simulator retains the original registration and offers retry when CRM preparation is unavailable or ambiguous.
+
+**Stopped for user feedback.** No next increment started.
+
+## User correction — no order confirmation (2026-09-19)
+
+Every customer entering this process has no orders by definition. This supersedes the eligibility gate in the original plan and first-increment record above. No confirmation UI, command, expiry or prerequisite should be implemented. CRM preparation now returns `ready`; the simulator states that CRM is ready and research has not started. Historical eligibility material schemas remain compatible with existing data, without gating this process. Scope remains increment 1 only.
+
+Correction deployed to port 3001. Verification: 245 module tests and TC-002 3/3 passed (API, browser, subscriber), application typecheck/build and translation/lesson checks passed. No migrations or framework changes. Screenshot registration-crm-ready.png now shows the corrected readiness message. Work remains stopped for user feedback.

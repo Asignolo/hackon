@@ -19,6 +19,10 @@ export function register(container: AppContainer) {
     })
   }
   container.register({
+    photographerRegistrationPrepare: asValue(async (input: unknown) => {
+      const { prepareRegistrationFromEvent } = await import('./lib/registration-crm-event')
+      await prepareRegistrationFromEvent(input, container)
+    }),
     'workflowFunction:photographers.demo.finalize': asValue(async (args: unknown, context: ActivityContext) => {
       const { finalizePhotographerDemoWorkflow } = await import('./lib/demo-workflow-runtime')
       return finalizePhotographerDemoWorkflow(args, context, container)

@@ -125,5 +125,27 @@ BASE_URL=http://localhost:3001 OM_INTEGRATION_MODULES=photographers \
 Staff can open `/backend/photographers/simulator` from the Photographers menu.
 The four-field form requires `photographers.create` and saves through the existing
 POST API. It requires nonblank portfolio text, preserves the original entry, and shows the
-saved registration ID before offering a fresh form. It does not start an evaluation
-or create a CRM person.
+saved registration ID before offering a fresh form. It does not start an evaluation. CRM preparation is described below.
+
+## Registration to CRM — first increment
+
+Ordinary authenticated registrations now request CRM preparation through the persistent
+`photographers.raw_data.created` subscriber. The original `201 {id}` response and all
+four source strings are preserved. Synthetic demo registrations retain their own preparation.
+
+The simulator shows progress, links to the CRM person and one Hidden Potential deal,
+and readiness for the next step. Every registration entering this process is assumed to have no orders. No operator confirmation is required. It keeps `registrationId` in the URL,
+so refresh and retry recover the same registration. It does not start research or an evaluation.
+
+`GET /api/photographers/registrations/:id/crm` reads the scoped preparation result;
+`POST` with `{}` prepares or recovers the same links. Both return no-store responses.
+Read requires photographer view plus CRM people/deals/pipeline view; writes also require
+`photographers.evaluations.run` and CRM people/deals manage. Insufficient permissions
+or unavailable setup do not discard the original registration.
+
+Explicit existing customer links take precedence. Otherwise exact names (trimmed) and
+CRM-normalized email must identify one person. Email matching scans scoped people in
+pages of 100 and compares decrypted values because the CRM email has no hash lookup.
+Ambiguous identities or multiple deals stop with a conflict. Registration/person markers
+and scoped locks protect retries; existing CRM stages and source fields are preserved.
+No new migration is required. This increment does not implement workflow startup, scoring, message creation or processing historical registrations in bulk.

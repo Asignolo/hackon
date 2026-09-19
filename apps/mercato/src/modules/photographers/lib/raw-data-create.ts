@@ -60,7 +60,10 @@ export async function createRawDataRecord(input: unknown, ctx: CommandRuntimeCon
     action: 'created',
     entity,
     identifiers: { id: entity.id, ...scope },
-    events: { module: 'photographers', entity: 'raw_data', persistent: true },
+    actorUserId: ctx.auth?.sub ?? null,
+    events: { module: 'photographers', entity: 'raw_data', persistent: true,
+      buildPayload: ({ identifiers, actorUserId }) => ({ ...identifiers, ...(id ? {} : { userId: actorUserId, prepareCrm: true }) }),
+    },
     indexer: { entityType: rawDataEntityId },
   })
   return { id: entity.id }
