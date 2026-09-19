@@ -1,0 +1,3 @@
+# Caseload jest jedyną kolejką dla człowieka, bez własnego interfejsu
+
+Mogliśmy zbudować własny widok kolejki „do weryfikacji” i „do kontaktu”. Zdecydowaliśmy, że jedyną kolejką decyzyjną jest gotowy Caseload modułu `agent_orchestrator`, a tablica lejka służy tylko do oglądania stanu populacji. Powód: Caseload ma to, czego własny widok by nie miał od razu: edycję propozycji, obowiązkowy powód decyzji, wstrzymanie przepływu do decyzji, zapis przez szynę komend dopiero po zatwierdzeniu i zamianę każdej poprawki w przypadek testowy agenta. Konsekwencja: wszystko, co ma trafić do człowieka, musi być propozycją agenta, nie zwykłym rekordem.

@@ -1,0 +1,3 @@
+# Punktacja jest deterministyczna, model językowy tylko do brudnych danych
+
+Na hackathonie o agentach naturalne byłoby, żeby model językowy wystawiał ocenę. Zdecydowaliśmy: punkty liczy zwykła, konfigurowalna funkcja z faktów (reguła → punkty, suma obcięta do 100, próg, flagi), a model językowy pracuje tylko tam, gdzie dane są brudne: rozpoznaje link w portfolio, czyta stronę, klasyfikuje kategorię, pisze wiadomość. Powód: tylko deterministyczną punktację da się obronić w pytaniu „dlaczego ten fotograf dostał 72”, tylko ją da się stroić wagami z ewaluacji i tylko ona daje tę samą odpowiedź dwa razy.

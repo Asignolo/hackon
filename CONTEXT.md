@@ -132,6 +132,10 @@ _Unikaj_: confidence, prawdopodobieństwo (to pole szansy o zamknięciu sprzeda�
 Jedyna kolejka dla człowieka: gotowy widok Open Mercato, w którym operator zatwierdza, poprawia albo odrzuca propozycje z obowiązkowym powodem. Nazwa własna platformy, nie tłumaczymy.
 _Unikaj_: kolejka do weryfikacji, skrzynka, inbox, tablica (tablica lejka pokazuje stan, nie służy do decyzji)
 
+**Operator**:
+Człowiek, który decyduje w Caseload: zatwierdza, poprawia albo odrzuca propozycje z powodem. Dziś Margo. Rola, nie faza; faza nazywa się „opieka”.
+_Unikaj_: opiekun, handler, agent (agent to program), użytkownik
+
 **Poprawka**:
 Decyzja człowieka w Caseload inna niż „zatwierdź”: edycja, odrzucenie, nadpisanie. Każda poprawka z powodem staje się przypadkiem testowym agenta.
 _Unikaj_: korekta, feedback, override
