@@ -25,33 +25,25 @@ Wpis fotografa w formularzu sklepu. Zawiera dokładnie cztery rzeczy: imię, naz
 _Unikaj_: lead, konto, formularz, zgłoszenie
 
 **Portfolio**:
-Obowiązkowe pole rejestracji, w które fotograf wpisuje, gdzie można obejrzeć jego prace. W praktyce jedna z siedmiu postaci: adres na Instagramie (29%), sama nazwa konta bez adresu (24%), adres na Facebooku (24%), własna domena (15%), śmieć typu „brak” (4%), inna platforma jak Dysk Google czy Behance (3%), system galerii (1%). Jest pierwszą i najmocniejszą kotwicą odkrycia, bo dał ją sam fotograf.
+Obowiązkowe pole rejestracji, w które fotograf wpisuje, gdzie można obejrzeć jego prace. W praktyce jedna z siedmiu postaci: adres na Instagramie (29%), sama nazwa konta bez adresu (24%), adres na Facebooku (24%), własna domena (15%), śmieć typu „brak” (4%), inna platforma jak Dysk Google czy Behance (3%), system galerii (1%). Najmocniejsza z danych z rejestracji, bo zwykle wskazuje ślad wprost.
 _Unikaj_: link, strona, URL
+
+**Dane z rejestracji**:
+Cztery informacje, których nie musieliśmy szukać, bo wpisał je sam fotograf: imię, nazwisko, e-mail, portfolio. Od nich zaczyna się odkrycie i one rozstrzygają tożsamość przy potwierdzaniu śladów. NIP, miasto, telefon nie są danymi z rejestracji: trzeba je znaleźć, więc mogą być cudze.
+_Unikaj_: kotwica, dane wejściowe, seed, lead
 
 **Nazwa konta**:
 Postać portfolio będąca samą nazwą profilu bez adresu, na przykład „jankowalski_foto” lub „@jankowalski_foto”. Odkrycie sprawdza ją najpierw na Instagramie, potem na Facebooku.
 _Unikaj_: handle, uchwyt, login, nick
 
-**Kotwica**:
-Jedna z czterech informacji z rejestracji, od których odkrycie zaczyna: imię, nazwisko, e-mail, portfolio. Nic innego nie jest kotwicą; NIP, miasto, telefon to wyniki odkrycia, nie jego początek.
-_Unikaj_: punkt startowy, seed, źródło, dane wejściowe
-
-**Poszlaka**:
-Informacja znaleziona po drodze, która pomaga potwierdzić lub odrzucić kandydata na ślad, ale sama śladem nie jest: miasto z opisu profilu, NIP ze stopki strony, nazwa firmy z agregatora firm. Poszlaka staje się faktem dopiero po potwierdzeniu w rejestrze.
-_Unikaj_: hint, wskazówka, dowód (dowód to uzasadnienie pewności śladu)
-
-**Odstęp**:
-Liczba dni do następnej oceny fotografa. Rośnie dwukrotnie przy braku zmian (14 → 28 → 56 → 112 → 180), wraca do 14 przy zmianie dowolnego faktu, stoi, gdy szansa czeka na człowieka.
-_Unikaj_: interwał, spaced interval, kadencja (kadencja to częstość partii, nie odstęp jednego fotografa)
-
 ## Fazy oceny
 
 **Odkrycie**:
-Pierwsza faza oceny: z surowego wpisu rejestracji ustalić ślady fotografa w sieci i w rejestrach. Odpowiada na pytanie „kim ten fotograf jest?”, nie „jaki jest?”.
+Pierwsza faza oceny: z danych z rejestracji ustalić ślady fotografa w sieci i w rejestrach oraz ich status. Odpowiada na pytanie „kim ten fotograf jest?”, nie „jaki jest?”.
 _Unikaj_: discovery, wywiad, identyfikacja
 
 **Badanie**:
-Druga faza oceny: po śladach zebrać fakty o fotografie z mediów społecznościowych, strony, Google Maps, systemu galerii i rejestrów firmowych.
+Druga faza oceny: po potwierdzonych śladach zebrać fakty o fotografie z mediów społecznościowych, strony, Google Maps, systemu galerii i rejestrów firmowych.
 _Unikaj_: research, wywiad, scraping
 
 **Punktacja**:
@@ -65,11 +57,19 @@ _Unikaj_: outreach, follow-up, opiekun (opiekun to rola człowieka, opieka to fa
 ## Wynik odkrycia
 
 **Ślad**:
-Adres lub identyfikator, pod którym fotograf istnieje poza naszym sklepem: konto Instagram, strona Facebook, domena, wizytówka Google Maps, wpis CEIDG lub KRS, konto w systemie galerii. Każdy ślad ma stopień pewności i dowód.
-_Unikaj_: link, profil, kandydat (kandydat to ślad niepewny)
+Wszystko, co odkrycie znalazło o fotografie poza sklepem: konto na Instagramie, strona, wpis w CEIDG, ale też miasto z opisu profilu czy NIP ze stopki strony. Każdy ślad ma dwa pola: **status** (potwierdzony albo niepotwierdzony) i **skąd** (jedno zdanie, na przykład „adres z rejestracji” albo „nazwisko z rejestracji + NIP ze strony + miasto z Instagrama”). Kilku kandydatów naraz to jeden ślad niepotwierdzony z listą.
+_Unikaj_: poszlaka, dowód, link, profil, trafienie
+
+**Potwierdzony**:
+Status śladu, który pochodzi wprost z danych z rejestracji albo zgadza się z nimi i z jednym innym śladem z innej ścieżki. Tylko potwierdzone ślady dają fakty i punkty.
+_Unikaj_: pewny, prawdopodobny, zweryfikowany
+
+**Niepotwierdzony**:
+Status każdego innego śladu: jeden kandydat bez drugiego zgodnego śladu, kilku kandydatów, zero trafień. Nie daje faktów ani punktów; zostaje zapisany na później.
+_Unikaj_: nie ustalono, prawdopodobny, niepewny
 
 **Fakt**:
-Zweryfikowana informacja o fotografie zebrana w badaniu z pewnego śladu: liczba obserwujących, data ostatniego posta, status VAT, PKD, ocena w Google Maps. Fakty żyją na fotografie.
+Zweryfikowana informacja o fotografie zebrana w badaniu z potwierdzonego śladu: liczba obserwujących, data ostatniego posta, status VAT, PKD, ocena w Google Maps. Fakty żyją na fotografie.
 _Unikaj_: dane, cecha, atrybut
 
 ## Fakty z badania
@@ -125,7 +125,7 @@ Zamiar zmiany zgłoszony przez agenta, który przechodzi przez politykę zatwier
 _Unikaj_: proposal, sugestia, rekomendacja, werdykt
 
 **Pewność**:
-Liczba od 0 do 1 przy propozycji, mówiąca, jak bardzo agent jest przekonany. Dla tożsamości wynika ze stopnia pewności śladów; dla etapu z punktów i flag (flaga zbija pewność do zera).
+Liczba od 0 do 1 przy propozycji, mówiąca, jak bardzo agent jest przekonany. Dla tożsamości wynika ze statusów śladów; dla etapu z punktów i flag (flaga zbija pewność do zera).
 _Unikaj_: confidence, prawdopodobieństwo (to pole szansy o zamknięciu sprzedaży, inna rzecz)
 
 **Caseload**:

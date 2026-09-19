@@ -4,9 +4,9 @@ Słownik pojęć: [CONTEXT.md](../CONTEXT.md). Ten dokument opisuje przebieg, ni
 
 ## 0. Jedna ocena od początku do końca
 
-1. **Wyzwalacz**: nowa rejestracja albo partia. Fotograf ma cztery kotwice: imię, nazwisko, e-mail, portfolio. Szansa w „Nowa” → „W badaniu”.
-2. **Odkrycie**: cztery ścieżki (portfolio → profil; domena → strona → stopka; e-mail → wyszukiwarka → agregator; nazwisko → CEIDG). Wynik: ślady z pewnością i dowodem. Propozycja „tożsamość”: auto, gdy pewny; Caseload w wąskim paśmie; inaczej „nic nie proponuję”.
-3. **Badanie**: pełne, tylko na pewnych śladach. Wynik: fakty na fotografie (`research`, bez zatwierdzania).
+1. **Wyzwalacz**: nowa rejestracja albo partia. Fotograf ma cztery dane z rejestracji: imię, nazwisko, e-mail, portfolio. Szansa w „Nowa” → „W badaniu”.
+2. **Odkrycie**: cztery ścieżki (portfolio → profil; domena → strona → stopka; e-mail → wyszukiwarka → agregator; nazwisko → CEIDG). Wynik: ślady ze statusem (potwierdzony / niepotwierdzony) i polem „skąd”. Propozycja „tożsamość”: auto, gdy potwierdzone; Caseload, gdy jeden kandydat z jednym zgodnym śladem; inaczej „nic nie proponuję”.
+3. **Badanie**: pełne, tylko na potwierdzonych śladach. Wynik: fakty na fotografie (`research`, bez zatwierdzania).
 4. **Punktacja**: deterministyczna, konfigurowalna. Wynik: kategoria, punkty, flagi, propozycja „przenieś na etap”. Powyżej progu bez flag → auto na „Do kontaktu”; flaga → Caseload i „Do weryfikacji”; poniżej progu → „Obserwowana” z odstępem.
 5. **Opieka** (tylko „Do kontaktu”): pełna treść wiadomości jako propozycja z ryzykiem „wysokie” → zawsze Caseload. Zatwierdzenie zapisuje interakcję i przesuwa na „Skontaktowana”.
 6. **Zamknięcie**: wygrana przy pierwszym zamówieniu, przegrana przez człowieka z powodem. Każda poprawka człowieka po drodze jest przypadkiem testowym agenta.
@@ -47,7 +47,7 @@ Etapy w kolejności wędrówki szansy:
 
 Jedna liczba: ilu fotografów ze stanu „Skontaktowana” złożyło pierwsze zamówienie w ciągu 90 dni i za ile. Punkty, liczba ocen i pewność to miary pracy, nie wyniku. „Żywa baza” jest środkiem; celem jest pierwsze zamówienie od kogoś, kto dziś nie zamawia.
 
-„Nie ustalono” nie jest flagą. Jest sygnałem „nieznane”, który nie daje punktów i zostawia szansę w „Obserwowana”. Flagą jest tylko to, co agent ustalił na pewno i co jest złe: działalność zawieszona, wykreślona, PKD niefotograficzne.
+Ślad niepotwierdzony nie jest flagą. Daje fakty „nieznane”, które nie dają punktów i zostawiają szansę w „Obserwowana”. Flagą jest tylko to, co agent ustalił na pewno i co jest złe: działalność zawieszona, wykreślona, PKD niefotograficzne.
 
 ## 4. Wyzwalacze
 
@@ -75,8 +75,8 @@ Konfigurowalna, do ustalenia po weekendzie. Punkt wyjścia: nowe rejestracje nat
 
 | Faza | Co robi | Rodzaj wyniku w Orchestratorze | Kto zatwierdza |
 |---|---|---|---|
-| Odkrycie | z czterech kotwic rejestracji ustala ślady i ich pewność | propozycja „tożsamość fotografa”, pewność = stopień pewności śladów | auto, gdy pewny; Caseload w wąskim paśmie (jeden kandydat, jedna poszlaka); poniżej pasma „nic nie proponuję”, kandydaci zostają w wyniku |
-| Badanie | po pewnych śladach zbiera fakty | `research` | nikt; działa tylko na pewnych śladach |
+| Odkrycie | z danych z rejestracji ustala ślady i ich status | propozycja „tożsamość fotografa”, pewność wyliczona ze statusów śladów | auto, gdy ślady potwierdzone; Caseload, gdy ślad niepotwierdzony ma dokładnie jednego kandydata i jeden zgodny ślad; inaczej „nic nie proponuję”, kandydaci zostają w wyniku |
+| Badanie | po potwierdzonych śladach zbiera fakty | `research` | nikt; działa tylko na potwierdzonych śladach |
 | Punktacja | deterministyczna funkcja z faktów: kategoria, punkty, flagi, propozycja etapu | krok zautomatyzowany opakowany w propozycję „przenieś szansę na etap X”; flaga zbija pewność do zera | auto powyżej progu bez flag; inaczej Caseload |
 | Opieka | szkic pierwszej wiadomości dopasowany do platformy i kategorii | propozycja „wyślij wiadomość”, ryzyko akcji **wysokie** | zawsze człowiek, bo sufit ryzyka polityki to „średnie” |
 
@@ -91,42 +91,55 @@ Caseload jest jedyną kolejką dla człowieka. Tablica lejka pokazuje stan całe
 
 ## 6. Odkrycie
 
-### 6.1 Kotwice
+### 6.1 Trzy pojęcia
 
-Dokładnie cztery, wszystkie z rejestracji: imię, nazwisko, e-mail, portfolio. NIP, miasto, telefon to wyniki odkrycia, nie jego początek.
+- **Dane z rejestracji**: to, co *mamy* na starcie. Dokładnie cztery: imię, nazwisko, e-mail, portfolio. Jedyne informacje, których nie musieliśmy szukać, bo wpisał je sam fotograf; dlatego rozstrzygają tożsamość. NIP, miasto, telefon nie są danymi z rejestracji: trzeba je znaleźć, więc mogą być cudze.
+- **Ślad**: to, co *znajdujemy*: konto, strona, wpis w rejestrze, ale też miasto z opisu profilu czy NIP ze stopki. Każdy ślad ma **status** (potwierdzony / niepotwierdzony) i **skąd** (jedno zdanie).
+- **Fakt**: to, co *badanie wyciąga* z potwierdzonych śladów.
 
 Rozkład pola portfolio w bazie (7215 wpisów): adres na Instagramie 29%, sama nazwa konta 24%, adres na Facebooku 24%, własna domena 15%, śmieć 4%, inna platforma 3%, system galerii 1%.
 
-### 6.2 Stopnie pewności śladu
+### 6.2 Status śladu
 
-- **Pewny**: ślad dał sam fotograf (portfolio, domena z e-maila) albo zgadzają się dwa niezależne fakty.
-- **Prawdopodobny**: zgadza się jeden fakt, zwykle samo nazwisko. Kandydat jest zapisany, nie daje punktów, nie tworzy faktów.
-- **Nie ustalono**: kilku kandydatów bez rozstrzygnięcia albo zero trafień. Kandydaci i powód zapisane.
+- **Potwierdzony**: ślad pochodzi wprost z danych z rejestracji (portfolio, domena z e-maila) albo zgadza się z nimi i z jednym innym śladem z innej ścieżki.
+- **Niepotwierdzony**: wszystko inne: jeden kandydat bez drugiego zgodnego śladu, kilku kandydatów naraz (jeden ślad z listą), zero trafień. Nie daje faktów ani punktów; zostaje zapisany na później.
 
-Twarda reguła: odkrycie nigdy nie wybiera jednego z kilku kandydatów. Trzech Kowalskich bez miasta to „nie ustalono”.
+Twarda reguła: odkrycie nigdy nie wybiera jednego z kilku kandydatów. Trzech Kowalskich w CEIDG bez miasta to jeden ślad niepotwierdzony z trzema kandydatami.
+
+Do Caseload idzie tylko ślad niepotwierdzony z dokładnie jednym kandydatem i jednym zgodnym śladem. Reszta czeka na kolejną ocenę.
 
 ### 6.3 Cztery ścieżki
 
-1. **Portfolio → profil.** Adres lub nazwa konta na Instagramie albo Facebooku daje ślad pewny od razu. Samą nazwę konta sprawdzamy najpierw na Instagramie, potem na Facebooku. Z opisu profilu wyciągamy poszlaki: miasto, własną stronę, e-mail kontaktowy, czasem NIP.
-2. **Domena → strona → stopka.** Własna domena z portfolio lub z e-maila daje ślad pewny „strona”. Podstrony „kontakt”, „regulamin”, „polityka prywatności” dają poszlaki: NIP, miasto.
-3. **E-mail → wyszukiwarka → agregator firm.** E-mail w cudzysłowie w wyszukiwarce; trafienia w agregatorach dają kandydata na firmę z NIP-em i miastem. Poszlaki, nie ślad. Narzędzie: gotowe pakiety wyszukiwania w sieci Open Mercato (Exa, Firecrawl, Tavily, SearXNG).
-4. **Nazwisko → CEIDG.** Na końcu, bo daje najwięcej kandydatów. Zawęża się miastem lub PKD z poszlak.
+1. **Portfolio → profil.** Adres lub nazwa konta na Instagramie albo Facebooku daje ślad potwierdzony od razu (skąd: „adres z rejestracji”). Samą nazwę konta sprawdzamy najpierw na Instagramie, potem na Facebooku. Z opisu profilu wyciągamy kolejne ślady: miasto, własną stronę, e-mail kontaktowy, czasem NIP.
+2. **Domena → strona → stopka.** Własna domena z portfolio lub z e-maila daje ślad potwierdzony „strona”. Podstrony „kontakt”, „regulamin”, „polityka prywatności” dają ślady: NIP, miasto.
+3. **E-mail → wyszukiwarka → agregator firm.** E-mail w cudzysłowie w wyszukiwarce; trafienia w agregatorach dają kandydata na firmę z NIP-em i miastem: ślad niepotwierdzony do czasu zgodności. Narzędzie: gotowe pakiety wyszukiwania w sieci Open Mercato (Exa, Firecrawl, Tavily, SearXNG).
+4. **Nazwisko → CEIDG.** Na końcu, bo daje najwięcej kandydatów. Zawęża się miastem lub PKD ze śladów z innych ścieżek.
 
-### 6.4 Reguła potwierdzenia
+### 6.4 Reguła potwierdzenia w rejestrach
 
-Wpis w CEIDG lub w wykazie VAT jest śladem pewnym tylko, gdy nazwisko z wpisu zgadza się z nazwiskiem z rejestracji **i** zgadza się co najmniej jedna poszlaka z innej ścieżki: miasto, NIP ze stopki, domena wpisana w CEIDG, PKD fotograficzne. NIP z agregatora bez zgodności nazwiska nigdy nie jest potwierdzeniem. Dopiero pewny wpis daje fakty: NIP, status, PKD, data startu, miasto, status VAT.
+Wpis w CEIDG lub w wykazie VAT jest potwierdzony tylko, gdy nazwisko z wpisu zgadza się z nazwiskiem z rejestracji **i** zgadza się co najmniej jeden ślad z innej ścieżki: miasto, NIP ze stopki, domena wpisana w CEIDG, PKD fotograficzne. NIP z agregatora bez zgodności nazwiska nigdy nie potwierdza. Dopiero potwierdzony wpis daje fakty: NIP, status, PKD, data startu, miasto, status VAT.
 
 ### 6.5 Gdy portfolio nic nie daje
 
 Odkrycie próbuje pozostałych ścieżek (domena z e-maila, e-mail w wyszukiwarce, nazwisko), a gdy wszystkie się wyczerpią, zapisuje fakt „portfolio: brak” z powodem (puste, śmieć, martwy link, link bez tożsamości) i odkłada szansę do „Obserwowana” z najdłuższym odstępem. Człowiek nic nie widzi. Dotyczy najwyżej 4% bazy. Poza weekendem: sklep powinien przestać przyjmować „brak” w polu portfolio (Vendure, nie Open Mercato).
 
-### 6.6 Tożsamość na karcie
+### 6.6 Przykład
 
-Karta w Caseload pokazuje u góry blok „Tożsamość”: każdy ślad, jego pewność i dowód, na przykład „CEIDG: pewny, nazwisko + Wrocław + PKD 74.20”. Jedno kliknięcie odrzuca zły ślad; ocena liczy się od nowa bez niego.
+Wymyślona Anna Nowak: rejestracja daje imię, nazwisko, e-mail `anna@nowakfoto.pl`, portfolio `instagram.com/nowak.foto`.
+
+1. Portfolio → ślad „Instagram: nowak.foto”, **potwierdzony**, skąd: „adres z rejestracji”. Opis profilu „fotograf ślubny, Wrocław, www.nowakfoto.pl” → ślady: miasto Wrocław, strona.
+2. Domena z e-maila → ślad „strona: nowakfoto.pl”, **potwierdzony**, skąd: „domena z e-maila z rejestracji”. Stopka z NIP-em i adresem we Wrocławiu → ślady: NIP, miasto po raz drugi.
+3. Nazwisko → CEIDG zwraca trzy wpisy „Anna Nowak”: jeden ślad niepotwierdzony z trzema kandydatami. NIP ze stopki pasuje do jednego, miasto też → ślad „CEIDG: wpis o tym NIP-ie”, **potwierdzony**, skąd: „nazwisko z rejestracji + NIP ze strony + miasto z Instagrama”. Dopiero teraz płyną fakty: status, PKD, data startu, VAT.
+
+Ta sama Anna z e-mailem na gmailu, bez strony i bez miasta w opisie: trzech kandydatów w CEIDG, żaden inny ślad ich nie rozdziela → ślad CEIDG **niepotwierdzony**, kandydaci zapisani, zero faktów z rejestrów, zero punktów za firmę.
+
+### 6.7 Tożsamość na karcie
+
+Karta w Caseload pokazuje u góry blok „Tożsamość”: każdy ślad, jego status i skąd, na przykład „CEIDG: potwierdzony, nazwisko + Wrocław + PKD 74.20”. Jedno kliknięcie odrzuca zły ślad; ocena liczy się od nowa bez niego.
 
 ## 7. Badanie
 
-Badanie jest pełne dla każdego fotografa, bez warstw i bez skrótów: każde pewne źródło jest odpytywane w każdej ocenie. Wielkość partii ogranicza koszt, nie zakres badania.
+Badanie jest pełne dla każdego fotografa, bez warstw i bez skrótów: każdy potwierdzony ślad jest odpytywany w każdej ocenie. Wielkość partii ogranicza koszt, nie zakres badania.
 
 ### 7.1 Katalog faktów
 
@@ -208,7 +221,7 @@ Poza weekendem: prawdziwa wysyłka przez gotowe kanały Open Mercato (Gmail, IMA
 
 ## 10. Dane, import i RODO
 
-Pseudonimizacja przed odkryciem jest niemożliwa: trzy z czterech kotwic (imię, nazwisko, portfolio) to właśnie to, co miałoby być ukryte. Dlatego rozdzielamy przetwarzanie od pokazywania.
+Pseudonimizacja przed odkryciem jest niemożliwa: trzy z czterech danych z rejestracji (imię, nazwisko, portfolio) to właśnie to, co miałoby być ukryte. Dlatego rozdzielamy przetwarzanie od pokazywania.
 
 - **Przetwarzanie na prawdziwych danych.** 100–200 prawdziwych rejestracji w instancji Open Mercato na maszynie lub serwerze zespołu, nie u organizatora. Podstawa: zarejestrowani klienci, relacja B2B, prawnie uzasadniony interes. Do dokumentacji RODO (Justyna): cykliczne odpytywanie sieci o fotografów to nowy cel przetwarzania.
 - **Pokazywanie partii tylko jako liczb i identyfikatorów.** Na scenie i na wideo: „F-0137, 78 punktów, ślubny, Pixieset”. Zero nazwisk z bazy.
@@ -221,7 +234,7 @@ Import: cztery pola z rejestracji (imię, nazwisko, e-mail, portfolio) dla 100�
 
 Proces na scenie kończy się na **zatwierdzonej propozycji w Caseload**, żeby ostatni krok był w Orchestratorze, nie poza nim.
 
-1. Rejestracja wpada jako zdarzenie. Szansa powstaje w „Nowa”, przechodzi przez „W badaniu”: widać przebiegi agentów, wywołania narzędzi, ślady z pewnością i dowodem.
+1. Rejestracja wpada jako zdarzenie. Szansa powstaje w „Nowa”, przechodzi przez „W badaniu”: widać przebiegi agentów, wywołania narzędzi, ślady ze statusem i polem „skąd”.
 2. Punktacja proponuje „przenieś na Do kontaktu” z wysoką pewnością: auto-zatwierdzone, karta przeskakuje na tablicy.
 3. Opieka proponuje gotową wiadomość z ryzykiem „wysokie”: zatrzymuje się w Caseload z powodem „ryzyko akcji”. Operator czyta, klika „zatwierdź”. Interakcja zapisana, szansa na „Skontaktowana”.
 4. Druga rejestracja: odkrycie znajduje działalność zawieszoną, flaga, pewność zero, karta w „Do weryfikacji”, w Caseload widać powód. Operator odrzuca z powodem; na ekranie pojawia się nowy przypadek testowy agenta.
