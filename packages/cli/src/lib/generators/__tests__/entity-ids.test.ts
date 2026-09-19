@@ -20,7 +20,11 @@ function createMockResolver(tmpRoot: string, enabled: ModuleEntry[]): PackageRes
     getAppDir: () => path.join(tmpRoot, 'app'),
     getOutputDir: () => outputDir,
     getModulesConfigPath: () => path.join(tmpRoot, 'app', 'src', 'modules.ts'),
-    discoverPackages: () => [],
+    discoverPackages: () => [{
+      name: '@open-mercato/core',
+      path: path.join(tmpRoot, 'packages', 'core'),
+      modulesPath: path.join(tmpRoot, 'packages', 'core', 'src', 'modules'),
+    }],
     loadEnabledModules: () => enabled,
     getModulePaths: (entry: ModuleEntry) => ({
       appBase: path.join(tmpRoot, 'app', 'src', 'modules', entry.id),
@@ -69,6 +73,45 @@ function createStandaloneMockResolver(tmpRoot: string, enabled: ModuleEntry[]): 
   }
 }
 
+function createMonorepoPackageResolver(
+  tmpRoot: string,
+  enabled: ModuleEntry[],
+  packageNames: string[],
+): PackageResolver {
+  const outputDir = path.join(tmpRoot, 'app', '.mercato', 'generated')
+  fs.mkdirSync(outputDir, { recursive: true })
+
+  const packagePath = (packageName: string) =>
+    path.join(tmpRoot, 'packages', packageName.replace('@open-mercato/', ''))
+
+  return {
+    isMonorepo: () => true,
+    getRootDir: () => tmpRoot,
+    getAppDir: () => path.join(tmpRoot, 'app'),
+    getOutputDir: () => outputDir,
+    getModulesConfigPath: () => path.join(tmpRoot, 'app', 'src', 'modules.ts'),
+    discoverPackages: () => packageNames.map((name) => ({
+      name,
+      path: packagePath(name),
+      modulesPath: path.join(packagePath(name), 'src', 'modules'),
+    })),
+    loadEnabledModules: () => enabled,
+    getModulePaths: (entry: ModuleEntry) => ({
+      appBase: path.join(tmpRoot, 'app', 'src', 'modules', entry.id),
+      pkgBase: path.join(packagePath(entry.from ?? '@open-mercato/core'), 'src', 'modules', entry.id),
+    }),
+    getModuleImportBase: (entry: ModuleEntry) => ({
+      appBase: `@/modules/${entry.id}`,
+      pkgBase: `${entry.from ?? '@open-mercato/core'}/modules/${entry.id}`,
+    }),
+    getPackageOutputDir: (packageName: string) =>
+      packageName === '@app'
+        ? outputDir
+        : path.join(packagePath(packageName), 'generated'),
+    getPackageRoot: (packageName = '@open-mercato/core') => packagePath(packageName),
+  }
+}
+
 beforeEach(() => {
   tmpDir = createTmpDir()
 })
@@ -78,6 +121,48 @@ afterEach(() => {
 })
 
 describe('generateEntityIds', () => {
+  it('keeps package registries complete without enabling every package module in the app', async () => {
+    const corePackage = path.join(tmpDir, 'packages', 'core')
+    const documentsPackage = path.join(tmpDir, 'packages', 'documents')
+    const activeEntities = path.join(corePackage, 'src', 'modules', 'active', 'data', 'entities.ts')
+    const resourcesEntities = path.join(corePackage, 'src', 'modules', 'resources', 'data', 'entities.ts')
+    const documentsEntities = path.join(documentsPackage, 'src', 'modules', 'documents', 'data', 'entities.ts')
+
+    for (const filePath of [activeEntities, resourcesEntities, documentsEntities]) {
+      fs.mkdirSync(path.dirname(filePath), { recursive: true })
+    }
+    fs.writeFileSync(activeEntities, 'export class ActiveRecord { id!: string }\n')
+    fs.writeFileSync(resourcesEntities, 'export class Resource { id!: string }\n')
+    fs.writeFileSync(documentsEntities, 'export class Document { id!: string }\n')
+
+    const resolver = createMonorepoPackageResolver(
+      tmpDir,
+      [{ id: 'active', from: '@open-mercato/core' }],
+      ['@open-mercato/core', '@open-mercato/documents'],
+    )
+    const result = await generateEntityIds({ resolver, quiet: true })
+
+    expect(result.errors).toEqual([])
+    const appRegistry = fs.readFileSync(
+      path.join(resolver.getOutputDir(), 'entities.ids.generated.ts'),
+      'utf8',
+    )
+    const coreRegistry = fs.readFileSync(
+      path.join(resolver.getPackageOutputDir('@open-mercato/core'), 'entities.ids.generated.ts'),
+      'utf8',
+    )
+    const documentsRegistry = fs.readFileSync(
+      path.join(resolver.getPackageOutputDir('@open-mercato/documents'), 'entities.ids.generated.ts'),
+      'utf8',
+    )
+
+    expect(appRegistry).toContain('"active_record": "active:active_record"')
+    expect(appRegistry).not.toContain('"resources"')
+    expect(appRegistry).not.toContain('"documents"')
+    expect(coreRegistry).toContain('"resource": "resources:resource"')
+    expect(documentsRegistry).toContain('"document": "documents:document"')
+  })
+
   it('does not rewrite generated entity outputs when inputs are unchanged', async () => {
     const moduleEntry: ModuleEntry = { id: 'orders', from: '@open-mercato/core' }
     const entitiesFile = path.join(tmpDir, 'packages', 'core', 'src', 'modules', 'orders', 'data', 'entities.ts')
