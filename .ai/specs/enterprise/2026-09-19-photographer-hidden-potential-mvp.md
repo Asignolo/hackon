@@ -631,3 +631,29 @@ zdalnej sesji przerwanej twardym zakończeniem procesu pozostają poza tym przyr
 nie następuje automatyczne ponowne wywołanie modelu. Bieżący graf działa w trybie
 uprawnień inicjatora; osobna tożsamość przez `grantedFeatures` wymaga kolejnego
 podłączenia przed publikacją wersji wykonawczej.
+
+
+### Przyrost — wykonanie kroku punktacji
+
+Użytkownik uzgodnił wypełnienie istniejącego kroku workflow, bez rozwijania
+O2/K1 ani osobnego kalkulatora/ekranu. `score` wykonuje
+`photographers.evaluation.score` na przejściu do `disposition`. Funkcja
+czyta zaszyfrowane fakty i potwierdzone ślady tej samej oceny, wylicza
+15 reguł oraz zapisuje `scoreSnapshotSchema` istniejącą komendą materiałów.
+Kontekst przenosi tylko wynik `scoreResult.result = {scoreRef, factsRef, rulesVersion}`.
+
+Wejście wymaga `factsRef` oraz `rulesSnapshot` zgodnego z `rulesVersion`,
+oprócz istniejących identyfikatorów oceny i CRM. Wcześniejszy krok ma
+przekazać niezmienną konfigurację pobraną na starcie; nie zastępujemy jej
+bieżącymi ustawieniami. Reguły dat używają UTC i jednej daty `evaluatedAt`;
+druga rocznica 29 lutego przypada 28 lutego w roku nieprzestępnym.
+
+Samo obliczenie jest krótką, synchroniczną funkcją workflow, bez sieci
+i LLM. Opisana wyżej kolejka/propozycje/polityka dotyczą dalszego
+postępowania, którego ta partia nie wdraża. Szkielet pozostaje wyłączony,
+a dopływ rzeczywistych faktów i publikacja propozycji są nadal otwarte.
+
+Pokrycie: TC-PHOTOGRAPHERS-025 — natywny krok, zaszyfrowany zapis i odczyt
+przez istniejące API materiałów, powtórzenie bez duplikatu, flaga przy
+progu kontaktu, odrzucenie niepotwierdzonego śladu oraz brak zmiany CRM.
+Wyniki wykonania zapisano w planie partii.

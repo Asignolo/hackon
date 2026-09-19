@@ -4,7 +4,7 @@
 `POST /api/workflows/definitions`, z identyfikatorem `photographers.hidden_potential`.
 Zawiera 23 kroki, 33 połączenia, nazwy, opisy wejścia/wyniku oraz pozycje w istniejącym
 edytorze Automatyzacji. Podłączony wycinek obejmuje przygotowanie rejestracji, wykonanie O1 w workerze
-i zapis śladów. Cały proces nadal pozostaje nieaktywnym szkieletem.
+i zapis śladów. Podłączony jest również krok punktacji opisany poniżej. Cały proces nadal pozostaje nieaktywnym szkieletem.
 
 ## Dostępność i bezpieczeństwo
 
@@ -43,7 +43,7 @@ w inspektorze edytora. Dokument nie deklaruje nowego modelu danych.
 | A3 | `researchFactSchema`, `owner: portfolio`; docelowo `photographers.portfolio_researcher`. |
 | R1 | Potwierdzone identyfikatory → `researchFactSchema`, `owner: registry`; przyszła funkcja workflow czyta rejestry, bez ponownego ustalania tożsamości. |
 | Scalenie, walidacja | Trzy niezależne wyniki → `factsSnapshotSchema`, odwołanie do śladów, braki i sprzeczności. |
-| Punktacja | `factsRef`, `evaluatedAt`, `rulesVersion` → `scoreSnapshotSchema`; reguły pozostają niewdrożone. |
+| Punktacja | `factsRef`, `evaluatedAt`, `rulesVersion`, `rulesSnapshot` → `photographers.evaluation.score` → szyfrowany `scoreSnapshotSchema`. Wynik `scoreResult.result` zawiera `scoreRef`, `factsRef`, `rulesVersion`; bez wykonania sugerowanej decyzji. |
 | Dalsze postępowanie, decyzja | Propozycja i pełna polityka platformy → obserwacja, kwalifikacja, jawne zamknięcie lub odrzucenie bez akcji. Kontakt mimo flagi wymaga uzasadnienia i `waiverSnapshotSchema`. |
 | Obserwacja | Zatwierdzona obserwacja albo brak użytecznych śladów → przyszły zapis historii i terminu; bez harmonogramu. |
 | A4 | Zatwierdzona kwalifikacja i dozwolone dowody → `messageSnapshotSchema`; docelowo `photographers.message_writer` i propozycja z `alwaysAsk: true`. |
@@ -151,3 +151,34 @@ Bieżące wyniki: [plan połączenia O1](../../../../../../.ai/runs/2026-09-19-p
 Historyczna walidacja konsolidacji O1/O2: 303 testy fotografów, 67 testów O1,
 generowanie, kontrola typów, lint adaptera i build aplikacji przeszły. Nie stanowi
 to dowodu wykonania obecnego wycinka ani jakości wyszukiwania w sieci.
+
+## Krok punktacji — uzgodniona partia
+
+Krok `score` oblicza 15 reguł bez modelu językowego. Przejście
+`score_disposition_18` wykonuje `photographers.evaluation.score` i przekazuje
+`scoreResult.result` do następnego kroku. `disposition` pozostaje niewdrożony;
+nie powstaje propozycja, kontakt, zmiana etapu CRM ani wysyłka.
+
+Warunki wejścia przygotowywane przez wcześniejsze kroki:
+
+- Kontekst oceny: `registrationId`, `photographerId`, `personId`, `dealId`,
+  `evaluationId`, `evaluatedAt` (także istniejący wariant `o1Preparation.result`).
+- `factsRef`: identyfikator utrwalonego `factsSnapshotSchema`.
+- `rulesVersion` i `rulesSnapshot`: niezmienna konfiguracja
+  `hiddenPotentialRulesSchema` pobrana przy rozpoczęciu oceny. Krok nie czyta
+  bieżących ustawień w zastępstwie brakującej wersji. Konfiguracja nie zawiera PII.
+- Fakty i ich `tracesRef` muszą wskazywać materiały tej samej oceny,
+  rejestracji, osoby i szansy w tej samej organizacji. Każdy znany fakt musi
+  wskazywać potwierdzony ślad; fakty rejestrowe wymagają śladu typu `registry`.
+
+Brakujące/nieznane fakty dają zero punktów i pozostają jawne w wyniku.
+Flaga wymusza sugestię `review`; bez flag kategoria produktowa/komercyjna
+pozostaje w obserwacji, a pozostałe podlegają progowi kontaktu. Sugestia nie
+jest decyzją ani jej wykonaniem. Wynik zawiera źródło i punkty każdej reguły.
+Identyfikator zapisu jest stabilny dla oceny, factsRef i rulesVersion.
+Wiele utrwalonych prób kroku score jest obecnie odrzucane jako niejednoznaczne.
+
+Nie podłączono dopływu faktów z O2/K1/badania. Nie należy włączać pełnego
+szkieletu, aby sprawdzić tę partię. TC-PHOTOGRAPHERS-025 uruchamia rzeczywisty
+wycinek `start → score → disposition` z własnymi materiałami testowymi;
+w tym teście `disposition` jest końcem, a nie zastępczą decyzją biznesową.

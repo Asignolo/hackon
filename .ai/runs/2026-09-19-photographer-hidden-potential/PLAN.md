@@ -164,3 +164,48 @@ Na polecenie użytkownika uruchomiono `yarn generate` w repozytorium (local). Ge
 ### Restart aplikacji z O2 — 2026-09-19
 
 Na polecenie użytkownika przebudowano pakiet enterprise i aplikację (PASS), następnie uruchomiono ponownie `mercato server start` na porcie 3001. Skompilowany serwer zawiera `photographers.trace_finder`. GET `/backend` zwraca 307 do logowania. Nie uruchamiano O2 ani workflow; widoczność listy w zalogowanej sesji pozostaje do ręcznej weryfikacji. Bez migracji i resetów.
+
+
+## Uzgodniona partia — krok punktacji workflow
+
+Zakres zatwierdzony przez użytkownika: wypełnić istniejący krok `score`,
+a nie budować osobnego kalkulatora ani kontynuować O2/K1. Odczyt faktów,
+15 reguł, zapis uzasadnionego wyniku i przekazanie odwołania następnemu
+krokowi. Bez propozycji, zmian etapu CRM, nowych ekranów, migracji i zmian
+frameworka. Pełny workflow pozostaje wyłączony.
+
+- [x] Obliczenie punktacji i kontrola potwierdzonych źródeł.
+- [x] Podłączenie funkcji do przejścia `score → disposition`.
+- [x] Sprawdzenie rzeczywistego silnika i bazy oraz końcowa weryfikacja.
+- [x] Udostępnienie wyniku i zatrzymanie na informację zwrotną.
+
+Runner: local (oba standardowe compose nie mają uruchomionego app).
+Pierwsze uruchomienie TC025 zatrzymało się podczas ładowania aplikacji:
+po dołączeniu integracji Apify brakowało lokalnie zainstalowanej zależności.
+`yarn install --immutable` uzupełnił instalację bez zmian lockfile; opcjonalny
+moduł cpu-features zgłosił ostrzeżenie kompilacji. Nie zmieniono konfiguracji
+Apify ani kodu frameworka.
+
+Zakończenie partii punktacji (2026-09-19): 37 zestawów / 365 testów
+modułu oraz TC-PHOTOGRAPHERS-025 3/3 bez ponowień przeszły. Test
+integracyjny wykonał rzeczywisty silnik i zapis w bazie na własnych danych:
+60 punktów, flaga wymuszająca review i odmowa dla niepotwierdzonego źródła.
+Potwierdzono szyfrowanie, odczyt API i brak duplikatu oraz zmiany etapu CRM.
+Generowanie, build pakietów, typecheck aplikacji, lint zmienionych plików
+i kontrola whitespace przeszły. Nie wykonywano produkcyjnego buildu aplikacji.
+Naprawiono wykrytą w integracji widoczność aktualnego kroku wewnątrz
+transakcji silnika, korzystając z jej EntityManager.
+
+W działającej aplikacji zaktualizowano wyłącznie opis score i przejście
+score → disposition w istniejącej definicji przez API z kontrolą wersji.
+Pozostałe kroki, w tym O2, zachowano. Widok edytora potwierdza zmianę:
+http://localhost:3001/backend/definitions/visual-editor?id=9fc49c7f-1f8d-4d3f-b6ac-fda3d0ec67f6
+Pełny workflow pozostaje wyłączony. Rzeczywisty dopływ faktów oraz
+niezmiennego rulesSnapshot z wcześniejszych kroków nie jest podłączony.
+Identyfikator zapisu jest stabilny dla oceny, factsRef i rulesVersion;
+wiele utrwalonych prób kroku score jest obecnie odrzucane jako niejednoznaczne.
+Bez migracji, resetów i zmian packages/**.
+
+Użytkownik uznał dodatkową weryfikację ręczną za zbędną, jeśli krok jest
+uzupełniony. Partia zaliczona w powyższym zakresie. Praca zatrzymana;
+nie rozpoczęto kolejnej partii.

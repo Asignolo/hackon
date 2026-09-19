@@ -19,6 +19,10 @@ export function register(container: AppContainer) {
     })
   }
   container.register({
+    'workflowFunction:photographers.evaluation.score': asValue(async (args: unknown, context: ActivityContext) => {
+      const { scorePhotographerWorkflow } = await import('./lib/evaluation-scoring-workflow')
+      return scorePhotographerWorkflow(args, context, container)
+    }),
     'workflowFunction:photographers.o1.prepare': asValue(async (args: unknown, context: ActivityContext) => {
       const { preparePortfolioDiscoveryWorkflow } = await import('./lib/portfolio-discovery-runtime')
       return preparePortfolioDiscoveryWorkflow(args, context, container)

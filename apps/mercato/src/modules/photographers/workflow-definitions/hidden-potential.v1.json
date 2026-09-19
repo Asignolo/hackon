@@ -147,7 +147,7 @@
         "stepId": "score",
         "stepName": "Punktacja i propozycja etapu",
         "stepType": "AUTOMATED",
-        "description": "factsRef, evaluatedAt i rulesVersion → scoreSnapshotSchema: punkty, uzasadnienie, flagi, suggestedAction. Miejsce przyszłych reguł deterministycznych; żadnych reguł ani wartości punktowych nie wdrożono w szkielecie.",
+        "description": "factsRef, evaluatedAt i rulesVersion → szyfrowany scoreSnapshotSchema: punkty według 15 reguł, uzasadnienie, flagi i suggestedAction. Wyjście scoreResult.result zawiera scoreRef, factsRef i rulesVersion. Bez propozycji, zmiany CRM i kontaktu; następny krok pozostaje niewdrożony.",
         "_editorPosition": {
           "x": 600,
           "y": 2740
@@ -417,7 +417,21 @@
         "fromStepId": "score",
         "toStepId": "disposition",
         "transitionName": "",
-        "trigger": "manual"
+        "trigger": "auto",
+        "activities": [
+          {
+            "activityId": "calculate_score",
+            "activityName": "scoreResult",
+            "activityType": "EXECUTE_FUNCTION",
+            "async": false,
+            "config": {
+              "functionName": "photographers.evaluation.score",
+              "args": {
+                "factsRef": "{{context.factsRef}}"
+              }
+            }
+          }
+        ]
       },
       {
         "transitionId": "disposition_review_19",
