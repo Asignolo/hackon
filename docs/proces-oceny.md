@@ -120,7 +120,19 @@ Wpis w CEIDG lub w wykazie VAT jest śladem pewnym tylko, gdy nazwisko z wpisu z
 
 Odkrycie próbuje pozostałych ścieżek (domena z e-maila, e-mail w wyszukiwarce, nazwisko), a gdy wszystkie się wyczerpią, zapisuje fakt „portfolio: brak” z powodem (puste, śmieć, martwy link, link bez tożsamości) i odkłada szansę do „Obserwowana” z najdłuższym odstępem. Człowiek nic nie widzi. Dotyczy najwyżej 4% bazy. Poza weekendem: sklep powinien przestać przyjmować „brak” w polu portfolio (Vendure, nie Open Mercato).
 
-### 6.6 Tożsamość na karcie
+### 6.6 Ślad, poszlaka, dowód na przykładzie
+
+Ślad to miejsce, w którym fotograf istnieje poza sklepem. Poszlaka to informacja znaleziona po drodze, która pomaga potwierdzić kandydata na ślad. Dowód to uzasadnienie, dlaczego ślad jest pewny.
+
+Wymyślona Anna Nowak: rejestracja daje imię, nazwisko, e-mail `anna@nowakfoto.pl`, portfolio `instagram.com/nowak.foto`.
+
+1. Portfolio → ślad „Instagram: nowak.foto”, **pewny**, dowód: „adres podany w rejestracji”. Opis profilu „fotograf ślubny, Wrocław, www.nowakfoto.pl” → poszlaki: miasto Wrocław, strona.
+2. Domena z e-maila → ślad „strona: nowakfoto.pl”, **pewny**, dowód: „domena z e-maila rejestracji”. Stopka z NIP-em i adresem we Wrocławiu → poszlaki: NIP, miasto po raz drugi.
+3. Nazwisko → CEIDG zwraca trzy wpisy „Anna Nowak”: trzej kandydaci. NIP ze stopki pasuje do jednego, miasto też → ślad „CEIDG: wpis o tym NIP-ie”, **pewny**, dowód: „nazwisko z rejestracji + NIP ze stopki strony + miasto z Instagrama”. Dopiero teraz płyną fakty: status, PKD, data startu, VAT.
+
+Ta sama Anna z e-mailem na gmailu, bez strony i bez miasta w opisie: trzech kandydatów w CEIDG, żadna poszlaka ich nie rozdziela → ślad CEIDG „nie ustalono”, kandydaci zapisani, zero faktów z rejestrów, zero punktów za firmę.
+
+### 6.7 Tożsamość na karcie
 
 Karta w Caseload pokazuje u góry blok „Tożsamość”: każdy ślad, jego pewność i dowód, na przykład „CEIDG: pewny, nazwisko + Wrocław + PKD 74.20”. Jedno kliknięcie odrzuca zły ślad; ocena liczy się od nowa bez niego.
 

@@ -72,6 +72,10 @@ _Unikaj_: link, profil, kandydat (kandydat to ślad niepewny)
 Zweryfikowana informacja o fotografie zebrana w badaniu z pewnego śladu: liczba obserwujących, data ostatniego posta, status VAT, PKD, ocena w Google Maps. Fakty żyją na fotografie.
 _Unikaj_: dane, cecha, atrybut
 
+**Dowód**:
+Uzasadnienie pewności śladu: która kotwica albo które dwa niezależne fakty sprawiły, że ślad jest pewny, na przykład „adres podany w rejestracji” albo „nazwisko z rejestracji + NIP ze stopki strony + miasto z Instagrama”. Operator widzi dowód na karcie i na jego podstawie odrzuca zły ślad.
+_Unikaj_: uzasadnienie, evidence, źródło
+
 ## Fakty z badania
 
 **System galerii**:
