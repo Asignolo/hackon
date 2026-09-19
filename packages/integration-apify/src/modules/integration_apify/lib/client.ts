@@ -17,6 +17,7 @@ export type ApifyClientLike = {
     start(input: Record<string, unknown>, options: Record<string, unknown>): Promise<ApifyRunRecord>
     builds(): { list(options?: Record<string, unknown>): Promise<{ items: Array<Record<string, unknown>> }> }
   }
+  build(id: string): { get(): Promise<Record<string, unknown> | undefined> }
   run(id: string): {
     get(options?: Record<string, unknown>): Promise<ApifyRunRecord | undefined>
     abort(options?: Record<string, unknown>): Promise<ApifyRunRecord>
@@ -29,7 +30,17 @@ export type ApifyClientLike = {
   requestQueue(id: string): { delete(): Promise<void> }
 }
 
-export function createApifyClient(credentials: Record<string, unknown>): ApifyClientLike {
+function createClient(credentials: Record<string, unknown>, maxRetries: number): ApifyClientLike {
   const { apiToken } = apifyCredentialsSchema.parse(credentials)
-  return new ApifyClient({ token: apiToken, maxRetries: 0 }) as unknown as ApifyClientLike
+  return new ApifyClient({ token: apiToken, maxRetries }) as unknown as ApifyClientLike
 }
+
+export function createApifyMutationClient(credentials: Record<string, unknown>): ApifyClientLike {
+  return createClient(credentials, 0)
+}
+
+export function createApifyReadClient(credentials: Record<string, unknown>): ApifyClientLike {
+  return createClient(credentials, 2)
+}
+
+export const createApifyClient = createApifyReadClient
