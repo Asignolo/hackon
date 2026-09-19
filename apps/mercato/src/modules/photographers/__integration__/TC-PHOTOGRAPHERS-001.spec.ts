@@ -9,7 +9,7 @@ const endpoint = '/api/photographers/raw-data'
 const entityId = 'photographers:photographer_raw_data'
 const encryptedFields = ['first_name', 'last_name', 'email', 'portfolio_raw']
 
-test('TC-PHOTOGRAPHERS-001: immutable encrypted submissions respect access and organization scope', async ({ request }) => {
+test('TC-PHOTOGRAPHERS-001: immutable encrypted submissions respect access and organization scope', async ({ request, page }) => {
   const adminToken = await getAuthToken(request, 'superadmin')
   const { tenantId } = getTokenContext(adminToken)
   const organizationIds: string[] = []
@@ -41,6 +41,10 @@ test('TC-PHOTOGRAPHERS-001: immutable encrypted submissions respect access and o
       userIds.push(userId)
       await setUserAclInDb({ userId, tenantId, features: ['photographers.view', 'photographers.create'], organizations: [organizationId] })
       tokens.push(await getAuthToken(request, email, password))
+      if (label === 'owner') {
+        const loginResponse = await page.request.post('/api/auth/login', { form: { email, password } })
+        expect(loginResponse.ok()).toBeTruthy()
+      }
       const customerId = randomUUID()
       customerIds.push(customerId)
       await withClient(async (client) => {
@@ -118,6 +122,42 @@ test('TC-PHOTOGRAPHERS-001: immutable encrypted submissions respect access and o
       const count = await client.query<{ count: string }>('select count(*)::text as count from photographers_raw_data where organization_id = any($1::uuid[])', [organizationIds])
       expect(count.rows[0].count).toBe('1')
     })
+    await page.goto('/backend/photographers/simulator')
+    await expect(page.locator('[data-crud-field-id="firstName"] input')).toBeVisible()
+    await page.locator('[data-crud-field-id="firstName"] input').fill(source.firstName)
+    await page.locator('[data-crud-field-id="lastName"] input').fill(source.lastName)
+    await page.locator('[data-crud-field-id="portfolioRaw"] textarea').fill(source.portfolioRaw)
+    await page.locator('[data-crud-field-id="email"] input').fill('invalid-email')
+    await page.getByRole('button', { name: /Simulate registration|Symuluj rejestrację/ }).first().click()
+    await expect(page.getByText(/Enter a valid email address|Podaj poprawny adres e-mail/).first()).toBeVisible()
+    await page.reload()
+    await page.locator('[data-crud-field-id="firstName"] input').fill(source.firstName)
+    await page.locator('[data-crud-field-id="lastName"] input').fill(source.lastName)
+    await page.locator('[data-crud-field-id="email"] input').fill(source.email)
+    await page.locator('[data-crud-field-id="portfolioRaw"] textarea').fill(source.portfolioRaw)
+    const savedResponse = page.waitForResponse((response) => new URL(response.url()).pathname === endpoint && response.request().method() === 'POST')
+    await page.getByRole('button', { name: /Simulate registration|Symuluj rejestrację/ }).first().click()
+    const saved = await savedResponse
+    expect(saved.status(), await saved.text()).toBe(201)
+    const savedBody: { id: string } = JSON.parse(await saved.text())
+    const savedId = expectId(savedBody?.id, 'Simulator saves a registration')
+    await expect(page.getByRole('alert').filter({ hasText: savedId })).toBeVisible()
+    const simulatedRead = await apiRequest(request, 'GET', `${endpoint}?id=${savedId}`, { token: ownerToken })
+    expect((await readJsonSafe<{ items: Array<Record<string, unknown>> }>(simulatedRead))?.items[0]).toMatchObject({
+      firstName: source.firstName, lastName: source.lastName, email: source.email, portfolioRaw: source.portfolioRaw,
+    })
+    await page.getByRole('button', { name: /Register another photographer|Zarejestruj kolejnego fotografa/ }).click()
+    await expect(page.locator('[data-crud-field-id="firstName"] input')).toHaveValue('')
+    await expect(page.locator('[data-crud-field-id="portfolioRaw"] textarea')).toHaveValue('')
+    await page.locator('[data-crud-field-id="firstName"] input').fill(source.firstName)
+    await page.locator('[data-crud-field-id="lastName"] input').fill(source.lastName)
+    await page.locator('[data-crud-field-id="email"] input').fill(source.email)
+    for (const portfolio of ['', '   ']) {
+      await page.locator('[data-crud-field-id="portfolioRaw"] textarea').fill(portfolio)
+      await page.getByRole('button', { name: /Simulate registration|Symuluj rejestrację/ }).first().click()
+      await expect(page.locator('[data-crud-field-id="portfolioRaw"]')).toContainText(/required|wymagane|Uzupełnij/i)
+      await expect(page.getByRole('button', { name: /Register another photographer|Zarejestruj kolejnego fotografa/ })).toHaveCount(0)
+    }
   } finally {
     await withClient(async (client) => {
       const fixtureUsers = await client.query<{ id: string }>('select id from users where organization_id = any($1::uuid[])', [organizationIds])

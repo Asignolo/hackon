@@ -3,5 +3,22 @@
   "photographers.errors.forbidden": "Access to this organization is denied.",
   "photographers.errors.customer_not_found": "The customer is not available in this organization.",
   "photographers.errors.encryption_unavailable": "Data encryption is unavailable. The submission has not been saved.",
-  "photographers.audit.raw_data.create": "Record photographer submission"
+  "photographers.audit.raw_data.create": "Record photographer submission",
+  "photographers.nav.group": "Photographers",
+  "photographers.simulator.title": "Registration simulator",
+  "photographers.simulator.description": "Enter the photographer’s details as they would appear in a store registration. This simulation saves a real registration in the selected organization.",
+  "photographers.simulator.firstName": "First name",
+  "photographers.simulator.lastName": "Last name",
+  "photographers.simulator.email": "Email",
+  "photographers.simulator.portfolio": "Portfolio",
+  "photographers.simulator.portfolioHint": "Enter an address, account name or other text, such as “none”. This field is required.",
+  "photographers.simulator.submit": "Simulate registration",
+  "photographers.simulator.saved": "Registration saved",
+  "photographers.simulator.savedDescription": "The photographer’s details have been saved.",
+  "photographers.simulator.registrationId": "Registration ID",
+  "photographers.simulator.next": "Register another photographer",
+  "photographers.simulator.failed": "Could not save the registration.",
+  "photographers.simulator.required": "This field is required.",
+  "photographers.simulator.emailInvalid": "Enter a valid email address.",
+  "photographers.simulator.portfolioTooLong": "Portfolio must contain at most 2048 characters."
 }

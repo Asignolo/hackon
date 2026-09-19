@@ -1,7 +1,7 @@
 # Photographer source submissions
 
 This app-local module stores the original registration data in one table,
-`photographers_raw_data`. It has no portfolio fetcher, analysis, UI, update, or
+`photographers_raw_data`. It has no portfolio fetcher, analysis, update, or
 delete endpoint. Multiple submissions from the same email/customer are allowed;
 each POST creates a new record. Names, email casing, and the raw portfolio entry are
 stored without trimming, lowercasing, or normalization. `portfolioRaw` accepts up to 2048 characters, including a URL,
@@ -119,3 +119,11 @@ BASE_URL=http://localhost:3001 OM_INTEGRATION_MODULES=photographers \
   ./node_modules/.bin/playwright test --config .ai/qa/tests/playwright.config.ts \
   TC-PHOTOGRAPHERS-001 --retries=0
 ```
+
+## Registration simulator
+
+Staff can open `/backend/photographers/simulator` from the Photographers menu.
+The four-field form requires `photographers.create` and saves through the existing
+POST API. It requires nonblank portfolio text, preserves the original entry, and shows the
+saved registration ID before offering a fresh form. It does not start an evaluation
+or create a CRM person.

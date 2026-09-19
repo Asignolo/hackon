@@ -3,5 +3,22 @@
   "photographers.errors.forbidden": "Brak dostępu do tej organizacji.",
   "photographers.errors.customer_not_found": "Klient nie jest dostępny w tej organizacji.",
   "photographers.errors.encryption_unavailable": "Szyfrowanie danych jest niedostępne. Zgłoszenie nie zostało zapisane.",
-  "photographers.audit.raw_data.create": "Zapisanie zgłoszenia fotografa"
+  "photographers.audit.raw_data.create": "Zapisanie zgłoszenia fotografa",
+  "photographers.nav.group": "Fotografowie",
+  "photographers.simulator.title": "Symulator rejestracji",
+  "photographers.simulator.description": "Wpisz dane fotografa tak, jak przy rejestracji w sklepie. Symulacja zapisuje prawdziwą rejestrację w wybranej organizacji.",
+  "photographers.simulator.firstName": "Imię",
+  "photographers.simulator.lastName": "Nazwisko",
+  "photographers.simulator.email": "E-mail",
+  "photographers.simulator.portfolio": "Portfolio",
+  "photographers.simulator.portfolioHint": "Wpisz adres, nazwę konta lub inny tekst, np. „brak”. Pole jest wymagane.",
+  "photographers.simulator.submit": "Symuluj rejestrację",
+  "photographers.simulator.saved": "Rejestracja zapisana",
+  "photographers.simulator.savedDescription": "Dane fotografa zostały zapisane.",
+  "photographers.simulator.registrationId": "Identyfikator rejestracji",
+  "photographers.simulator.next": "Zarejestruj kolejnego fotografa",
+  "photographers.simulator.failed": "Nie udało się zapisać rejestracji.",
+  "photographers.simulator.required": "Uzupełnij to pole.",
+  "photographers.simulator.emailInvalid": "Podaj poprawny adres e-mail.",
+  "photographers.simulator.portfolioTooLong": "Portfolio może mieć najwyżej 2048 znaków."
 }
