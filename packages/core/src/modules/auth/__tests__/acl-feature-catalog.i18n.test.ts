@@ -1,5 +1,5 @@
-import { readFileSync } from 'node:fs'
-import { relative, resolve } from 'node:path'
+import { existsSync, readFileSync } from 'node:fs'
+import { dirname, relative, resolve } from 'node:path'
 import fg from 'fast-glob'
 import * as ts from 'typescript'
 import englishDictionary from '../i18n/en.json'
@@ -53,13 +53,19 @@ function readDeclaredFeatures(file: string): DeclaredFeature[] {
 
   if (!initializer) throw new Error(`${path} must export a literal features array`)
 
+  const dictionaryPath = resolve(dirname(file), 'i18n/en.json')
+  const moduleDictionary: Record<string, string> = existsSync(dictionaryPath)
+    ? JSON.parse(readFileSync(dictionaryPath, 'utf8'))
+    : {}
+
   return initializer.elements.map((element) => {
     if (!ts.isObjectLiteralExpression(element)) {
       throw new Error(`${path} must declare every feature as an object literal`)
     }
+    const title = readStringProperty(element, 'title', path)
     return {
       id: readStringProperty(element, 'id', path),
-      title: readStringProperty(element, 'title', path),
+      title: moduleDictionary[title] ?? title,
       path,
     }
   })

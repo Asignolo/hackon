@@ -1,24 +1,24 @@
 ---
 name: om-auto-review-pr
-description: Open Mercato repo-local extension of the shared `om-auto-review-pr` skill (installed from open-mercato/skills into .agents/skills/). Makes the review GitHub-checks-first (local validation only as a narrow fallback) and keeps this repo's stricter verdict rule (Medium findings request changes).
+description: Open Mercato repo-local extension of the shared `om-auto-review-pr` skill (installed from open-mercato/skills into .agents/skills/). Uses local validation instead of GitHub Actions and keeps this repo's stricter verdict rule (Medium findings request changes).
 ---
 
 # Auto Review PR — Open Mercato extension
 
 This file extends the shared `om-auto-review-pr` skill from [open-mercato/skills](https://github.com/open-mercato/skills) (installed at `.agents/skills/om-auto-review-pr/SKILL.md`). Follow the shared skill's full workflow — claim protocol, worktree isolation, review, verdict, labels, autofix loop, lock release — with the repo-specific rules below layered on top. The `om-code-review` step also picks up this repo's own extension at `.ai/skills/om-code-review/SKILL.md`.
 
-## GitHub-checks-first validation (saves local resources)
+## Local validation (repository policy)
 
-CI already runs the full validation gate on every PR. Prefer GitHub PR check results over re-running `validation.commands` locally:
+This repository does not use GitHub Actions as a validation or merge gate. Local validation replaces CI, including when historical GitHub checks remain queued or pending.
 
-- Read the current PR checks (tracker operation **get-pr-checks**) and required checks (**get-required-checks**) first.
-- For failing checks, inspect the check logs from GitHub rather than reproducing locally — e.g. `gh run view <run-id> --log-failed` when the check links to a workflow run.
-- Run local test, typecheck, lint, build, template-sync, Playwright, package-install, or migration commands **only as a fallback** when GitHub check data is unavailable or unusable for the current PR head (permissions/API errors, no reported checks for the head SHA, or a failing check whose logs cannot be opened).
-- Keep the fallback as narrow as the missing CI signal allows: relevant unit tests / typecheck for the changed packages first; expand to workspace scope only when findings touch shared contracts or multiple packages; run broad `yarn lint` / `yarn test` / `yarn typecheck` / `yarn build:*` only when GitHub provides no usable check data for those gates.
-- If required checks are merely **pending**, do not run local substitutes — continue the code review, report the pending checks, and let branch protection plus the merge queue hold the actual merge.
-- Record the validation source in the review report (`Validation source: GitHub checks` / `local fallback (<commands>)`).
+- Run the applicable commands from `.ai/agentic.config.json` on the exact reviewed commit in an isolated worktree, using the local/Docker runner selection documented in `.ai/docs/agent-instructions.md`.
+- Record the commit SHA, runner, commands, outcomes, and any limitations in the PR review or validation report. Existing evidence is reusable only for the same commit and relevant scope.
+- Code changes must pass the configured validation gate. Documentation-only changes use document consistency and `git diff --check`; inactive workflow version updates use diff and YAML validation.
+- Missing, queued, skipped, or disabled GitHub Actions checks do not block review or merge. Do not wait for them or start CI monitoring.
+- Actual local test failures, unresolved review findings, conflicts, and the QA label gate still block merge.
+- After updating a branch, repeat checks affected by the changes and identify the new commit in the report.
 
-When the shared skill (or the shared `om-code-review`) asks for local validation, first replace that action with GitHub check inspection under the rules above. Keep the same analysis depth: read code, specs, tests, contracts, and relevant docs.
+These rules override the shared skill's CI checks-first and pending-check early-exit behavior for this repository.
 
 ## Verdict rule (stricter than the shared default)
 
@@ -32,5 +32,5 @@ This repo requests changes on Medium findings too:
 
 ## Repo conventions the shared workflow already parameterizes
 
-- Base branch: PRs target `develop` (config `baseBranch`); the PR's own `baseRefName` stays authoritative for diffs.
+- Base branch: PRs target `main` (config `baseBranch`); the PR's own `baseRefName` stays authoritative for diffs.
 - Labels, QA gate, and claim protocol: as defined in `.ai/agentic.config.json` and root `AGENTS.md` (QA-approval merge gate: `needs-qa` without `qa-approved` never merges; auto-skills never touch the `qa` pipeline label).

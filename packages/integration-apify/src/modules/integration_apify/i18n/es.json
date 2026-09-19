@@ -1,0 +1,6 @@
+{
+  "integration_apify.provider.label": "Investigación con Apify",
+  "integration_apify.research": "Ejecutar investigación de pago de datos empresariales públicos con Apify",
+  "integration_apify.status.invalidCredentials": "Apify rechazó las credenciales configuradas.",
+  "integration_apify.status.upstreamUnavailable": "Apify no está disponible temporalmente."
+}

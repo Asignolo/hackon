@@ -1,0 +1,6 @@
+{
+  "integration_apify.provider.label": "Research Apify",
+  "integration_apify.research": "Uruchamianie płatnego researchu danych biznesowych przez Apify",
+  "integration_apify.status.invalidCredentials": "Apify odrzuciło skonfigurowane dane dostępowe.",
+  "integration_apify.status.upstreamUnavailable": "Apify jest tymczasowo niedostępne."
+}

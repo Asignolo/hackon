@@ -758,3 +758,4 @@ Dokładne nazwy plików mogą zostać dopasowane do generatora i konwencji najbl
 - Ujednolicono zakaz prywatnych i niepotwierdzonych profili osobistych w scope, kontrakcie Instagram i failure matrix.
 - Ograniczono Agent Orchestrator smoke do nierejestrowanego fixture testowego i pozostawiono agenta discovery wyłącznie jako follow-up.
 - Dodano operacyjne powierzchnie MVP i wyjaśniono, że `isMutation: false` nie oznacza braku kosztu ani efektów po stronie Apify.
+- Implementacja przypięła rzeczywiste kontrakty output Actorów; bieżący Instagram pin potwierdza tylko konta biznesowe, więc creator bez jednoznacznego sygnału nadal fail-closed.

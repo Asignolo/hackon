@@ -52,7 +52,9 @@ yarn test
 yarn build:app
 ```
 
-The full CI-mirroring gate (used by review/automation skills) is the ordered `validation.commands` list in `.ai/agentic.config.json`.
+Local validation gates merges; pending GitHub checks do not. Record SHA and results on the PR.
+
+Local gate: `validation.commands` in `.ai/agentic.config.json`.
 
 **Where to run them:** decide once per gate sequence — Docker mode when a compose `app` container is running (then `yarn X` becomes `node scripts/docker-exec.mjs X`), otherwise local mode — and record the chosen runner in your output. Probe order and exact rules: [`.ai/docs/agent-instructions.md`](.ai/docs/agent-instructions.md).
 

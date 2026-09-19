@@ -4,6 +4,11 @@ import {
   resetLoggerExtension,
   type LoggerExtensionRecord,
 } from '../../logger'
+import {
+  registerTelemetryRuntime,
+  resetTelemetryRuntime,
+  type TelemetryRuntime,
+} from '../../telemetry/runtime'
 import { RateLimiterService } from '../service'
 import type { RateLimitConfig, RateLimitGlobalConfig } from '../types'
 
@@ -33,6 +38,7 @@ describe('RateLimiterService', () => {
 
   afterEach(async () => {
     if (service) await service.destroy()
+    resetTelemetryRuntime()
   })
 
   describe('disabled mode', () => {
@@ -87,6 +93,16 @@ describe('RateLimiterService', () => {
       expect(result.allowed).toBe(true)
       expect(result.remainingPoints).toBe(2)
       expect(result.consumedPoints).toBe(1)
+    })
+
+    it('tracks independent expiring concurrency lease holders', async () => {
+      const config = { limit: 1, ttlMs: 20, keyPrefix: 'leases' }
+      await expect(service.acquireLease('tenant-a', 'holder-a', config)).resolves.toEqual({ allowed: true })
+      await expect(service.acquireLease('tenant-a', 'holder-b', config)).resolves.toEqual({ allowed: false })
+      await new Promise((resolve) => setTimeout(resolve, 25))
+      await expect(service.acquireLease('tenant-a', 'holder-b', config)).resolves.toEqual({ allowed: true })
+      await service.releaseLease('tenant-a', 'holder-b', config)
+      await expect(service.acquireLease('tenant-a', 'holder-c', config)).resolves.toEqual({ allowed: true })
     })
 
     it('rejects after all points are consumed', async () => {
@@ -246,7 +262,7 @@ describe('RateLimiterService', () => {
         ])
       })
 
-      it('does not flag a resolved redis decision as degraded, including one the insurance limiter produced', async () => {
+    it('does not flag a resolved redis decision as degraded, including one the insurance limiter produced', async () => {
         service = await createRedisService()
         expect(buildLimiter(service)).toBeInstanceOf(RateLimiterRedis)
         jest.spyOn(RateLimiterRedis.prototype, 'consume')
@@ -257,6 +273,73 @@ describe('RateLimiterService', () => {
         expect(result.allowed).toBe(true)
         expect(result.degraded).toBeFalsy()
         expect(logRecords).toEqual([])
+      })
+
+      it('uses Redis server time when acquiring a distributed lease', async () => {
+        const evalCall = jest.fn(async () => 1)
+        const disconnect = jest.fn()
+        service = new RateLimiterService(createConfig({
+          strategy: 'redis',
+          redisUrl: 'redis://localhost:6379',
+        }))
+        ;(service as unknown as {
+          redisClient: { eval: typeof evalCall; disconnect: typeof disconnect }
+        }).redisClient = { eval: evalCall, disconnect }
+
+        await expect(service.acquireLease('tenant-a', 'holder-a', {
+          limit: 2,
+          ttlMs: 60_000,
+          keyPrefix: 'leases',
+        })).resolves.toEqual({ allowed: true })
+
+        expect(evalCall).toHaveBeenCalledWith(
+          expect.stringContaining("redis.call('TIME')"),
+          1,
+          'test:leases:tenant-a',
+          2,
+          'holder-a',
+          60_000,
+        )
+      })
+
+      it('reports sanitized telemetry when Redis lease operations fail', async () => {
+        const reportError = jest.fn()
+        registerTelemetryRuntime({
+          canUseGlobalTracePropagation: () => false,
+          captureTraceContext: () => ({}),
+          continueTrace: (_carrier, _name, fn) => fn(),
+          recordHttpDuration: () => undefined,
+          reportError,
+          shutdown: async () => undefined,
+        } satisfies TelemetryRuntime)
+        const evalCall = jest.fn(async () => { throw new Error('redis://user:secret@host') })
+        service = new RateLimiterService(createConfig({
+          strategy: 'redis',
+          redisUrl: 'redis://localhost:6379',
+        }))
+        ;(service as unknown as {
+          redisClient: { eval: typeof evalCall; disconnect: () => void }
+        }).redisClient = { eval: evalCall, disconnect: jest.fn() }
+        const config = { limit: 2, ttlMs: 60_000, keyPrefix: 'leases' }
+
+        await expect(service.acquireLease('tenant-a', 'holder-a', config)).resolves.toEqual({
+          allowed: false,
+          degraded: true,
+        })
+        await expect(service.releaseLease('tenant-a', 'holder-a', config)).resolves.toBeUndefined()
+
+        expect(reportError).toHaveBeenCalledTimes(2)
+        expect(reportError).toHaveBeenNthCalledWith(
+          1,
+          expect.objectContaining({ message: '[internal] Rate limiter lease acquisition failed.' }),
+          expect.objectContaining({ code: 'ratelimit.lease_acquisition_failed' }),
+        )
+        expect(reportError).toHaveBeenNthCalledWith(
+          2,
+          expect.objectContaining({ message: '[internal] Rate limiter lease release failed.' }),
+          expect.objectContaining({ code: 'ratelimit.lease_release_failed' }),
+        )
+        expect(JSON.stringify(reportError.mock.calls)).not.toContain('secret')
       })
     })
   })
