@@ -64,3 +64,22 @@ it('shows failure and supports retry without rendering unvalidated materials', a
   fireEvent.click(screen.getByRole('button', { name: en['photographers.materials.refresh'] }))
   await screen.findByText(/This is the complete proposed message/)
 })
+
+it('shows score, reason, evidence, flags and missing facts with the publication-only notice', async () => {
+  const original = response()
+  request.mockResolvedValue({ ...original, options: [{ selectedOptionId: 'review', label: 'Review flagged assessment', materials: [original.options[0].materials[0], {
+    ...common, id: messageId, kind: 'score', data: {
+      schemaVersion: 1, evaluationId: proposalId, factsRef: factsId, rulesVersion: 'v1', evaluatedAt: updatedAt,
+      score: 20, matchedRules: [{ ruleId: 'nipConfirmed', factKey: 'nipConfirmed', points: 20, sourceRef: 'https://example.invalid/registry' }],
+      flags: ['business_suspended'], category: 'unknown', suggestedAction: 'review', unknownFactKeys: ['instagramFollowers'],
+    },
+  }] }] })
+  renderWithProviders(view(proposalId), { dict: en })
+  await screen.findByText('Score: 20/100')
+  expect(screen.getByText('Confirmed tax ID — 20 points')).toBeTruthy()
+  expect(screen.getByText(/https:\/\/example.invalid\/registry/)).toBeTruthy()
+  expect(screen.getByText('Business suspended')).toBeTruthy()
+  expect(screen.getByText(en['photographers.evaluation_review.preview_only'])).toBeTruthy()
+  expect(screen.getByText(en['photographers.materials.facts.instagramFollowers'])).toBeTruthy()
+  expect(screen.getAllByRole('button')).toHaveLength(1)
+})

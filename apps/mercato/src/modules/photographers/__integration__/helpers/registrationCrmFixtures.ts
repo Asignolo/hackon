@@ -5,7 +5,7 @@ import { apiRequestWithSelectedOrg, createUserFixture } from '@open-mercato/core
 import { createOrganizationInDb, setUserAclInDb, withClient } from '@open-mercato/core/helpers/integration/dbFixtures'
 import { getTokenContext, readJsonSafe } from '@open-mercato/core/helpers/integration/generalFixtures'
 
-export async function registrationCrmFixture(request: APIRequestContext) {
+export async function registrationCrmFixture(request: APIRequestContext, additionalFeatures: string[] = []) {
   const admin = await getAuthToken(request, 'superadmin')
   const { tenantId } = getTokenContext(admin)
   const organizationId = await createOrganizationInDb({ tenantId, name: `QA registration CRM ${randomUUID()}` })
@@ -35,7 +35,7 @@ export async function registrationCrmFixture(request: APIRequestContext) {
       expect(response.status(), await response.text()).toBe(200)
     }
     userId = await createUserFixture(request, admin, { email, password, organizationId, roles: [] })
-    await setUserAclInDb({ userId, tenantId, features: ['photographers.*', 'customers.*'], organizations: [organizationId] })
+    await setUserAclInDb({ userId, tenantId, features: ['photographers.*', 'customers.*', ...additionalFeatures], organizations: [organizationId] })
     const token = await getAuthToken(request, email, password)
     const pipeline = await apiRequest(request, 'POST', '/api/customers/pipelines', { token, data: { name: `Hidden Potential ${randomUUID()}`, isDefault: false } })
     expect(pipeline.status(), await pipeline.text()).toBe(201)
@@ -46,7 +46,7 @@ export async function registrationCrmFixture(request: APIRequestContext) {
     await withClient(async (client) => {
       await client.query('insert into module_configs (id,module_id,name,value_json,tenant_id,organization_id,created_at,updated_at) values ($1,$2,$3,$4::jsonb,$5,$6,now(),now())', [randomUUID(), 'photographers', `hidden_potential_installation_${organizationId}`, JSON.stringify({ schemaVersion: 1, pipelineId, stageIds: { new: stageId } }), tenantId, organizationId])
     })
-    return { token, email, password, tenantId, organizationId, pipelineId, stageId, cleanup }
+    return { token, email, password, userId, tenantId, organizationId, pipelineId, stageId, cleanup }
   } catch (error) {
     await cleanup()
     throw error

@@ -3,7 +3,7 @@
   "workflowName": "Opiekun nowego fotografa — Ukryty potencjał (szkielet v1)",
   "version": 1,
   "enabled": false,
-  "description": "Nieaktywny szkielet docelowego procesu z jednym agentem odkrycia O1 i adapterem zapisu jego wyniku. O1 bada portfolio i wyszukuje po e-mailu także bez portfolio. Przygotowanie wejścia, przekazanie o1RunId i pozostałe kroki nie są wdrożone. Brak wyzwalaczy i wysyłki. Nie włączać tej wersji.",
+  "description": "Nieaktywny szkielet docelowego procesu. Podłączony wycinek rejestracja → O1 → szyfrowane niepotwierdzone ślady. Dalsze kroki nie są wdrożone. Brak wyzwalaczy i wysyłki. Nie włączać tej wersji.",
   "metadata": {
     "category": "photographers",
     "tags": [
@@ -37,32 +37,10 @@
       {
         "stepId": "o1",
         "stepName": "O1 — odkrywanie źródeł",
-        "stepType": "AUTOMATED",
-        "description": "agent_examples.portfolio_reader_o1: originalPortfolio, registrationEmail, firstName i lastName → research: strony, profile, NIP i miasto ze źródłami. Jeden agent odczytuje portfolio oraz wyszukuje pełny e-mail także bez portfolio. Adapter photographers.o1.store_result zapisuje wynik utrwalonego runu jako niepotwierdzone ślady; K1 rozstrzyga przypisanie. Przygotowanie wejścia i bezpieczne przekazanie o1RunId pozostają niepodłączone. Nie włączać szkieletu.",
-        "activities": [
-          {
-            "activityId": "o1_discovery",
-            "activityName": "O1 — odkrywanie źródeł",
-            "activityType": "INVOKE_AGENT",
-            "config": {
-              "agentId": "agent_examples.portfolio_reader_o1",
-              "input": {
-                "originalPortfolio": "{{context.originalPortfolio}}",
-                "registrationEmail": "{{context.registrationEmail}}",
-                "firstName": "{{context.firstName}}",
-                "lastName": "{{context.lastName}}"
-              },
-              "onResult": {
-                "alwaysAsk": true
-              },
-              "outputMapping": {
-                "o1": "data"
-              }
-            }
-          }
-        ],
+        "stepType": "WAIT_FOR_SIGNAL",
+        "description": "Worker odczytuje oryginalną rejestrację w zakresie organizacji i uruchamia agent_examples.portfolio_reader_o1. Trwały run jest związany z konkretną próbą kroku; sygnał przenosi tylko jego identyfikator. Adapter zapisuje szyfrowane niepotwierdzone ślady. K1 pozostaje niewdrożony.",
         "signalConfig": {
-          "signalName": "agent_orchestrator.proposal.ready"
+          "signalName": "photographers.o1.ready"
         },
         "_editorPosition": {
           "x": 600,
@@ -169,7 +147,7 @@
         "stepId": "score",
         "stepName": "Punktacja i propozycja etapu",
         "stepType": "AUTOMATED",
-        "description": "factsRef, evaluatedAt i rulesVersion → scoreSnapshotSchema: punkty, uzasadnienie, flagi, suggestedAction. Miejsce przyszłych reguł deterministycznych; żadnych reguł ani wartości punktowych nie wdrożono w szkielecie.",
+        "description": "factsRef, evaluatedAt, rulesVersion i rulesSnapshot → szyfrowany wynik 15 reguł. scoreResult.result przekazuje scoreRef, factsRef, rulesVersion i reviewRequired; bez zmiany CRM i kontaktu.",
         "_editorPosition": {
           "x": 600,
           "y": 2740
@@ -179,7 +157,7 @@
         "stepId": "disposition",
         "stepName": "Dalsze postępowanie — polityka propozycji",
         "stepType": "AUTOMATED",
-        "description": "Wynik reguł → propozycja i pełna polityka platformy. Flaga zawsze wymaga człowieka; produktowy/komercyjny bez flag kieruje do obserwacji niezależnie od punktów. Pozostałe: poniżej 60 obserwacja, od 60 kwalifikacja. Punkty nie są pewnością.",
+        "description": "Wynik z potwierdzoną flagą → jedna propozycja do podglądu w Caseload. Polityka zawsze wymaga człowieka. Wyniki bez flag i wykonanie decyzji pozostają poza obecną partią.",
         "_editorPosition": {
           "x": 600,
           "y": 2980
@@ -188,11 +166,14 @@
       {
         "stepId": "review",
         "stepName": "Człowiek — dalsze postępowanie",
-        "stepType": "AUTOMATED",
-        "description": "Propozycja zatrzymana przez flagę lub politykę → Caseload: obserwacja, dopuszczenie kontaktu, jawne zamknięcie albo odrzucenie propozycji. Wyjątek kontaktu mimo flagi wymaga waiverSnapshotSchema i uzasadnienia; nie usuwa flagi.",
+        "stepType": "WAIT_FOR_SIGNAL",
+        "description": "Caseload pokazuje punkty, uzasadnienie i potwierdzone flagi. Publikacja i podgląd są dostępne; zatwierdzanie, odrzucanie oraz wykonanie decyzji pozostają zablokowane do kolejnej uzgodnionej partii.",
         "_editorPosition": {
           "x": 1100,
           "y": 3240
+        },
+        "signalConfig": {
+          "signalName": "photographers.evaluation.review.ready"
         }
       },
       {
@@ -282,21 +263,45 @@
         "fromStepId": "start",
         "toStepId": "prepare",
         "transitionName": "",
-        "trigger": "manual"
+        "trigger": "auto",
+        "activities": [
+          {
+            "activityId": "prepare_o1",
+            "activityName": "o1Preparation",
+            "activityType": "EXECUTE_FUNCTION",
+            "async": false,
+            "config": {
+              "functionName": "photographers.o1.prepare",
+              "args": {}
+            }
+          }
+        ]
       },
       {
         "transitionId": "prepare_o1_1",
         "fromStepId": "prepare",
         "toStepId": "o1",
         "transitionName": "",
-        "trigger": "manual"
+        "trigger": "auto",
+        "activities": [
+          {
+            "activityId": "dispatch_o1",
+            "activityName": "o1Dispatch",
+            "activityType": "EXECUTE_FUNCTION",
+            "async": false,
+            "config": {
+              "functionName": "photographers.o1.dispatch",
+              "args": {}
+            }
+          }
+        ]
       },
       {
         "transitionId": "o1_identity_2",
         "fromStepId": "o1",
         "toStepId": "identity",
         "transitionName": "",
-        "trigger": "manual",
+        "trigger": "auto",
         "activities": [
           {
             "activityId": "store_o1_result",
@@ -415,14 +420,50 @@
         "fromStepId": "score",
         "toStepId": "disposition",
         "transitionName": "",
-        "trigger": "manual"
+        "trigger": "auto",
+        "activities": [
+          {
+            "activityId": "calculate_score",
+            "activityName": "scoreResult",
+            "activityType": "EXECUTE_FUNCTION",
+            "async": false,
+            "config": {
+              "functionName": "photographers.evaluation.score",
+              "args": {
+                "factsRef": "{{context.factsRef}}"
+              }
+            }
+          }
+        ]
       },
       {
         "transitionId": "disposition_review_19",
         "fromStepId": "disposition",
         "toStepId": "review",
-        "transitionName": "Flaga lub zatrzymanie przez politykę",
-        "trigger": "manual"
+        "transitionName": "Potwierdzona flaga — podgląd w Caseload",
+        "trigger": "auto",
+        "condition": {
+          "operator": "AND",
+          "rules": [
+            {
+              "field": "scoreResult.result.reviewRequired",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        },
+        "activities": [
+          {
+            "activityId": "request_evaluation_review",
+            "activityName": "evaluationReviewDispatch",
+            "activityType": "EXECUTE_FUNCTION",
+            "async": false,
+            "config": {
+              "functionName": "photographers.evaluation.request_review",
+              "args": {}
+            }
+          }
+        ]
       },
       {
         "transitionId": "disposition_observe_20",

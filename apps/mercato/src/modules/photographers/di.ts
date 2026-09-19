@@ -19,6 +19,22 @@ export function register(container: AppContainer) {
     })
   }
   container.register({
+    'workflowFunction:photographers.evaluation.request_review': asValue(async (args: unknown, context: ActivityContext) => {
+      const { dispatchEvaluationReview } = await import('./lib/evaluation-review-workflow')
+      return dispatchEvaluationReview(args, context, container)
+    }),
+    'workflowFunction:photographers.evaluation.score': asValue(async (args: unknown, context: ActivityContext) => {
+      const { scorePhotographerWorkflow } = await import('./lib/evaluation-scoring-workflow')
+      return scorePhotographerWorkflow(args, context, container)
+    }),
+    'workflowFunction:photographers.o1.prepare': asValue(async (args: unknown, context: ActivityContext) => {
+      const { preparePortfolioDiscoveryWorkflow } = await import('./lib/portfolio-discovery-runtime')
+      return preparePortfolioDiscoveryWorkflow(args, context, container)
+    }),
+    'workflowFunction:photographers.o1.dispatch': asValue(async (args: unknown, context: ActivityContext) => {
+      const { dispatchPortfolioDiscoveryWorkflow } = await import('./lib/portfolio-discovery-runtime')
+      return dispatchPortfolioDiscoveryWorkflow(args, context, container)
+    }),
     'workflowFunction:photographers.o1.store_result': asValue(async (args: unknown, context: ActivityContext) => {
       const { storePortfolioDiscoveryWorkflowResult } = await import('./lib/portfolio-discovery-workflow')
       return storePortfolioDiscoveryWorkflowResult(args, context, container)

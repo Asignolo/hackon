@@ -1,0 +1,44 @@
+{
+  "testCase": "TC-PHOTOGRAPHERS-024",
+  "runner": "native Playwright using complete commandEnvironment resolved by official ephemeral CLI; freshness checks retained",
+  "retries": 0,
+  "startedAt": "2026-09-19T18:10:40.529Z",
+  "durationMs": 113888.067,
+  "counts": {
+    "passed": 2,
+    "failed": 0,
+    "skipped": 0,
+    "flaky": 0
+  },
+  "tests": [
+    {
+      "title": "portfolio registration persists sourced traces",
+      "status": "passed",
+      "durationMs": 9899,
+      "retry": 0
+    },
+    {
+      "title": "registration without portfolio still invokes O1 and persists email discovery",
+      "status": "passed",
+      "durationMs": 2676,
+      "retry": 0
+    }
+  ],
+  "realCoverage": [
+    "HTTP registration and CRM fixture creation",
+    "application bootstrap and generated worker discovery",
+    "workflow preparation and execution",
+    "local queue worker execution",
+    "agent session outcome storage and output adapter",
+    "encrypted trace persistence and authenticated material API read",
+    "idempotent repeated worker delivery",
+    "workflow and agent-run state excludes source text"
+  ],
+  "controlledBoundary": "OpenCodeRunnerClient is replaced through request-container DI registrars; deterministic research outcome envelope; no external model, search, or website calls.",
+  "environment": "Disposable isolated source snapshot and PostgreSQL; developer application/database unchanged.",
+  "cleanup": {
+    "ownedEnvironmentStopped": true,
+    "ownedSnapshotRemoved": true,
+    "testPortReleased": true
+  }
+}

@@ -7,9 +7,10 @@ import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/u
 import { readApiResultOrThrow } from '@open-mercato/ui/backend/utils/apiCall'
 import { ErrorMessage, LoadingMessage } from '@open-mercato/ui/backend/detail'
 import { Button } from '@open-mercato/ui/primitives/button'
+import { Alert, AlertDescription } from '@open-mercato/ui/primitives/alert'
 import { useAppEvent } from '@open-mercato/ui/backend/injection/useAppEvent'
 import { proposalReviewMaterialsResponseSchema, type ProposalReviewMaterialsResponse } from '../../../data/proposal-review-validators'
-import type { ResearchFact } from '../../../data/evaluation-validators'
+import type { ResearchFact, ScoreSnapshot } from '../../../data/evaluation-validators'
 
 function proposalFromContext(context: unknown): string | null {
   if (!context || typeof context !== 'object' || !('path' in context) || typeof context.path !== 'string') return null
@@ -52,10 +53,12 @@ function ProposalMaterials({ proposalId }: { proposalId: string }) {
       <Button type="button" variant="outline" onClick={() => setRevision((value) => value + 1)}>{t('photographers.materials.refresh')}</Button>
     </div>
     {failed ? <ErrorMessage label={t('photographers.materials.unavailable')} /> : !result ? <LoadingMessage label={t('photographers.materials.loading')} /> : <>
-      <p className="text-sm text-muted-foreground">{t('photographers.materials.instructions')}</p>
+      {result.options.some((option) => option.materials.some((material) => material.kind === 'score'))
+        ? <Alert status="information"><AlertDescription>{t('photographers.evaluation_review.preview_only')}</AlertDescription></Alert>
+        : <p className="text-sm text-muted-foreground">{t('photographers.materials.instructions')}</p>}
       {result.options.map((option) => <section key={option.selectedOptionId} className="space-y-3">
         <h3 className="font-medium">{option.label}</h3>
-        {option.materials.map((material) => <React.Fragment key={material.id}>
+        {[...option.materials].sort((left, right) => Number(right.kind === 'score') - Number(left.kind === 'score')).map((material) => <React.Fragment key={material.id}>
           {material.kind === 'message' ? <div className="space-y-2">
             <h4 className="text-sm font-medium">{t('photographers.materials.message')}</h4>
             <p className="whitespace-pre-wrap break-words rounded-md border border-border p-4">{material.data.body}</p>
@@ -67,10 +70,32 @@ function ProposalMaterials({ proposalId }: { proposalId: string }) {
               <dd className="break-words text-sm text-muted-foreground">{t('photographers.materials.source')}: {fact.sourceRef}</dd>
               {fact.reason ? <dd className="break-words text-sm text-muted-foreground">{fact.reason}</dd> : null}
             </div>)}
-          </dl> : null}
+          </dl> : material.kind === 'score' ? <ScoreMaterial score={material.data} /> : null}
         </React.Fragment>)}
       </section>)}
     </>}
+  </section>
+}
+
+function ScoreMaterial({ score }: { score: ScoreSnapshot }) {
+  const t = useT()
+  return <section className="space-y-3">
+    <h4 className="text-lg font-semibold">{t('photographers.evaluation_review.score', { score: score.score })}</h4>
+    <Alert status="warning"><AlertDescription>
+      <p className="font-medium">{t('photographers.evaluation_review.flags')}</p>
+      <ul className="list-disc pl-4">{score.flags.map((flag) => <li key={flag}>{t(`photographers.evaluation_review.flags.${flag}`)}</li>)}</ul>
+    </AlertDescription></Alert>
+    <h5 className="text-sm font-medium">{t('photographers.evaluation_review.breakdown')}</h5>
+    {score.matchedRules.length === 0 ? <p className="text-sm text-muted-foreground">{t('photographers.evaluation_review.no_points')}</p> : <dl className="space-y-3">
+      {score.matchedRules.map((rule) => <div key={rule.ruleId}>
+        <dt className="text-sm font-medium">{t(`photographers.evaluation_review.rules.${rule.ruleId}`)} — {t('photographers.evaluation_review.points', { points: rule.points })}</dt>
+        <dd className="break-words text-sm text-muted-foreground">{t('photographers.materials.source')}: {rule.sourceRef}</dd>
+      </div>)}
+    </dl>}
+    {score.unknownFactKeys.length > 0 ? <div className="space-y-1">
+      <h5 className="text-sm font-medium">{t('photographers.evaluation_review.unknown')}</h5>
+      <p className="text-sm text-muted-foreground">{score.unknownFactKeys.map((key) => t(`photographers.materials.facts.${key}`)).join(', ')}</p>
+    </div> : null}
   </section>
 }
 

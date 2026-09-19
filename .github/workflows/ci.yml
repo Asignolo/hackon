@@ -283,7 +283,7 @@ jobs:
       should_run: ${{ steps.dependency-files.outputs.should_run }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Fetch comparison ref
         if: github.event_name == 'pull_request'
@@ -478,7 +478,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 24.19.0
 
@@ -544,7 +544,7 @@ jobs:
         if: >
           github.event_name == 'pull_request' &&
           github.event.pull_request.head.repo.full_name == github.repository
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           SHOULD_COMMENT: ${{ steps.ds-report.outputs.should_comment }}
         with:
@@ -766,7 +766,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 24
 
