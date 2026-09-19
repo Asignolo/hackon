@@ -2,6 +2,15 @@
 
 Słownik pojęć: [CONTEXT.md](../CONTEXT.md). Ten dokument opisuje przebieg, nie definicje.
 
+## 0. Jedna ocena od początku do końca
+
+1. **Wyzwalacz**: nowa rejestracja albo partia. Fotograf ma cztery kotwice: imię, nazwisko, e-mail, portfolio. Szansa w „Nowa” → „W badaniu”.
+2. **Odkrycie**: cztery ścieżki (portfolio → profil; domena → strona → stopka; e-mail → wyszukiwarka → agregator; nazwisko → CEIDG). Wynik: ślady z pewnością i dowodem. Propozycja „tożsamość”: auto, gdy pewny; Caseload w wąskim paśmie; inaczej „nic nie proponuję”.
+3. **Badanie**: pełne, tylko na pewnych śladach. Wynik: fakty na fotografie (`research`, bez zatwierdzania).
+4. **Punktacja**: deterministyczna, konfigurowalna. Wynik: kategoria, punkty, flagi, propozycja „przenieś na etap”. Powyżej progu bez flag → auto na „Do kontaktu”; flaga → Caseload i „Do weryfikacji”; poniżej progu → „Obserwowana” z odstępem.
+5. **Opieka** (tylko „Do kontaktu”): pełna treść wiadomości jako propozycja z ryzykiem „wysokie” → zawsze Caseload. Zatwierdzenie zapisuje interakcję i przesuwa na „Skontaktowana”.
+6. **Zamknięcie**: wygrana przy pierwszym zamówieniu, przegrana przez człowieka z powodem. Każda poprawka człowieka po drodze jest przypadkiem testowym agenta.
+
 ## 1. Cel weekendu
 
 Demo wygrywa z testem platformy. Import fotografów (100–200 na weekend) i pola własne są warunkiem demo, więc test migracji załatwia się przy okazji. Wiele marek w jednej bazie i własne moduły z własnym interfejsem: tylko pytania do mentorów, bez kodu.
