@@ -1,6 +1,8 @@
 {
   "integration_apify.provider.label": "Investigación con Apify",
   "integration_apify.research": "Ejecutar investigación de pago de datos empresariales públicos con Apify",
+  "integration_apify.status.connected": "La conexión con Apify y el token de API son válidos.",
+  "integration_apify.status.credentialsMissing": "Las credenciales de Apify no están configuradas.",
   "integration_apify.status.invalidCredentials": "Apify rechazó las credenciales configuradas.",
   "integration_apify.status.upstreamUnavailable": "Apify no está disponible temporalmente."
 }
