@@ -39,6 +39,10 @@ export function register(container: AppContainer) {
       const { storePortfolioDiscoveryWorkflowResult } = await import('./lib/portfolio-discovery-workflow')
       return storePortfolioDiscoveryWorkflowResult(args, context, container)
     }),
+    'workflowFunction:photographers.apify_o2.dispatch': asValue(async (args: unknown, context: ActivityContext) => {
+      const { dispatchApifyResearchWorkflow } = await import('./lib/apify-research-runtime')
+      return dispatchApifyResearchWorkflow(args, context, container)
+    }),
     'workflowFunction:photographers.o2.store_result': asValue(async (args: unknown, context: ActivityContext) => {
       const { storeTraceFinderWorkflowResult } = await import('./lib/trace-finder-workflow')
       return storeTraceFinderWorkflowResult(args, context, container)

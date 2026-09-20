@@ -201,3 +201,17 @@ test('evaluation snapshots require a deal while eligibility may precede registra
   const research = { operationId, snapshot: { photographerId, personId, material: { kind: 'traces', data: { schemaVersion: 1, evaluationId: requestId, evaluatedAt: '2026-09-19T10:00:00Z', traces: [], discoveryStatus: 'complete' } } } }
   expect(storeMaterialSchema.safeParse(research).success).toBe(false)
 })
+
+test.each(['apify_research', 'apify_research_part'] as const)('stores encrypted %s through the existing durable material store', async (kind) => {
+  const base = { schemaVersion: 1, evaluationId: requestId, evaluatedAt: '2026-09-20T10:00:00Z', invocationId: operationId }
+  const data = kind === 'apify_research' ? {
+    ...base, o1RunId: requestId, tracesRef: requestId, workflowInstanceId: requestId, stepId: 'apify_o2', userId,
+    state: 'claimed', runId: null, runStatus: null, outcomeStatus: null, payloadRefs: [],
+  } : { ...base, index: 0, content: '{"unavailableFields":["posts"],"followersCount":0}' }
+  const input = { operationId, snapshot: { photographerId, personId, dealId: requestId, material: { kind, data } } }
+  const first = await storeEvaluationMaterial(input, context())
+  expect(await storeEvaluationMaterial(input, context())).toEqual(first)
+  expect(records.get(first.id)?.body).toMatch(/^sealed:/)
+  expect(await readEvaluationMaterial(first.id, context())).toMatchObject({ kind, data, evaluationId: requestId, photographerId })
+  expect(create).toHaveBeenCalledTimes(1)
+})

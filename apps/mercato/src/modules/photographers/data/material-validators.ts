@@ -32,4 +32,6 @@ export const materialResponseSchema = z.discriminatedUnion('kind', [
   evaluationMaterialSchema.options[4].extend(responseFields),
   evaluationMaterialSchema.options[5].extend(responseFields),
   evaluationMaterialSchema.options[6].extend(responseFields),
+  evaluationMaterialSchema.options[7].extend(responseFields),
+  evaluationMaterialSchema.options[8].extend(responseFields),
 ])
