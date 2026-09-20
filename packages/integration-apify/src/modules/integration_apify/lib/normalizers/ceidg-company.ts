@@ -30,6 +30,10 @@ export function normalizeCeidgCompany(input: {
   } catch {
     return failure('schema_changed', 'The registry record has an invalid NIP.')
   }
+  const fields = ['companyName', 'regon', 'krs', 'status', 'registerDate', 'source']
+  if (fields.some((field) => record[field] !== undefined && record[field] !== null && typeof record[field] !== 'string')) {
+    return failure('schema_changed', 'The registry record fields changed shape.')
+  }
   const state = createNormalizerState()
   return completeResult({
     platform: 'ceidg', canonicalUrl: null, sourceUrl: null, actorRunId: input.actorRunId, state,

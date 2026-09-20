@@ -45,7 +45,7 @@ describe('CEIDG company research', () => {
     expect(normalize([{ nip }])).toMatchObject({ status: 'partial', data: { nip, companyName: null },
       unavailableFields: expect.arrayContaining([{ field: 'companyName', reason: 'not_exposed' }]) })
     expect(normalize([])).toMatchObject({ status: 'no_data', data: null })
-    for (const malformed of [{}, { nip: 5260250274 }, { ...record, nip: '8567346215' }]) {
+    for (const malformed of [{}, { nip: 5260250274 }, { ...record, companyName: {} }, { ...record, nip: '8567346215' }]) {
       expect(normalize([malformed])).toMatchObject({ status: 'error', data: null, diagnostics: [{ code: 'schema_changed' }] })
     }
   })

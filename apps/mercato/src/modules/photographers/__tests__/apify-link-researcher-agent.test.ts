@@ -1,4 +1,5 @@
 import path from 'node:path'
+import nipOnlyInput from './fixtures/o2-nip-only.json'
 import { loadFileAgentDir } from '@open-mercato/enterprise/modules/agent_orchestrator/lib/sdk/defineFileAgent'
 
 const agent = loadFileAgentDir(path.join(__dirname, '..', 'agents', 'apify_link_researcher_o2'))!
@@ -76,8 +77,8 @@ test('accepts registry research with input evidence, nullable source and unchang
   const data = {
     schemaVersion: 1, status: 'complete',
     results: [{
-      tool: 'integration_apify.scrape_ceidg_company', url: 'https://studio.example/contact',
-      confidence: 'probable', approvalRequired: true, status: provider.status,
+      tool: 'integration_apify.scrape_ceidg_company', url: nipOnlyInput.nip[0].sources[0].url,
+      confidence: nipOnlyInput.nip[0].confidence, approvalRequired: nipOnlyInput.nip[0].approvalRequired, status: provider.status,
       actorRunId: provider.actorRunId, observedAt: provider.observedAt,
       resultJson: JSON.stringify(provider), error: null,
     }], skipped: [], summary: 'Dane rejestrowe kandydata; przypisanie nadal wymaga sprawdzenia.',
@@ -98,7 +99,7 @@ test.each(['no_data', 'error'])('accepts CEIDG %s without inventing a company', 
       confidence: 'unconfirmed', approvalRequired: true, status,
       actorRunId: null, observedAt: provider.observedAt,
       resultJson: JSON.stringify(provider), error: null,
-    }], skipped: [], summary: 'Brak danych firmy lub błąd odczytu.',
+    }], skipped: [], summary: 'NIP 1234563218: brak danych firmy lub błąd odczytu.',
   }
   expect(agent.entry.schema.parse({ kind: 'research', data })).toEqual({ kind: 'research', data })
 })

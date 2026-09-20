@@ -35,7 +35,9 @@ O1 result for Margografia, including a NIP candidate and Instagram and Facebook 
 sample can start paid Apify calls; its identity-conflict evidence may cause the NIP
 to be skipped. For a NIP-only lookup, pass `{ "nip": [<O1 candidate>] }` with its
 original source evidence and attribution flags. Use `{ "links": [] }` for a
-no-target smoke check.
+no-target smoke check. The synthetic NIP-only fixture in
+`__tests__/fixtures/o2-nip-only.json` is for mocked contract/QA runs only; do not
+use it as a live assertion about a real business.
 Rebuild package dependencies, run `yarn generate`, and restart
 OpenCode after changing the agent files.
 

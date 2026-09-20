@@ -78,6 +78,8 @@ bounded normalized response, never a raw Apify dataset. Do not replace it with a
 paraphrase or invent missing data. When a tool fails without a result, use error,
 null actorRunId/observedAt/resultJson, and describe the actual failure in error.
 Otherwise error is null, including provider errors already explained in resultJson.
+For every CEIDG no_data or error response, also include the queried NIP in the
+Polish summary so the attempted identifier remains visible even when data is null.
 
 Use complete only when all selected calls returned complete, partial when some
 useful data was returned but a call was partial/failed/skipped, and error when
