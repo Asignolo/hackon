@@ -35,7 +35,7 @@ Nowy tool przyjmuje `{ nip: string }`. Provider normalizuje opcjonalny prefiks P
 Input aktora, ustalony przez provider:
 
 ```json
-{ "searchMode": "nip", "searchValues": ["<normalizedNip>"], "maxResults": 1, "sourceFilter": "ALL", "status": "ALL" }
+{ "searchMode": "nip", "searchValues": ["<normalizedNip>"], "maxResults": 10, "sourceFilter": "ALL", "status": "ALL", "proxyConfiguration": { "useApifyProxy": true } }
 ```
 
 `ALL` zachowuje możliwość znalezienia wpisu KRS oraz firmy zawieszonej; nie jest deklaracją odczytu pełnego KRS ani statusu VAT. Pozostałe ustawienia pochodzą ze zweryfikowanego pinned builda. Agent nie podaje Actor ID, proxy, limitu ani dowolnego JSON.
@@ -45,7 +45,7 @@ Output: istniejący `ApifyResearchResult<CeidgCompanyData>` z `platform: "ceidg"
 ### Zachowanie O2
 
 1. Zachować trzy obecne warianty wejścia (dane O1, research envelope, `{ o1: ... }`). Brak `nip` jest zgodny ze starym wejściem. Akceptować samo `nip[]` bez `links`; wejście z żadną poprawną tablicą pozostaje `invalid_input`.
-2. Zdeduplikować poprawne NIP. Wybrać najwyższe confidence, przy remisie kolejność O1; pominąć konflikty, błędne i pozostałe kandydatury z krótkim powodem. Wymagać źródła od O1. Nie szukać zastępczego numeru.
+2. Zdeduplikować poprawne NIP. Wybrać najwyższe confidence, przy remisie kolejność O1; pominąć kandydatów wykazanych jako inna osoba/firma, błędne i pozostałe kandydatury z krótkim powodem. Wymagać źródła od O1. Sama rozbieżność nazwisk nie blokuje odczytu przy zgodnym e-mailu, telefonie lub stronie firmy; zachować ją w podsumowaniu bez domniemywania małżeństwa. Nie szukać zastępczego numeru.
 3. Odczyt NIP wykonać pierwszy, następnie dotychczasowe odczyty social w ich kolejności, do istniejącego maksimum czterech płatnych wywołań łącznie. Przy pełnym zestawie celów pominąć ostatni odczyt opinii Maps z powodem limitu. Bez NIP zachowanie czterech obecnych wywołań nie zmienia się. Limity executora mogą zatrzymać serię wcześniej; nie podnosić ich globalnie.
 4. Przepisać `confidence` i `approvalRequired` z O1 bez wzmacniania pewności. To research kandydata, nie przypisanie firmy do fotografa ani decyzja K1.
 5. Dodać nowy tool do enum `results[].tool`; zachować `resultJson` jako pełny ograniczony wynik providera. Istniejące wymagane `results[].url` zawiera dla nowego toola URL dowodu NIP z O1, nie fikcyjny link CEIDG. Sam NIP jest w `resultJson.data.nip`; przy błędzie podać zapytany NIP w wyjaśnieniu. Brak nowych wymaganych pól OUTCOME.
@@ -87,3 +87,5 @@ Jedna faza, trzy kroki; każdy zachowuje działanie istniejącej aplikacji.
 1. **Provider:** potwierdzić build/input/output/cenę, dodać katalog, walidację, normalizer i tool. Testy unit: poprawny/niepoprawny NIP, zgodność NIP wyniku, brak wyniku, niepełne pola, zła struktura; test integracyjny tool → istniejący executor → atrapa Apify sprawdza input, scope/credentials, ACL, koszt, timeout i cleanup. Stare cztery narzędzia przechodzą regresję.
 2. **O2:** allowlist, prompt, enum OUTCOME, sample i README. Test loadera oraz kontraktu dla starych wyników i CEIDG; scenariusze wejścia tylko z NIP, bez NIP, z duplikatami, z konfliktem oraz NIP + pełne social. Sprawdzić zachowanie confidence/approvalRequired i limit czterech wywołań. Uruchomić `yarn generate` po zmianach odkrywanych plików.
 3. **Demo i gate:** wybrać runner Docker/local zgodnie z repo; uruchomić właściwe testy providera/O2 i typecheck/build dotkniętych pakietów. Integracyjne scenariusze istniejącego Playground: O1 → wywołanie toola → research z profilem oraz brak NIP → dotychczasowy research; bez nowych endpointów do pokrycia. Testy automatyczne używają samodzielnych fixture i mocka Apify, bez płatnych wywołań i zależności od seedów. Osobny, jawny live smoke jednego publicznego NIP JDG na koncie demo potwierdza odpowiedź, brak dodatkowego klucza i koszt; zapisać wynik bez sekretów. Gotowe, gdy O2 zwraca dane firmy zgodne z wejściowym NIP albo prawdziwe `no_data/error`, bez regresji starych wejść.
+
+- 2026-09-20: korekta po porównaniu live runów: jawne `proxyConfiguration: { useApifyProxy: true }`, do 10 rekordów jednego NIP i preferencja wpisu AKTYWNY nad historycznym. Bez zwiększania limitu opłaty pojedynczego wywołania.

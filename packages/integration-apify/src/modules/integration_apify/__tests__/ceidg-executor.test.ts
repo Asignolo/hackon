@@ -139,8 +139,8 @@ describe('CEIDG tool executor integration', () => {
     })
     expect(clients.start).toHaveBeenCalledTimes(1)
     expect(clients.start).toHaveBeenCalledWith(
-      { searchMode: 'nip', searchValues: ['5260250274'], maxResults: 1, sourceFilter: 'ALL', status: 'ALL' },
-      { build: '3.0.7', maxItems: 1, maxTotalChargeUsd: 0.25, timeout: 120 },
+      { searchMode: 'nip', searchValues: ['5260250274'], maxResults: 10, sourceFilter: 'ALL', status: 'ALL', proxyConfiguration: { useApifyProxy: true } },
+      { build: '3.0.7', maxItems: 10, maxTotalChargeUsd: 0.25, timeout: 120 },
     )
     expect(clients.deleteDataset).toHaveBeenCalledTimes(1)
   })

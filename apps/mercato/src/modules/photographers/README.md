@@ -18,7 +18,7 @@ The NIP lookup uses `trev0n/ceidg-scraper` and the existing Apify API token; no
 CEIDG token or Actor subscription is required. It runs first, at most once, and
 counts toward the unchanged four-call total. With NIP plus all social targets,
 Maps reviews are skipped. With no eligible NIP, the previous social flow remains.
-Missing, malformed or conflicting NIP candidates are skipped; the provider checks
+Missing, malformed or demonstrably unrelated NIP candidates are skipped; the provider checks
 the checksum independently. Registry data does not prove the NIP belongs to the
 photographer. For the CEIDG result, `url` is the O1 evidence URL, while `resultJson`
 contains the normalized registry response. No customer data is updated.
@@ -32,8 +32,9 @@ See `packages/integration-apify/docs/operations.md` for configuration.
 
 Agent source: `agents/apify_link_researcher_o2/`. `SAMPLE.json` contains the supplied
 O1 result for Margografia, including a NIP candidate and Instagram and Facebook links. Running this
-sample can start paid Apify calls; its identity-conflict evidence may cause the NIP
-to be skipped. For a NIP-only lookup, pass `{ "nip": [<O1 candidate>] }` with its
+sample can start paid Apify calls. Its surname mismatch alone does not block the
+NIP lookup when shared contact evidence links the candidate; O2 reports the
+discrepancy without treating registry data as proof of ownership. For a NIP-only lookup, pass `{ "nip": [<O1 candidate>] }` with its
 original source evidence and attribution flags. Use `{ "links": [] }` for a
 no-target smoke check. The synthetic NIP-only fixture in
 `__tests__/fixtures/o2-nip-only.json` is for mocked contract/QA runs only; do not

@@ -22,3 +22,15 @@ authenticated read. On 2026-09-19 the user rejected Apify's four-Actor metadata,
 schema and pricing audit inside the health check. Do not turn a connection test
 into a catalog audit or compensate by increasing response limits; retain execution
 cost controls separately and describe precisely what a successful check proves.
+
+On 2026-09-20 the user clarified that O2 receives the NIP already discovered by O1.
+For registry enrichment, use that existing input rather than designing name search.
+The demo requires an Actor without a subscription; verify both per-call pricing and
+extra registry credentials before recommending one, especially for sole traders.
+When cached Actor descriptions conflict with current pricing, open the pricing page
+directly before asserting a subscription requirement. The same day, live pricing
+confirmed trev0n/ceidg-scraper charges per result/start, replacing stale rental pricing.
+
+- O2: a surname mismatch alone must not block read-only NIP research when shared contact evidence links the candidate. Preserve attribution uncertainty; never infer marriage from names alone.
+
+- Compare successful Console run INPUT with API inputs when an Apify actor fails. Explicitly pass proxy configuration; a NIP can return both historical and active registrations, so maxResults=1 can hide the current business.

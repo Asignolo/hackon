@@ -20,7 +20,7 @@ This catalog indexes 152 focused lessons. Route the task first, then read only r
 
 ### architecture
 
-- [Hackathon photographer features must use existing framework capabilities](lessons/hackathon-photographers-no-framework-changes.md) — area:architecture,umes; module:photographers; topic:extension-boundaries,workflow,scope
+- [Hackathon photographer features must use existing framework capabilities](lessons/hackathon-photographers-no-framework-changes.md) — area:architecture,umes; module:photographers; topic:extension-boundaries,workflow,scope; O2 consumes O1 NIP, no Actor subscription; surname differences alone do not block lookup; compare Actor inputs and historical records
 - [Durable quota reservations need fenced leases, conditional creates, and bounded sizes](lessons/durable-quota-reservations-need-fenced-leases.md) — area:architecture,module-data; module:attachments,storage_s3; topic:data-scoping,command-pattern,database-migrations
 - [Encode untrusted Markdown fragments as data, not chained escapes](lessons/encode-untrusted-markdown-fragments-as-data.md) — area:architecture,testing; module:platform; topic:network-security,testing
 

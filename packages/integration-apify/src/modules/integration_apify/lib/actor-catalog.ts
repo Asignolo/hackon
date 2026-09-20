@@ -43,11 +43,11 @@ export const ACTOR_CATALOG: Record<ApifyToolKey, ActorCatalogEntry> = {
     fixtureVersion: '2026-09-20',
     pricingModel: 'pay_per_event',
     minimumChargeUsd: 0.00305,
-    maxItems: 1,
+    maxItems: 10,
     datasetFields: ['companyName', 'nip', 'regon', 'krs', 'source', 'status', 'registerDate'],
     buildInput(target) {
       if (!('nip' in target)) throw new Error('[internal] Invalid CEIDG target.')
-      return { searchMode: 'nip', searchValues: [target.nip], maxResults: 1, sourceFilter: 'ALL', status: 'ALL' }
+      return { searchMode: 'nip', searchValues: [target.nip], maxResults: 10, sourceFilter: 'ALL', status: 'ALL', proxyConfiguration: { useApifyProxy: true } }
     },
   },
   instagram_profile: {

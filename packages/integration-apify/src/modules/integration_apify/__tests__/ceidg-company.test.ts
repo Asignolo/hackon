@@ -28,9 +28,9 @@ describe('CEIDG company research', () => {
 
   it('builds only a bounded registry lookup from the validated target', () => {
     expect(ACTOR_CATALOG.ceidg_company.buildInput({ nip })).toEqual({
-      searchMode: 'nip', searchValues: [nip], maxResults: 1, sourceFilter: 'ALL', status: 'ALL',
+      searchMode: 'nip', searchValues: [nip], maxResults: 10, sourceFilter: 'ALL', status: 'ALL', proxyConfiguration: { useApifyProxy: true },
     })
-    expect(ACTOR_CATALOG.ceidg_company).toMatchObject({ build: '3.0.7', maxItems: 1, minimumChargeUsd: 0.00305 })
+    expect(ACTOR_CATALOG.ceidg_company).toMatchObject({ build: '3.0.7', maxItems: 10, minimumChargeUsd: 0.00305 })
     expect(() => ACTOR_CATALOG.ceidg_company.buildInput({ username: 'invalid' })).toThrow()
   })
 
@@ -39,6 +39,11 @@ describe('CEIDG company research', () => {
     expect(result).toMatchObject({ status: 'complete', platform: 'ceidg', sourceUrl: null, canonicalUrl: null,
       data: { nip, companyName: record.companyName, registry: 'KRS', businessStatus: 'AKTYWNY' } })
     expect(JSON.stringify(result)).not.toContain('private')
+  })
+
+  it('prefers the active record over an older deregistered record for the same NIP', () => {
+    expect(normalize([{ ...record, status: 'WYKRESLONY', companyName: 'Previous name' }, record]))
+      .toMatchObject({ data: { companyName: record.companyName, businessStatus: 'AKTYWNY' } })
   })
 
   it('preserves missing fields as unavailable and distinguishes empty from malformed data', () => {

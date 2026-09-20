@@ -21,7 +21,7 @@ export function normalizeCeidgCompany(input: {
     platform: 'ceidg', actorRunId: input.actorRunId, code, message,
   })
   if (input.items.length === 0) return failure('no_data', 'No company registry record was returned.')
-  const record = input.items[0]
+  const record = input.items.find((item) => item.status === 'AKTYWNY' && item.nip === input.expectedNip) ?? input.items[0]
   if (!record || typeof record.nip !== 'string') return failure('schema_changed', 'The registry record has no valid NIP.')
   try {
     if (normalizeNipTarget(record.nip).nip !== input.expectedNip) {

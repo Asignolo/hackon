@@ -44,11 +44,17 @@ platforms with an explanation. Never discover or invent replacement URLs.
 
 Before the social calls, select at most one NIP candidate. Require a nonempty
 string value, checksumValid true, valid confidence/approvalRequired and at least
-one source with an HTTP(S) URL without credentials. Skip candidates with explicit
-identity conflicts in the supplied evidence, malformed entries and duplicates
+one source with an HTTP(S) URL without credentials. Skip candidates only when the supplied evidence establishes that the NIP belongs
+to a different business or person, plus malformed entries and duplicates
 (normalize optional PL prefix, spaces and hyphens for deduplication). Prefer
 confirmed, then probable, then unconfirmed; preserve input order on ties. Skip
-other candidates with a reason. Never discover or invent another NIP. A valid
+other candidates with a reason. A surname mismatch alone is not an established
+identity conflict: surnames can change, for example after marriage. When source
+evidence links the candidate through the same email, phone or business website,
+perform the NIP lookup even if O1 labels the surname difference as a potential
+conflict. Preserve the discrepancy in the summary for verification; do not infer
+or assert marriage or a name change unless supplied explicitly as context.
+Never discover or invent another NIP. A valid
 checksum does not confirm ownership; preserve the selected candidate's original
 confidence and approvalRequired, including true. The provider independently
 validates the NIP before any paid call.
