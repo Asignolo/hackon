@@ -37,11 +37,11 @@ import type { MilestoneStage } from '../../../lib/tasks/milestones'
 import type { ProcessOutcome } from '../../../lib/tasks/outcome'
 import { ProcessOutcomeLink } from '../../../components/ProcessOutcomeLink'
 import {
-  mapProcessProjection,
+  mapProcessDetailProjection,
   type ProcessInstanceStatus,
   type ProcessActorKind,
   type ProcessDetailSectionKind,
-  type ProcessProjection,
+  type ProcessDetailProjection,
   type ProcessStage,
   type ProcessStateTone,
   type ProcessStep,
@@ -370,9 +370,9 @@ export default function ProcessDetailPage({ params }: { params?: { id?: string }
   const t = useT()
   const locale = useLocale()
   const router = useRouter()
-  const workflowInstanceId = params?.id ?? ''
+  const executionId = params?.id ?? ''
 
-  const [projection, setProjection] = React.useState<ProcessProjection | null>(null)
+  const [projection, setProjection] = React.useState<ProcessDetailProjection | null>(null)
   const [milestoneStages, setMilestoneStages] = React.useState<MilestoneStage[]>([])
   const [outcome, setOutcome] = React.useState<{ value: ProcessOutcome; href: string | null } | null>(null)
   const [degraded, setDegraded] = React.useState(false)
@@ -383,38 +383,35 @@ export default function ProcessDetailPage({ params }: { params?: { id?: string }
 
   React.useEffect(() => {
     let cancelled = false
+    let refreshTimer: ReturnType<typeof setTimeout> | undefined
     async function load() {
-      setIsLoading(true)
       setError(null)
-      // ONE read for the whole business view. The execution endpoint already
-      // composes the projection, the milestones it reached against the declared
-      // vocabulary, and the outcome with its resolved href — three round trips
-      // that used to be made here, and three chances for them to disagree.
-      const [headerCall, proposalsCall] = await Promise.all([
-        apiCall<{
-          execution?: Record<string, unknown>
-          milestones?: MilestoneStage[]
-          outcome?: (ProcessOutcome & { href: string | null }) | null
-        }>(
-          `/api/agent_orchestrator/executions/${encodeURIComponent(workflowInstanceId)}`,
-          undefined,
-          { fallback: {} },
-        ),
-        apiCall<ListResponse>(
+      const headerCall = await apiCall<{
+        execution?: Record<string, unknown>
+        milestones?: MilestoneStage[]
+        outcome?: (ProcessOutcome & { href: string | null }) | null
+      }>(
+        `/api/agent_orchestrator/executions/${encodeURIComponent(executionId)}`,
+        undefined,
+        { fallback: {} },
+      )
+      if (cancelled) return
+      const header = headerCall.ok && headerCall.result?.execution
+        ? mapProcessDetailProjection(headerCall.result.execution)
+        : null
+      const workflowInstanceId = header?.workflowInstanceId ?? (headerCall.status === 404 ? executionId : null)
+      const proposalsCall = workflowInstanceId
+        ? await apiCall<ListResponse>(
           `/api/agent_orchestrator/proposals?workflowInstanceId=${encodeURIComponent(workflowInstanceId)}&pageSize=100&sortField=createdAt&sortDir=asc`,
           undefined,
           { fallback: { items: [] } },
-        ),
-      ])
+        )
+        : null
       if (cancelled) return
 
-      const proposalRows = (Array.isArray(proposalsCall.result?.items) ? proposalsCall.result.items : [])
+      const proposalRows = (Array.isArray(proposalsCall?.result?.items) ? proposalsCall?.result?.items : [])
         .map((row) => mapProposal(row))
         .filter((row): row is ProposalView => !!row)
-
-      const header = headerCall.ok && headerCall.result?.execution
-        ? mapProcessProjection(headerCall.result.execution)
-        : null
 
       if (!header && proposalRows.length === 0) {
         setError(t('agent_orchestrator.process.detail.error'))
@@ -424,8 +421,10 @@ export default function ProcessDetailPage({ params }: { params?: { id?: string }
 
       // Header degradation (spec): no projection row yet → render the process by
       // its id from activity data alone, clearly hinted, instead of failing.
-      const fallbackHeader: ProcessProjection = {
+      const fallbackHeader: ProcessDetailProjection = {
+        executionId,
         workflowInstanceId,
+        failureReason: null,
         workflowId: null,
         workflowVersion: null,
         subjectType: null,
@@ -481,13 +480,21 @@ export default function ProcessDetailPage({ params }: { params?: { id?: string }
           setRunsById(map)
         }
       }
-      if (!cancelled) setIsLoading(false)
+      if (!cancelled) {
+        setIsLoading(false)
+        if (header && !header.workflowInstanceId && !['failed', 'cancelled', 'completed', 'auto_completed'].includes(header.status)) {
+          refreshTimer = setTimeout(() => void load(), 2000)
+        }
+      }
     }
-    if (workflowInstanceId) void load()
+    setIsLoading(true)
+    setRunsById(new Map())
+    if (executionId) void load()
     return () => {
       cancelled = true
+      clearTimeout(refreshTimer)
     }
-  }, [workflowInstanceId, t])
+  }, [executionId, t])
 
   const steps = React.useMemo(
     () => buildSteps(proposals, runsById, t),
@@ -600,6 +607,11 @@ export default function ProcessDetailPage({ params }: { params?: { id?: string }
           </div>
         ) : null}
 
+        {process.failureReason ? <ErrorMessage label={process.failureReason} /> : null}
+        {!process.workflowInstanceId && !isTerminal ? (
+          <LoadingMessage label={t('agent_orchestrator.evalRuns.status.queued')} />
+        ) : null}
+
         {/* Claim header + stage stepper */}
         <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -607,11 +619,11 @@ export default function ProcessDetailPage({ params }: { params?: { id?: string }
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 {process.subjectType ?? t('agent_orchestrator.process.list.title')}{' '}
                 <span className="font-semibold text-foreground">
-                  {process.subjectLabel ?? shortCaseId(process.workflowInstanceId)}
+                  {process.subjectLabel ?? shortCaseId(process.executionId)}
                 </span>
               </p>
               <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground">
-                {process.subjectTitle ?? process.workflowId ?? process.workflowInstanceId}
+                {process.subjectTitle ?? process.workflowId ?? process.executionId}
               </h1>
             </div>
             <div className="flex flex-col items-end gap-1.5">

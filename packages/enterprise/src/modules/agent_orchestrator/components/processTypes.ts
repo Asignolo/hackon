@@ -558,12 +558,27 @@ function processStatus(value: unknown): ProcessInstanceStatus {
  * process without a subject still renders by workflowInstanceId/workflow name (spec's
  * honest degradation), never crashes.
  */
+export type ProcessDetailProjection = Omit<ProcessProjection, 'workflowInstanceId'> & {
+  executionId: string
+  workflowInstanceId: string | null
+  failureReason: string | null
+}
+
 export function mapProcessProjection(item: Record<string, unknown>): ProcessProjection | null {
+  const projection = mapProcessDetailProjection(item)
+  if (!projection?.workflowInstanceId) return null
+  return { ...projection, workflowInstanceId: projection.workflowInstanceId }
+}
+
+export function mapProcessDetailProjection(item: Record<string, unknown>): ProcessDetailProjection | null {
   const workflowInstanceId = str(item.workflow_instance_id) ?? str(item.workflowInstanceId)
-  if (!workflowInstanceId) return null
+  const executionId = str(item.id) ?? workflowInstanceId
+  if (!executionId) return null
   const agentIdsRaw = (item.agent_ids ?? item.agentIds) as unknown
   return {
+    executionId,
     workflowInstanceId,
+    failureReason: str(item.failure_reason) ?? str(item.failureReason),
     workflowId: str(item.workflow_id) ?? str(item.workflowId),
     workflowVersion: str(item.workflow_version) ?? str(item.workflowVersion),
     subjectType: str(item.subject_type) ?? str(item.subjectType),

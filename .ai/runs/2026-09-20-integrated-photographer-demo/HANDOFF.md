@@ -22,6 +22,7 @@ Odczyt: `GET /api/photographers/assessments/:evaluationId?registrationId=...`.
 - Działający OpenCode i skonfigurowany dostawca modelu, zarejestrowani `agent_examples.portfolio_reader_o1` i `photographers.apify_link_researcher_o2`.
 - Token i włączona integracja Apify przez istniejący moduł dostawcy, jego health check, limiter i budżet. Nie zwiększano limitów; domyślny budżet może dać częściowy wynik.
 - Standardowe kolejki `agent-process-executions`, `photographers-demo-workflow`, `photographers-portfolio-discovery`, `photographers-apify-research` oraz obsługa zdarzeń procesu.
+- Dla istniejącego tenanta po włączeniu modułu agentów trzeba zasilić jego mapy szyfrowania; sama flaga i klucz nie wystarczają. Procedura i ograniczenia: `PROCESS-FIX.md`.
 - Zainstalowane ustawienia Photographers/CRM dla organizacji (pipeline, etapy, reguły), szyfrowanie danych rejestracji/CRM/audytu, materiałów, AgentRun input/output i podsumowań AgentToolCall.
 - Uprawnienia Photographers run/view/manage i rejestracji, CRM, procesów/workflow, agentów/śladów, `agent_orchestrator.web_search`, `integration_apify.research`. Pierwsze utworzenie definicji procesu wymaga processes.manage.
 
