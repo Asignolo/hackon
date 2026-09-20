@@ -1,0 +1,194 @@
+{
+  "verifiedAt": "2026-09-20",
+  "actorId": "OZvcD7WrvmxepZm7U",
+  "buildNumber": "3.0.7",
+  "input": {
+    "title": "CEIDG Business Registry Scraper Input",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+      "searchMode": {
+        "title": "Search Mode",
+        "type": "string",
+        "description": "How to search the registry. NIP/REGON/KRS for number lookups, Company Name for name search, Discovery to find businesses by location.",
+        "editor": "select",
+        "default": "nip",
+        "enum": [
+          "nip",
+          "regon",
+          "krs",
+          "companyName",
+          "discovery"
+        ],
+        "enumTitles": [
+          "NIP (Tax ID)",
+          "REGON",
+          "KRS",
+          "Company Name",
+          "Discovery (by location)"
+        ]
+      },
+      "searchValues": {
+        "title": "Search Values",
+        "type": "array",
+        "description": "Values to search for. For NIP: tax numbers, for REGON/KRS: registry numbers, for Company Name: business names. Not needed for Discovery mode.",
+        "editor": "stringList",
+        "items": {
+          "type": "string"
+        },
+        "prefill": [
+          "5261040567"
+        ]
+      },
+      "voivodeship": {
+        "title": "Voivodeship (Province)",
+        "type": "string",
+        "description": "Filter by Polish province. Used in Discovery mode to narrow results by region.",
+        "editor": "select",
+        "default": "",
+        "enum": [
+          "",
+          "dolnoslaskie",
+          "kujawskopomorskie",
+          "lubelskie",
+          "lubuskie",
+          "lodzkie",
+          "malopolskie",
+          "mazowieckie",
+          "opolskie",
+          "podkarpackie",
+          "podlaskie",
+          "pomorskie",
+          "slaskie",
+          "swietokrzyskie",
+          "warminskomazurskie",
+          "wielkopolskie",
+          "zachodniopomorskie"
+        ],
+        "enumTitles": [
+          "All provinces",
+          "Dolnoslaskie",
+          "Kujawsko-pomorskie",
+          "Lubelskie",
+          "Lubuskie",
+          "Lodzkie",
+          "Malopolskie",
+          "Mazowieckie",
+          "Opolskie",
+          "Podkarpackie",
+          "Podlaskie",
+          "Pomorskie",
+          "Slaskie",
+          "Swietokrzyskie",
+          "Warminsko-mazurskie",
+          "Wielkopolskie",
+          "Zachodniopomorskie"
+        ]
+      },
+      "city": {
+        "title": "City",
+        "type": "string",
+        "description": "Filter by city name (e.g. 'Warszawa', 'Krakow'). Used in Discovery mode.",
+        "editor": "textfield"
+      },
+      "companyNameFilter": {
+        "title": "Company Name Filter",
+        "type": "string",
+        "description": "Company name filter for Discovery mode. Use a single letter like 'a' to match all businesses. Default: 'a'.",
+        "editor": "textfield",
+        "default": "a"
+      },
+      "sourceFilter": {
+        "title": "Source Registry",
+        "type": "string",
+        "description": "Filter by source registry. CEIDG for sole traders, KRS for companies.",
+        "editor": "select",
+        "default": "ALL",
+        "enum": [
+          "ALL",
+          "CEIDG",
+          "KRS"
+        ],
+        "enumTitles": [
+          "All registries",
+          "CEIDG only",
+          "KRS only"
+        ]
+      },
+      "status": {
+        "title": "Business Status",
+        "type": "string",
+        "description": "Filter businesses by their registration status.",
+        "editor": "select",
+        "default": "ALL",
+        "enum": [
+          "ALL",
+          "AKTYWNY",
+          "ZAWIESZONY",
+          "WYKRESLONY"
+        ],
+        "enumTitles": [
+          "All statuses",
+          "Active (Aktywny)",
+          "Suspended (Zawieszony)",
+          "Deregistered (Wykreslony)"
+        ]
+      },
+      "maxResults": {
+        "title": "Max Results",
+        "type": "integer",
+        "description": "Maximum number of businesses to extract per search value (0 = unlimited).",
+        "editor": "number",
+        "default": 100,
+        "minimum": 0
+      },
+      "proxyConfiguration": {
+        "title": "Proxy Configuration",
+        "type": "object",
+        "description": "Proxy settings. Use Apify Proxy or your own proxy to avoid rate limiting.",
+        "editor": "proxy",
+        "default": {
+          "useApifyProxy": true
+        }
+      }
+    },
+    "required": []
+  },
+  "pricingInfos": [
+    {
+      "pricePerUnitUsd": 15,
+      "trialMinutes": 15,
+      "pricingModel": "FLAT_PRICE_PER_MONTH",
+      "isPriceChangeNotificationSuppressed": false,
+      "startedAt": "2026-03-25T12:34:24.677Z",
+      "createdAt": "2026-03-25T12:34:24.915Z",
+      "apifyMarginPercentage": 0.2
+    },
+    {
+      "minimalMaxTotalChargeUsd": null,
+      "pricingModel": "PAY_PER_EVENT",
+      "isPriceChangeNotificationSuppressed": false,
+      "pricingPerEvent": {
+        "actorChargeEvents": {
+          "apify-actor-start": {
+            "eventTitle": "Actor Start",
+            "eventDescription": "Charged when the Actor starts running. Number of events charged depends on Actor memory (one event per GB, minimum one event).",
+            "isOneTimeEvent": true,
+            "eventPriceUsd": 5e-05
+          },
+          "apify-default-dataset-item": {
+            "eventTitle": "result",
+            "eventDescription": "Single result in the default dataset.",
+            "isOneTimeEvent": false,
+            "eventPriceUsd": 0.003,
+            "isPrimaryEvent": true
+          }
+        }
+      },
+      "startedAt": "2026-09-09T20:12:21.847Z",
+      "createdAt": "2026-09-09T20:12:22.107Z",
+      "apifyMarginPercentage": 0.2,
+      "notifiedAboutChangeAt": "2026-09-09T20:35:51.368Z"
+    }
+  ]
+}

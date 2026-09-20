@@ -1,10 +1,12 @@
 export type ApifyToolKey =
+  | 'ceidg_company'
   | 'instagram_profile'
   | 'facebook_page'
   | 'google_maps_place'
   | 'google_maps_reviews'
 
 export type ActorTarget =
+  | { nip: string }
   | { username: string }
   | { pageUrl: string }
   | { placeUrl?: string; placeId?: string; maxReviews?: number; sort?: 'most_relevant' | 'newest' }
@@ -31,6 +33,23 @@ function mapsSource(target: Extract<ActorTarget, { placeUrl?: string }>): Record
 }
 
 export const ACTOR_CATALOG: Record<ApifyToolKey, ActorCatalogEntry> = {
+  ceidg_company: {
+    toolKey: 'ceidg_company',
+    actorId: 'trev0n/ceidg-scraper',
+    build: '3.0.7',
+    buildId: 'anZ212YOOAAhYczdq',
+    inputSchemaHash: 'a36d90fb42361204842146e7625d4756a4666723755bc13ccdacbdf0b6490a6c',
+    pricingFingerprint: '5a5cfe20fd73cb3fedea6dedd4607c4203bd9e20c6b53470c493be5edc44f959',
+    fixtureVersion: '2026-09-20',
+    pricingModel: 'pay_per_event',
+    minimumChargeUsd: 0.00305,
+    maxItems: 1,
+    datasetFields: ['companyName', 'nip', 'regon', 'krs', 'source', 'status', 'registerDate'],
+    buildInput(target) {
+      if (!('nip' in target)) throw new Error('[internal] Invalid CEIDG target.')
+      return { searchMode: 'nip', searchValues: [target.nip], maxResults: 1, sourceFilter: 'ALL', status: 'ALL' }
+    },
+  },
   instagram_profile: {
     toolKey: 'instagram_profile',
     actorId: 'apify/instagram-profile-scraper',
@@ -91,7 +110,7 @@ export const ACTOR_CATALOG: Record<ApifyToolKey, ActorCatalogEntry> = {
       'permanentlyClosed', 'location', 'url', 'placeUrl',
     ],
     buildInput(target) {
-      if ('username' in target || 'pageUrl' in target) throw new Error('[internal] Invalid Maps target.')
+      if ('username' in target || 'pageUrl' in target || 'nip' in target) throw new Error('[internal] Invalid Maps target.')
       return {
         ...mapsSource(target),
         maxCrawledPlacesPerSearch: 1,
@@ -137,7 +156,7 @@ export const ACTOR_CATALOG: Record<ApifyToolKey, ActorCatalogEntry> = {
       'responseFromOwner', 'ownerResponse', 'url', 'placeUrl',
     ],
     buildInput(target) {
-      if ('username' in target || 'pageUrl' in target) throw new Error('[internal] Invalid Maps target.')
+      if ('username' in target || 'pageUrl' in target || 'nip' in target) throw new Error('[internal] Invalid Maps target.')
       return {
         ...mapsSource(target),
         maxReviews: Math.min(25, Math.max(1, target.maxReviews ?? 10)),
