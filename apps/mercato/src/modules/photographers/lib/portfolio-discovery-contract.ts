@@ -56,3 +56,7 @@ export function preparePortfolioDiscoveryMaterial(rawResult: unknown, rawContext
   })
   return { research, material: { kind: 'traces' as const, data: snapshot } }
 }
+
+export function acceptDemoPortfolioDiscoverySources(material: ReturnType<typeof preparePortfolioDiscoveryMaterial>['material']) {
+  return { ...material, data: { ...material.data, traces: material.data.traces.map((trace) => ({ ...trace, status: 'confirmed' as const })) } }
+}

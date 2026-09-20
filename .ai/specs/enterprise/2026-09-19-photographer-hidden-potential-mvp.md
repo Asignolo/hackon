@@ -685,3 +685,38 @@ pending proposal i zadanie, ponowienie równoczesne bez duplikatu,
 GET materiałów, POST dispose odmawiający wszystkich decyzji, widok
 Caseload i odświeżenie, brak zmian CRM oraz brak propozycji bez flagi.
 Regresja: TC-021 (wiadomości w Caseload), TC-025 (punktacja).
+
+### Demo — rzeczywisty wycinek O1 (2026-09-20, agent 1)
+
+Na polecenie użytkownika demo `photographers.demo-evaluation` v2 korzysta z istniejącego runtime O1, workera i sygnału zamiast syntetycznego researchu. Opcjonalny `registrationId` w POST demo umożliwia wykorzystanie fotografa dodanego w symulatorze. Ekran rejestracji prowadzi do tego wejścia. Zapisane ślady są w demo uznawane za właściwe; nie zmienia to globalnej reguły `unconfirmed` nieaktywnego workflow `photographers.hidden_potential` ani nie implementuje weryfikacji tożsamości.
+
+Workflow zatrzymuje się w `await_o2_integration` po zapisaniu materiału. Status O1 (`waiting|completed|failed`) jest odrębny od statusu całej oceny. Pełny wynik z `links` pozostaje w szyfrowanym `AgentRun.output`; przekazanie do następnego adaptera odbywa się przez `runId`, `tracesRef` i funkcję `readDemoO1Handoff`. O2, normalizacja, punktacja i podgląd końcowych wyników należą do pozostałych agentów.
+
+Kontrakt, uruchomienie, wymagane podłączenia i ograniczenia historycznej wersji v1: [HANDOFF.md](../../runs/2026-09-20-demo-o1/HANDOFF.md). Pokrycie integracyjne: TC-PHOTOGRAPHERS-027 — rejestracja z portfolio i bez niego, POST/GET demo, natywny workflow i worker, kontrolowana odpowiedź OpenCode, szyfrowany materiał, pełny odczyt handoff oraz duplikat bez ponownego modelu. To nie jest dowód odczytu internetu. Końcowe wyniki testów są zapisane w dokumencie przekazania.
+
+### 2026-09-20 — zintegrowane demo v3
+
+`photographers.demo-evaluation` v3 łączy rejestrację z rzeczywistymi runtime o1 i
+Apify o2. O1 zapisuje materiał przed osobnym przejściem dispatch o2. Sygnał o2
+wskazuje zapisany manifest, odczytywany z kontrolą workflow, aktora, runu, oceny i
+właścicieli. Normalizacja zapisuje fakty, a niezmieniony kalkulator czyta ich
+zapisany snapshot. Reguły są zamrożone w `context.demoRules` przy starcie workflow.
+`context.demoScore.result` wiąże końcowe ślady, fakty i ocenę. Workflow kończy się
+bez propozycji wiadomości i bez wysyłki.
+
+Podgląd `/backend/photographers/assessment` prezentuje oryginalne źródła o1,
+manifest o2, fakty, braki, kategorię i zapisaną punktację. Wynik częściowy nie
+uzupełnia braków zerami. Błąd lub niejednoznaczne wykonanie o2 pozostawia widoczną
+awarię i nie ponawia płatnego wywołania. Tożsamość źródeł jest jawnym założeniem demo.
+
+Migracja i zgodność: zmiany API/DI są addytywne; bez migracji bazy. Aktywne demo
+v1/v2 nie przechodzą automatycznej zmiany grafu. Należy utworzyć nowe żądanie po
+świadomym przywróceniu definicji kodowej, jeśli baza zawiera stare przesłonięcie.
+Historyczne adaptery i kalkulator pozostają dostępne.
+
+Pokrycie integracyjne: TC-PHOTOGRAPHERS-027-demo-o1 przechodzi przez API rejestracji,
+przygotowanie CRM, start procesu, oba odkryte workery i rzeczywiste runtime, zapis,
+punktację i GET assessments. Kontrolowany jest wyłącznie klient zewnętrznego
+OpenCode; test obejmuje pełny/częściowy wynik, brak portfolio, błąd i powtórzenia.
+Nie jest to dowód wykonania prawdziwych usług Apify ani modelu. Raport i ograniczenia:
+`.ai/runs/2026-09-20-integrated-photographer-demo/`.

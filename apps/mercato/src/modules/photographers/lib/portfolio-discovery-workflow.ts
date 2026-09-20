@@ -1,3 +1,4 @@
+import { DEMO_WORKFLOW_ID } from './demo-workflow'
 import { z } from 'zod'
 import type { AwilixContainer } from 'awilix'
 import type { EntityManager } from '@mikro-orm/postgresql'
@@ -11,19 +12,19 @@ import { PhotographerRawData } from '../data/entities'
 import { portfolioDiscoveryInputSchema } from '../data/portfolio-discovery-validators'
 import { materialOperationId } from './material-codec'
 import { readPortfolioDiscoveryReferences } from '../data/portfolio-discovery-workflow-validators'
-import { preparePortfolioDiscoveryInput, preparePortfolioDiscoveryMaterial, PORTFOLIO_DISCOVERY_AGENT_ID, PORTFOLIO_DISCOVERY_STEP_ID, PORTFOLIO_DISCOVERY_WORKFLOW_ID } from './portfolio-discovery-contract'
+import { acceptDemoPortfolioDiscoverySources, preparePortfolioDiscoveryInput, preparePortfolioDiscoveryMaterial, PORTFOLIO_DISCOVERY_AGENT_ID, PORTFOLIO_DISCOVERY_STEP_ID, PORTFOLIO_DISCOVERY_WORKFLOW_ID } from './portfolio-discovery-contract'
 
 const argumentsSchema = z.object({ runId: z.string().uuid() }).strict()
 
-export async function storePortfolioDiscoveryWorkflowResult(raw: unknown, context: ActivityContext, container: AwilixContainer) {
+export async function storePortfolioDiscoveryWorkflowResult(raw: unknown, context: ActivityContext, container: AwilixContainer, manager?: EntityManager) {
   const { runId } = argumentsSchema.parse(raw)
   const { workflowInstance, userId } = context
   const scope = { tenantId: workflowInstance.tenantId, organizationId: workflowInstance.organizationId }
-  if (!userId || workflowInstance.workflowId !== PORTFOLIO_DISCOVERY_WORKFLOW_ID) throw new Error('[internal] Invalid O1 workflow binding')
+  if (!userId || ![PORTFOLIO_DISCOVERY_WORKFLOW_ID, DEMO_WORKFLOW_ID].includes(workflowInstance.workflowId)) throw new Error('[internal] Invalid O1 workflow binding')
   const features = ['photographers.view', 'photographers.evaluations.manage', 'agent_orchestrator.trace.view', 'customers.people.view', 'customers.deals.view']
   if (!await container.resolve<RbacService>('rbacService').userHasAllFeatures(userId, features, scope)) throw new Error('[internal] O1 material access denied')
-  const em = container.resolve<EntityManager>('em').fork()
-  const instance = await findOneWithDecryption(em, WorkflowInstance, { id: workflowInstance.id, workflowId: PORTFOLIO_DISCOVERY_WORKFLOW_ID, ...scope }, {}, scope)
+  const em = manager ?? container.resolve<EntityManager>('em').fork()
+  const instance = await findOneWithDecryption(em, WorkflowInstance, { id: workflowInstance.id, workflowId: { $in: [PORTFOLIO_DISCOVERY_WORKFLOW_ID, DEMO_WORKFLOW_ID] }, ...scope }, {}, scope)
   if (!instance || instance.currentStepId !== PORTFOLIO_DISCOVERY_STEP_ID || !['RUNNING', 'PAUSED'].includes(instance.status)) throw new Error('[internal] O1 step is not current')
   const references = readPortfolioDiscoveryReferences(instance.context)
   const run = await findOneWithDecryption(em, AgentRun, {
@@ -50,6 +51,9 @@ export async function storePortfolioDiscoveryWorkflowResult(raw: unknown, contex
     evaluationId: references.evaluationId, evaluatedAt: references.evaluatedAt,
     observedAt: run.completedAt.toISOString(),
   })
+  if (instance.workflowId === DEMO_WORKFLOW_ID) {
+    prepared.material = acceptDemoPortfolioDiscoverySources(prepared.material)
+  }
   const ctx: CommandRuntimeContext = {
     container, auth: { sub: userId, tenantId: scope.tenantId, orgId: scope.organizationId },
     selectedOrganizationId: scope.organizationId, organizationIds: [scope.organizationId], organizationScope: null,

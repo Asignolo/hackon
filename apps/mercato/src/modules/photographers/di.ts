@@ -19,6 +19,10 @@ export function register(container: AppContainer) {
     })
   }
   container.register({
+    'workflowFunction:photographers.demo.score': asValue(async (args: unknown, context: ActivityContext) => {
+      const { scoreDemoWorkflow } = await import('./lib/demo-scoring-workflow')
+      return scoreDemoWorkflow(args, context, container)
+    }),
     'workflowFunction:photographers.evaluation.request_review': asValue(async (args: unknown, context: ActivityContext) => {
       const { dispatchEvaluationReview } = await import('./lib/evaluation-review-workflow')
       return dispatchEvaluationReview(args, context, container)
@@ -38,6 +42,10 @@ export function register(container: AppContainer) {
     'workflowFunction:photographers.o1.store_result': asValue(async (args: unknown, context: ActivityContext) => {
       const { storePortfolioDiscoveryWorkflowResult } = await import('./lib/portfolio-discovery-workflow')
       return storePortfolioDiscoveryWorkflowResult(args, context, container)
+    }),
+    'workflowFunction:photographers.apify_o2.dispatch': asValue(async (args: unknown, context: ActivityContext) => {
+      const { dispatchApifyResearchWorkflow } = await import('./lib/apify-research-runtime')
+      return dispatchApifyResearchWorkflow(args, context, container)
     }),
     'workflowFunction:photographers.o2.store_result': asValue(async (args: unknown, context: ActivityContext) => {
       const { storeTraceFinderWorkflowResult } = await import('./lib/trace-finder-workflow')

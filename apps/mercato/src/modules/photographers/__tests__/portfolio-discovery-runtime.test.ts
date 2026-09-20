@@ -1,3 +1,4 @@
+import { discoveryResearch } from './portfolio-discovery-fixture'
 import { randomUUID } from 'node:crypto'
 import { asValue, createContainer } from 'awilix'
 import { findOneWithDecryption, findWithDecryption } from '@open-mercato/shared/lib/encryption/find'
@@ -12,6 +13,7 @@ import graph from '../workflow-definitions/hidden-potential.v1.json'
 
 jest.mock('@open-mercato/shared/lib/encryption/find', () => ({ findOneWithDecryption: jest.fn(), findWithDecryption: jest.fn() }))
 jest.mock('@open-mercato/queue', () => ({ createModuleQueue: jest.fn() }))
+jest.mock('../lib/demo-preparation', () => ({ assertPreparedPhotographerDemo: jest.fn(async () => undefined) }))
 jest.mock('../lib/registration-crm', () => ({ readRegistrationCrm: jest.fn() }))
 jest.mock('../lib/demo-operation-lock', () => ({ withDemoOperationLock: (_container: Parameters<typeof withDemoOperationLock>[0], _key: string, action: () => Promise<unknown>) => action() }))
 
@@ -21,11 +23,11 @@ function fixture(portfolioRaw = '') {
   const instance = Object.assign(new WorkflowInstance(), { id: randomUUID(), workflowId: 'photographers.hidden_potential', currentStepId: 'o1', status: 'PAUSED', ...scope, context: { o1Preparation: { result: prepared } }, metadata: { initiatedBy: prepared.userId } })
   const step = Object.assign(new StepInstance(), { id: randomUUID(), status: 'ACTIVE', stepId: 'o1' })
   const registration = { id: prepared.registrationId, firstName: 'Anna', lastName: 'Nowak', email: 'anna@example.invalid', portfolioRaw }
-  let persistedRun: { id: string; completedAt: Date | null; status: string; resultKind: string } | null = null
+  let persistedRun: { id: string; completedAt: Date | null; status: string; resultKind: string; output?: unknown } | null = null
   const em = { fork: jest.fn(), transactional: jest.fn() }
   em.fork.mockReturnValue(em)
   em.transactional.mockImplementation((action: (manager: typeof em) => Promise<void>) => action(em))
-  const run = jest.fn().mockImplementation(async () => { persistedRun = { id: randomUUID(), completedAt: new Date(), status: 'ok', resultKind: 'research' }; return { kind: 'research', data: { private: 'not workflow context' } } })
+  const run = jest.fn().mockImplementation(async () => { persistedRun = { id: randomUUID(), completedAt: new Date(), status: 'ok', resultKind: 'research', output: discoveryResearch() }; return { kind: 'research', data: { private: 'not workflow context' } } })
   const execute = jest.fn().mockResolvedValue({ result: {} })
   const executeWorkflow = jest.fn()
   const completeWorkflow = jest.fn()
@@ -94,7 +96,7 @@ test('requires encryption before invoking or exposing registration input', async
   expect(setup.run).not.toHaveBeenCalled()
 })
 
-test.each(['agent_orchestrator:agent_run', 'agent_orchestrator:agent_tool_call', 'photographers:photographer_evaluation_material'])('fails closed when the %s encryption map is absent', async (entityId) => {
+test.each(['agent_orchestrator:agent_run', 'agent_orchestrator:agent_tool_call', 'photographers:photographer_evaluation_material', 'audit_logs:action_log'])('fails closed when the %s encryption map is absent', async (entityId) => {
   const setup = fixture()
   setup.encryptEntityPayload.mockImplementation(async (entity: string, payload: Record<string, unknown>) => entity === entityId ? payload : Object.fromEntries(Object.keys(payload).map((key) => [key, 'encrypted-value'])))
   await expect(processPortfolioDiscoveryJob(setup.job, setup.container)).rejects.toThrow('encryption is unavailable')
@@ -164,4 +166,85 @@ test('keeps full workflow disabled and wires O1 through a reference-only signal'
   expect(step).not.toHaveProperty('activities')
   expect(graph.definition.transitions.find((entry) => entry.toStepId === 'o1')?.activities?.[0].config.functionName).toBe('photographers.o1.dispatch')
   expect(graph.definition.transitions.find((entry) => entry.fromStepId === 'o1')?.activities?.[0].config.args).toEqual({ runId: '{{context.o1RunId}}' })
+})
+
+test('demo runs the same O1 runtime and reuses its saved result after failed signal delivery', async () => {
+  const setup = fixture('https://portfolio.example.invalid')
+  setup.instance.workflowId = 'photographers.demo-evaluation'
+  setup.instance.context.demo = { ...setup.prepared, requestId: randomUUID(), source: 'registration' }
+  setup.sendSignal.mockRejectedValueOnce(new Error('delivery interrupted'))
+  await expect(processPortfolioDiscoveryJob(setup.job, setup.container)).rejects.toThrow('delivery interrupted')
+  await processPortfolioDiscoveryJob(setup.job, setup.container)
+  expect(setup.run).toHaveBeenCalledTimes(1)
+  expect(setup.sendSignal).toHaveBeenCalledTimes(2)
+})
+
+test('the demo boundary does not invoke O1 again or start synthetic research', async () => {
+  const setup = fixture()
+  setup.instance.workflowId = 'photographers.demo-evaluation'
+  setup.instance.currentStepId = 'await_o2_integration'
+  await processPortfolioDiscoveryJob(setup.job, setup.container)
+  expect(setup.run).not.toHaveBeenCalled()
+  expect(setup.sendSignal).not.toHaveBeenCalled()
+})
+
+test('demo exposes an invocation exception as workflow failure without leaking source input', async () => {
+  const setup = fixture()
+  setup.instance.workflowId = 'photographers.demo-evaluation'
+  setup.instance.context.demo = { ...setup.prepared, requestId: randomUUID(), source: 'registration' }
+  setup.run.mockRejectedValue(new Error('private model failure'))
+  await processPortfolioDiscoveryJob(setup.job, setup.container)
+  expect(setup.completeWorkflow).toHaveBeenCalledWith(setup.em, setup.container, setup.instance.id, 'FAILED', { failedStepId: 'o1', error: { code: 'photographers.o1.invocation_incomplete' } })
+  expect(setup.sendSignal).not.toHaveBeenCalled()
+})
+
+test('a permanently rejected demo result fails the workflow instead of waiting forever', async () => {
+  const setup = fixture()
+  setup.instance.workflowId = 'photographers.demo-evaluation'
+  setup.instance.context.demo = { ...setup.prepared, requestId: randomUUID(), source: 'registration' }
+  setup.sendSignal.mockRejectedValueOnce(new Error('[internal] O1 run does not belong to this registration'))
+  await processPortfolioDiscoveryJob(setup.job, setup.container)
+  expect(setup.run).toHaveBeenCalledTimes(1)
+  expect(setup.completeWorkflow).toHaveBeenCalledWith(setup.em, setup.container, setup.instance.id, 'FAILED', { failedStepId: 'o1', error: { code: 'photographers.o1.result_rejected' } })
+})
+
+test.each(['encryption', 'permission'])('demo fails visibly when %s is revoked before execution', async (failure) => {
+  const setup = fixture()
+  setup.instance.workflowId = 'photographers.demo-evaluation'
+  setup.instance.context.demo = { ...setup.prepared, requestId: randomUUID(), source: 'registration' }
+  if (failure === 'permission') setup.userHasAllFeatures.mockResolvedValue(false)
+  else setup.encryptEntityPayload.mockImplementation(async (_entity: string, payload: Record<string, unknown>) => payload)
+  await processPortfolioDiscoveryJob(setup.job, setup.container)
+  expect(setup.completeWorkflow).toHaveBeenCalledWith(setup.em, setup.container, setup.instance.id, 'FAILED', { failedStepId: 'o1', error: { code: 'photographers.o1.preflight_rejected' } })
+  expect(setup.run).not.toHaveBeenCalled()
+  expect(setup.sendSignal).not.toHaveBeenCalled()
+})
+
+test('transient demo encryption backend failures remain retryable', async () => {
+  const setup = fixture()
+  setup.instance.workflowId = 'photographers.demo-evaluation'
+  setup.encryptEntityPayload.mockRejectedValue(new Error('temporary database interruption'))
+  await expect(processPortfolioDiscoveryJob(setup.job, setup.container)).rejects.toThrow('temporary database interruption')
+  expect(setup.completeWorkflow).not.toHaveBeenCalled()
+  expect(setup.run).not.toHaveBeenCalled()
+})
+
+test('an actor mismatch cannot mark a demo workflow as failed', async () => {
+  const setup = fixture()
+  setup.instance.workflowId = 'photographers.demo-evaluation'
+  setup.instance.metadata.initiatedBy = randomUUID()
+  setup.userHasAllFeatures.mockResolvedValue(false)
+  await expect(processPortfolioDiscoveryJob(setup.job, setup.container)).rejects.toThrow('actor does not match')
+  expect(setup.completeWorkflow).not.toHaveBeenCalled()
+  expect(setup.run).not.toHaveBeenCalled()
+})
+
+
+test('missing demo audit encryption map fails before the O1 paid invocation', async () => {
+  const setup = fixture()
+  setup.instance.workflowId = 'photographers.demo-evaluation'
+  setup.encryptEntityPayload.mockImplementation(async (entity: string, payload: Record<string, unknown>) => entity === 'audit_logs:action_log' ? payload : Object.fromEntries(Object.keys(payload).map((field) => [field, 'encrypted-value'])))
+  await processPortfolioDiscoveryJob(setup.job, setup.container)
+  expect(setup.completeWorkflow).toHaveBeenCalledWith(setup.em, setup.container, setup.instance.id, 'FAILED', expect.objectContaining({ failedStepId: 'o1' }))
+  expect(setup.run).not.toHaveBeenCalled()
 })

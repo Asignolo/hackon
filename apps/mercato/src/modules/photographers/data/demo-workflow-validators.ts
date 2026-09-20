@@ -1,9 +1,11 @@
 import { z } from 'zod'
 
+export const DEMO_WORKFLOW_ID = 'photographers.demo-evaluation'
+
 export const preparedPhotographerDemoSchema = z.object({
   requestId: z.string().uuid(), registrationId: z.string().uuid(), photographerId: z.string().uuid(),
   personId: z.string().uuid(), dealId: z.string().uuid(), evaluationId: z.string().uuid(),
-  evaluatedAt: z.string().datetime(), userId: z.string().uuid(), source: z.literal('demo_fixture'),
+  evaluatedAt: z.string().datetime(), userId: z.string().uuid(), source: z.enum(['demo_fixture', 'registration']),
 }).strict()
 export type PreparedPhotographerDemo = z.infer<typeof preparedPhotographerDemoSchema>
 

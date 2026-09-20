@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { apifyResearchSnapshotSchema, apifyResearchPartSchema } from './apify-research-validators'
 
 export const SNAPSHOT_SCHEMA_VERSION = 1
 export const MAX_SNAPSHOT_BYTES = 128 * 1024
@@ -230,5 +231,7 @@ export const evaluationMaterialSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('summary'), data: evaluationSummarySchema }).strict(),
   z.object({ kind: z.literal('eligibility'), data: eligibilitySnapshotSchema }).strict(),
   z.object({ kind: z.literal('waiver'), data: waiverSnapshotSchema }).strict(),
+  z.object({ kind: z.literal('apify_research'), data: apifyResearchSnapshotSchema }).strict(),
+  z.object({ kind: z.literal('apify_research_part'), data: apifyResearchPartSchema }).strict(),
 ]).superRefine(withinSnapshotLimit)
 export type EvaluationMaterial = z.infer<typeof evaluationMaterialSchema>

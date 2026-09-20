@@ -86,3 +86,9 @@ test('uses the same canonical request ID for start and subsequent reads', async 
   await GET(new Request('https://example.test'), { params: Promise.resolve({ requestId: mixedCaseId }) })
   expect(getPhotographerDemoExecution).toHaveBeenCalledWith(mixedCaseId.toLowerCase(), expect.anything())
 })
+
+test('accepts an existing registration reference without copying source data into the request', async () => {
+  const response = await POST(request({ requestId, registrationId: alternateId }))
+  expect(response.status).toBe(202)
+  expect(execute).toHaveBeenCalledWith('photographers.demo.start', expect.objectContaining({ input: { requestId, registrationId: alternateId } }))
+})
