@@ -22,10 +22,12 @@ Engine: om-auto-create-pr (steps: 3, --loop: no)
 
 ## Progress
 
+PR: #9
+
 > Convention: `- [ ]` pending, `- [x]` done. Append ` — <commit sha>` when a step lands. Do not rename step titles.
 
 ### Phase 1: Company research
 
-- [ ] 1.1 Add verified CEIDG provider and tests
+- [x] 1.1 Add verified CEIDG provider and tests — 2fa9122c
 - [ ] 1.2 Connect O2 and test compatibility
 - [ ] 1.3 Complete validation, review and demo verification
