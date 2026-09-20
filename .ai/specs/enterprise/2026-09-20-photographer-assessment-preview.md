@@ -28,6 +28,14 @@ All reads use authenticated tenant/selected organization, existing wildcard-awar
 3. `context.demoScore.result` supplies exact final tracesRef/factsRef/scoreRef. Original O1 sources remain separately readable through `context.o1Result.result.tracesRef`.
 4. PL/EN stage labels include prepare_o2, apify_o2 and normalize. Other locales currently use English fallback values.
 
+## Reopening from the photographer card
+
+The CRM person card exposes “Open latest assessment” through the existing legacy details and v2 header injection spots. It reads `GET /api/photographers/people/{personId}/assessment`, where `personId` is the CRM customer entity ID. The endpoint returns `{ assessment: { evaluationId, registrationId } | null }` and uses the same permissions and organization scope as the assessment reader. It resolves active registrations linked to the person and the latest bound workflow, including ongoing and failed runs; saved materials provide a fallback when no workflow is available. The link opens the existing assessment page without starting research or changing data.
+
+The widget includes loading, empty, failure and forbidden states. Refresh retries an empty or failed lookup. Switching the person or organization discards the previous result and aborts pending requests.
+
+Verification covers scoped lookup, workflow bindings and ordering, absence of research, permissions, stale responses, and navigation from a self-contained CRM fixture in `TC-PHOTOGRAPHERS-028-person-assessment.spec.ts`. Local validation: 52 unit/component tests passed; app typecheck, targeted ESLint, generation and translation synchronization passed. Production app build passed on Node 24 (with warnings in existing package code). The integration test passed against the running local app using a focused temporary Playwright config to bypass slow repository-wide discovery (Node 24).
+
 ## Migration & Backward Compatibility
 
 Additive app-local page, endpoint and read adapter. Existing response fields remain compatible; new O1 and research fields are additive. No database changes, dependencies or mutations in the read boundary. Run `yarn generate` after integration.
@@ -42,3 +50,5 @@ Additive app-local page, endpoint and read adapter. Existing response fields rem
 
 - 2026-09-20: Added read-only assessment preview and explicit integration boundaries.
 - 2026-09-20: Connected demo v3, saved O2, original O1 sources and final score references; added navigation and real API/browser verification.
+
+- 2026-09-20: Added a persistent entry to the latest assessment from the CRM person card.
