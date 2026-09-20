@@ -173,6 +173,15 @@ export async function preparePhotographerDemo(requestId: string, ctx: CommandRun
 
 export async function assertPreparedPhotographerDemo(raw: unknown, scope: { tenantId: string; organizationId: string }, container: CommandRuntimeContext['container']): Promise<void> {
   const prepared = preparedPhotographerDemoSchema.parse(raw)
+  if (prepared.source === 'registration') {
+    const ctx: CommandRuntimeContext = { container, auth: { sub: prepared.userId, tenantId: scope.tenantId, orgId: scope.organizationId }, selectedOrganizationId: scope.organizationId, organizationIds: [scope.organizationId], organizationScope: null }
+    const { readRegistrationCrm } = await import('./registration-crm')
+    const crm = await readRegistrationCrm({ registrationId: prepared.registrationId }, ctx)
+    const registration = await findOneWithDecryption(container.resolve<EntityManager>('em').fork(), PhotographerRawData, { id: prepared.registrationId, customerEntityId: prepared.photographerId, isActive: true, deletedAt: null, ...scope }, {}, scope)
+    const evaluationId = materialOperationId(prepared.requestId, `${scope.tenantId}:${scope.organizationId}:${prepared.registrationId}:evaluation`)
+    if (!registration || crm.status !== 'ready' || crm.photographerId !== prepared.photographerId || crm.personId !== prepared.personId || crm.dealId !== prepared.dealId || prepared.evaluationId !== evaluationId || prepared.evaluatedAt !== registration.submittedAt.toISOString()) return demoPreparationError(409)
+    return
+  }
   const scopedId = materialOperationId(prepared.requestId, `${scope.tenantId}:${scope.organizationId}:demo`)
   if (prepared.registrationId !== materialOperationId(scopedId, 'registration') || prepared.evaluationId !== materialOperationId(scopedId, 'evaluation')) return demoPreparationError(409)
   const service = container.resolve<ModuleConfigService>('moduleConfigService')
@@ -188,4 +197,15 @@ export async function assertPreparedPhotographerDemo(raw: unknown, scope: { tena
   if (!isDemoPersonIdentity(people[0], profiles[0], registration)) return demoPreparationError(409)
   const link = await findOneWithDecryption(em, CustomerDealPersonLink, { deal: { id: prepared.dealId, ...scope }, person: { id: prepared.photographerId, ...scope } }, {}, scope)
   if (!link) return demoPreparationError(409)
+}
+
+export async function prepareRegistrationDemo(requestId: string, registrationId: string, ctx: CommandRuntimeContext): Promise<PreparedPhotographerDemo> {
+  const { userId, ...scope } = await authorizeDemoPreparation(ctx)
+  const { readRegistrationCrm } = await import('./registration-crm')
+  await ctx.container.resolve<CommandBus>('commandBus').execute('photographers.registration.prepare_crm', { input: { registrationId }, ctx })
+  const crm = await readRegistrationCrm({ registrationId }, ctx)
+  const registration = await findOneWithDecryption(ctx.container.resolve<EntityManager>('em').fork(), PhotographerRawData, { id: registrationId, isActive: true, deletedAt: null, ...scope }, {}, scope)
+  if (!registration || crm.status !== 'ready') return demoPreparationError(409)
+  return preparedPhotographerDemoSchema.parse({ requestId, registrationId, photographerId: crm.photographerId, personId: crm.personId, dealId: crm.dealId,
+    evaluationId: materialOperationId(requestId, `${scope.tenantId}:${scope.organizationId}:${registrationId}:evaluation`), evaluatedAt: registration.submittedAt.toISOString(), userId, source: 'registration' })
 }

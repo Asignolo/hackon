@@ -62,3 +62,16 @@ test('removes previous organization links and ignores a late refresh after scope
   await act(async () => { resolveOld(response) })
   expect(screen.queryByRole('link', { name: 'Open decision in Caseload' })).toBeNull()
 })
+
+test('starts the selected registration and shows the O1 boundary without claiming evaluation completion', async () => {
+  window.history.replaceState(null, '', `/backend/photographers/demo?registrationId=${id}`)
+  const read = jest.mocked(readApiResultOrThrow)
+  read.mockResolvedValue({ ...response, status: 'running', proposalId: null, links: { person: response.links.person, deal: response.links.deal }, o1: { status: 'completed', runId: id, tracesRef: id, nextStage: 'o2', sourcesAccepted: true } })
+  renderWithProviders(<DemoScenario />, { dict: en })
+  fireEvent.click(screen.getByRole('button', { name: 'Run O1 for this photographer' }))
+  await waitFor(() => expect(screen.getAllByText('O1 saved — awaiting O2 integration').length).toBeGreaterThan(0))
+  const sent = JSON.parse(String(read.mock.calls.find((call) => call[1]?.method === 'POST')?.[1]?.body))
+  expect(sent.registrationId).toBe(id)
+  expect(screen.queryByRole('link', { name: 'Open decision in Caseload' })).toBeNull()
+  expect(await screen.findByText('Assessment in progress')).toBeTruthy()
+})

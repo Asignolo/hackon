@@ -80,6 +80,7 @@ export default function RegistrationCrm({ registrationId }: { registrationId: st
         <AlertDescription>{t('photographers.simulator.crmReadyDescription')}</AlertDescription>
       </Alert>
       <div className="flex flex-wrap gap-4">
+        <Button type="button" asChild><Link href={`/backend/photographers/demo?registrationId=${registrationId}`}>{t('photographers.demo.o1.startRegistration')}</Link></Button>
         <Button type="button" asChild><Link href={`/backend/customers/people/${result.photographerId}`}>{t('photographers.simulator.openPerson')}</Link></Button>
         <Button type="button" variant="outline" asChild><Link href={`/backend/customers/deals/${result.dealId}`}>{t('photographers.simulator.openDeal')}</Link></Button>
       </div>

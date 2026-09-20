@@ -12,7 +12,7 @@ import { FormHeader } from '@open-mercato/ui/backend/forms'
 import { Alert, AlertTitle, AlertDescription } from '@open-mercato/ui/primitives/alert'
 import { Button } from '@open-mercato/ui/primitives/button'
 import { StepIndicator, type StepIndicatorStep } from '@open-mercato/ui/primitives/step-indicator'
-import { demoExecutionSchema, demoRequestSchema, type DemoExecution } from '../data/demo-api-validators'
+import { demoExecutionSchema, demoRequestSchema, demoStartRequestSchema, type DemoExecution } from '../data/demo-api-validators'
 
 const finished = new Set(['completed', 'rejected', 'revoked', 'cancelled'])
 
@@ -34,6 +34,8 @@ export default function DemoScenario() {
 function ScopedDemoScenario() {
   const t = useT()
   const params = useSearchParams()
+  const registration = demoStartRequestSchema.shape.registrationId.safeParse(params?.get('registrationId') ?? undefined)
+  const registrationId = registration.success ? registration.data : undefined
   const initial = demoRequestSchema.safeParse({ requestId: params?.get('requestId') })
   const [requestId, setRequestId] = React.useState<string | null>(initial.success ? initial.data.requestId : null)
   const [execution, setExecution] = React.useState<DemoExecution | null>(null)
@@ -87,11 +89,11 @@ function ScopedDemoScenario() {
       const result = await runMutation({
         operation: async () => demoExecutionSchema.parse(await readApiResultOrThrow(
           resume ? `/api/photographers/demo-evaluations/${id}` : '/api/photographers/demo-evaluations',
-          { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(resume ? {} : { requestId: id }) },
+          { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(resume ? {} : { requestId: id, ...(registrationId ? { registrationId } : {}) }) },
           { errorMessage: t('photographers.demo.failed') },
         )),
         context: { resourceKind: 'photographers:demo_execution', resourceId: id, retryLastMutation },
-        mutationPayload: { requestId: id },
+        mutationPayload: { requestId: id, ...(registrationId ? { registrationId } : {}) },
       })
       if (mounted.current) setExecution(result)
     } catch (caught) {
@@ -115,9 +117,10 @@ function ScopedDemoScenario() {
   ]
 
   return <div className="mx-auto max-w-3xl space-y-6">
-    <FormHeader mode="detail" title={t('photographers.demo.title')} subtitle={t('photographers.demo.description')} />
-    <Alert status="information"><AlertTitle>{t('photographers.demo.synthetic')}</AlertTitle><AlertDescription>{t('photographers.demo.no_delivery')}</AlertDescription></Alert>
-    <StepIndicator steps={steps} orientation="vertical" />
+    <FormHeader mode="detail" title={t('photographers.demo.title')} subtitle={t('photographers.demo.o1.scope')} />
+    <Alert status="information"><AlertTitle>{t('photographers.demo.o1.research')}</AlertTitle><AlertDescription>{t('photographers.demo.o1.scope')}</AlertDescription></Alert>
+    <StepIndicator steps={execution?.o1 || registrationId ? [{ id: 'o1', label: t('photographers.demo.o1.research'), status: execution?.o1?.status === 'completed' ? 'complete' : execution?.o1?.status === 'failed' ? 'error' : 'current' }, { id: 'o2', label: t('photographers.demo.o1.boundary'), status: 'pending' }] : steps} orientation="vertical" />
+    {execution?.o1?.status === 'completed' ? <Alert status="information"><AlertTitle>{t('photographers.demo.o1.boundary')}</AlertTitle><AlertDescription>{t('photographers.demo.o1.scope')}</AlertDescription></Alert> : null}
     {error ? <ErrorMessage label={error} /> : null}
     {busy || (requestId && !execution && !error) ? <LoadingMessage label={t('photographers.demo.loading')} /> : null}
     {status ? <Alert status={status === 'failed' || status === 'unavailable' ? 'error' : status === 'completed' || status === 'rejected' ? 'success' : 'information'}>
@@ -125,7 +128,7 @@ function ScopedDemoScenario() {
       <AlertDescription>{t(`photographers.demo.hint.${status}`)}</AlertDescription>
     </Alert> : null}
     <div className="flex flex-wrap gap-3">
-      {!execution ? <Button type="button" disabled={busy || !ready} onClick={() => void startOrResume(false)}>{t(requestId ? 'photographers.demo.retry_start' : 'photographers.demo.start')}</Button> : null}
+      {!execution ? <Button type="button" disabled={busy || !ready} onClick={() => void startOrResume(false)}>{t(requestId ? 'photographers.demo.retry_start' : registrationId ? 'photographers.demo.o1.startRegistration' : 'photographers.demo.start')}</Button> : null}
       {execution?.links.proposal ? <Button type="button" asChild><Link href={execution.links.proposal}>{t('photographers.demo.open_review')}</Link></Button> : null}
       {execution ? <Button type="button" variant="outline" disabled={busy} onClick={() => void refresh()}>{t('photographers.demo.refresh')}</Button> : null}
       {execution && !terminal ? <Button type="button" variant="outline" disabled={busy} onClick={() => void startOrResume(true)}>{t('photographers.demo.resume')}</Button> : null}

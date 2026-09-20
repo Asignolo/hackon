@@ -685,3 +685,11 @@ pending proposal i zadanie, ponowienie równoczesne bez duplikatu,
 GET materiałów, POST dispose odmawiający wszystkich decyzji, widok
 Caseload i odświeżenie, brak zmian CRM oraz brak propozycji bez flagi.
 Regresja: TC-021 (wiadomości w Caseload), TC-025 (punktacja).
+
+### Demo — rzeczywisty wycinek O1 (2026-09-20, agent 1)
+
+Na polecenie użytkownika demo `photographers.demo-evaluation` v2 korzysta z istniejącego runtime O1, workera i sygnału zamiast syntetycznego researchu. Opcjonalny `registrationId` w POST demo umożliwia wykorzystanie fotografa dodanego w symulatorze. Ekran rejestracji prowadzi do tego wejścia. Zapisane ślady są w demo uznawane za właściwe; nie zmienia to globalnej reguły `unconfirmed` nieaktywnego workflow `photographers.hidden_potential` ani nie implementuje weryfikacji tożsamości.
+
+Workflow zatrzymuje się w `await_o2_integration` po zapisaniu materiału. Status O1 (`waiting|completed|failed`) jest odrębny od statusu całej oceny. Pełny wynik z `links` pozostaje w szyfrowanym `AgentRun.output`; przekazanie do następnego adaptera odbywa się przez `runId`, `tracesRef` i funkcję `readDemoO1Handoff`. O2, normalizacja, punktacja i podgląd końcowych wyników należą do pozostałych agentów.
+
+Kontrakt, uruchomienie, wymagane podłączenia i ograniczenia historycznej wersji v1: [HANDOFF.md](../../runs/2026-09-20-demo-o1/HANDOFF.md). Pokrycie integracyjne: TC-PHOTOGRAPHERS-027 — rejestracja z portfolio i bez niego, POST/GET demo, natywny workflow i worker, kontrolowana odpowiedź OpenCode, szyfrowany materiał, pełny odczyt handoff oraz duplikat bez ponownego modelu. To nie jest dowód odczytu internetu. Końcowe wyniki testów są zapisane w dokumencie przekazania.

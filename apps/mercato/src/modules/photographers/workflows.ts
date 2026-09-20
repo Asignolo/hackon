@@ -3,7 +3,7 @@ import { createSyntheticWorkflowDefinition } from './lib/synthetic-workflow'
 import { createDemoWorkflowDefinition, DEMO_WORKFLOW_ID, DEMO_WORKFLOW_NAME } from './lib/demo-workflow'
 
 const demoWorkflow: CodeWorkflowDefinition = {
-  moduleId: 'photographers', workflowId: DEMO_WORKFLOW_ID, workflowName: DEMO_WORKFLOW_NAME, version: 1, enabled: true,
+  moduleId: 'photographers', workflowId: DEMO_WORKFLOW_ID, workflowName: DEMO_WORKFLOW_NAME, version: 2, enabled: true,
   description: null, metadata: { tags: ['demo'], category: 'photographers' }, definition: createDemoWorkflowDefinition(),
 }
 

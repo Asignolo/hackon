@@ -1,3 +1,5 @@
+import { findWorkflowDefinition } from '@open-mercato/core/modules/workflows/lib/find-definition'
+import { getCodeWorkflow } from '@open-mercato/shared/modules/workflows/code-registry'
 import { randomUUID } from 'node:crypto'
 import { TransactionContext } from '@mikro-orm/core'
 import { asValue, createContainer } from 'awilix'
@@ -9,11 +11,13 @@ import { executeFunction } from '@open-mercato/core/modules/workflows/lib/activi
 import { AgentProposal, AgentRun, ProcessInstance } from '@open-mercato/enterprise/modules/agent_orchestrator/data/entities'
 import { workflowDefinitionDataSchema } from '@open-mercato/core/modules/workflows/data/validators'
 import type { ActivityContext } from '@open-mercato/core/modules/workflows/lib/activity-executor'
-import { createDemoWorkflowDefinition, DEMO_WORKFLOW_ID, DEMO_REVIEW_SIGNAL } from '../lib/demo-workflow'
+import { createLegacyDemoWorkflowDefinition as createDemoWorkflowDefinition, DEMO_WORKFLOW_ID, DEMO_REVIEW_SIGNAL } from '../lib/demo-workflow'
 import { dispatchPhotographerDemoWorkflow, finalizePhotographerDemoWorkflow, getDemoReviewBinding, getPhotographerDemoExecution, processPhotographerDemoJob, startDemoWorkflowOnce } from '../lib/demo-workflow-runtime'
 import { probeDemoReviewEffectStatus, readDemoEffectResult, resolveDemoReview } from '../lib/demo-proposal-effects'
 import { readDemoRevocationHistory } from '../lib/demo-workflow-history'
 
+jest.mock('@open-mercato/core/modules/workflows/lib/find-definition', () => ({ findWorkflowDefinition: jest.fn() }))
+jest.mock('@open-mercato/shared/modules/workflows/code-registry', () => ({ getCodeWorkflow: jest.fn() }))
 jest.mock('@open-mercato/queue', () => ({ createModuleQueue: jest.fn() }))
 jest.mock('@open-mercato/shared/lib/encryption/find', () => ({ findOneWithDecryption: jest.fn(), findWithDecryption: jest.fn() }))
 jest.mock('@open-mercato/shared/lib/i18n/server', () => ({ resolveTranslations: async () => ({ translate: (key: string) => key }) }))
@@ -123,7 +127,7 @@ test('the job advisory lock never creates an ambient transaction for native comm
 
 test('start recovery reuses the correlated instance without starting or executing a second workflow', async () => {
   const setup = fixture()
-  const existing = { ...setup.instance, version: 1 }
+  const existing = { ...setup.instance, version: 2 }
   jest.mocked(findWithDecryption).mockResolvedValue([existing] as never)
   const executor = { startWorkflow: jest.fn(), executeWorkflow: jest.fn() }
   const result = await startDemoWorkflowOnce(executor as never, setup.container, setup.em as never, { workflowId: DEMO_WORKFLOW_ID, ...setup.scope, correlationKey: setup.instance.correlationKey, initialContext: { demo: setup.prepared } })
@@ -283,4 +287,31 @@ test.each(['approved', 'rejected'] as const)('real signal finalizes %s using the
   expect(executeWorkflow).toHaveBeenCalledTimes(1)
   expect(setup.step.status).toBe('ACTIVE')
   expect(transactionStep.status).toBe('COMPLETED')
+})
+
+test.each(['waiting', 'completed', 'failed'] as const)('reports O1 %s separately from the overall evaluation', async (stage) => {
+  const setup = fixture()
+  Object.assign(setup.instance, { version: 2, currentStepId: stage === 'completed' ? 'await_o2_integration' : 'o1', status: stage === 'failed' ? 'FAILED' : 'PAUSED' })
+  if (stage === 'completed') Object.assign(setup.instance.context, { o1Result: { result: { runId: randomUUID(), tracesRef: randomUUID(), status: 'partial' } } })
+  setup.container.register({ rbacService: asValue({ userHasAllFeatures: jest.fn(async () => true) }) })
+  const ctx = { container: setup.container, auth: { sub: setup.prepared.userId, tenantId: setup.scope.tenantId, orgId: setup.scope.organizationId }, selectedOrganizationId: setup.scope.organizationId, organizationIds: [setup.scope.organizationId], organizationScope: null }
+  await expect(getPhotographerDemoExecution(setup.prepared.requestId, ctx)).resolves.toMatchObject({ status: stage === 'failed' ? 'failed' : 'running', o1: { status: stage, nextStage: 'o2', sourcesAccepted: true }, proposalId: null })
+})
+
+test('a persisted legacy definition cannot silently start synthetic research for a new demo request', async () => {
+  const setup = fixture()
+  jest.mocked(findWithDecryption).mockResolvedValue([])
+  jest.mocked(getCodeWorkflow).mockReturnValue({ version: 2, definition: { steps: [], transitions: [] } } as never)
+  jest.mocked(findWorkflowDefinition).mockResolvedValue({ version: 1, definition: createDemoWorkflowDefinition() } as never)
+  const executor = { startWorkflow: jest.fn() }
+  await expect(startDemoWorkflowOnce(executor as never, setup.container, setup.em as never, { workflowId: DEMO_WORKFLOW_ID, ...setup.scope, correlationKey: setup.instance.correlationKey, initialContext: { demo: setup.prepared } })).rejects.toThrow('unavailable')
+  expect(executor.startWorkflow).not.toHaveBeenCalled()
+})
+
+test('active legacy demo reports unavailable rather than running against the replacement graph', async () => {
+  const setup = fixture()
+  Object.assign(setup.instance, { version: 1 })
+  setup.container.register({ rbacService: asValue({ userHasAllFeatures: jest.fn(async () => true) }) })
+  const ctx = { container: setup.container, auth: { sub: setup.prepared.userId, tenantId: setup.scope.tenantId, orgId: setup.scope.organizationId }, selectedOrganizationId: setup.scope.organizationId, organizationIds: [setup.scope.organizationId], organizationScope: null }
+  await expect(getPhotographerDemoExecution(setup.prepared.requestId, ctx)).resolves.toMatchObject({ status: 'unavailable' })
 })
