@@ -51,7 +51,7 @@ describe('Apify runtime contracts', () => {
   })
 
   it('uses only exact numeric builds and closed actor inputs', () => {
-    expect(ACTOR_CATALOG_ENTRIES).toHaveLength(4)
+    expect(ACTOR_CATALOG_ENTRIES).toHaveLength(5)
     for (const entry of ACTOR_CATALOG_ENTRIES) {
       expect(entry.build).toMatch(/^\d+\.\d+\.\d+$/)
       expect(entry.build).not.toMatch(/latest|beta/i)

@@ -7,9 +7,11 @@ import { normalizeFacebookPage, type FacebookPageData } from './lib/normalizers/
 import { normalizeGoogleMapsPlace, type GoogleMapsPlaceData } from './lib/normalizers/google-maps-place'
 import { normalizeGoogleMapsReviews, type GoogleMapsReviewsData } from './lib/normalizers/google-maps-reviews'
 import { normalizeInstagramProfile, type InstagramProfileData } from './lib/normalizers/instagram-profile'
+import { normalizeCeidgCompany, type CeidgCompanyData } from './lib/normalizers/ceidg-company'
 import { errorResult, type ApifyResearchResult } from './lib/result'
-import { normalizeFacebookTarget, normalizeGoogleMapsTarget, normalizeInstagramTarget } from './lib/targets'
+import { normalizeNipTarget, normalizeFacebookTarget, normalizeGoogleMapsTarget, normalizeInstagramTarget } from './lib/targets'
 
+export const APIFY_CEIDG_TOOL_ID = 'integration_apify.scrape_ceidg_company'
 export const APIFY_INSTAGRAM_TOOL_ID = 'integration_apify.scrape_instagram_profile'
 export const APIFY_FACEBOOK_TOOL_ID = 'integration_apify.scrape_facebook_page'
 export const APIFY_MAPS_PLACE_TOOL_ID = 'integration_apify.scrape_google_maps_place'
@@ -187,11 +189,45 @@ export const googleMapsReviewsTool = defineAiTool<
   },
 })
 
+const ceidgInputSchema = z.object({ nip: z.string().trim().min(1).max(32) })
+
+export const ceidgCompanyTool = defineAiTool<
+  z.infer<typeof ceidgInputSchema>,
+  ApifyResearchResult<CeidgCompanyData>
+>({
+  name: APIFY_CEIDG_TOOL_ID,
+  displayName: 'Research company by NIP',
+  description: 'Read one Polish company registry record by checksum-valid NIP with bounded cost. Requires an evidenced NIP; does not establish ownership.',
+  inputSchema: ceidgInputSchema,
+  requiredFeatures: [APIFY_RESEARCH_FEATURE],
+  isMutation: false,
+  tags: ['read', 'research', 'ceidg', 'apify'],
+  async handler(rawInput, ctx) {
+    const input = ceidgInputSchema.parse(rawInput)
+    let target
+    try {
+      target = normalizeNipTarget(input.nip)
+    } catch {
+      return errorResult({ platform: 'ceidg', code: 'invalid_target', message: 'A valid Polish NIP is required.' })
+    }
+    return executeApifyActor({
+      ctx,
+      entry: ACTOR_CATALOG.ceidg_company,
+      target,
+      platform: 'ceidg',
+      canonicalUrl: null,
+      sourceUrl: null,
+      normalize: (context) => normalizeCeidgCompany({ ...context, expectedNip: target.nip }),
+    })
+  },
+})
+
 export const aiTools = [
   instagramProfileTool,
   facebookPageTool,
   googleMapsPlaceTool,
   googleMapsReviewsTool,
+  ceidgCompanyTool,
 ]
 
 export default aiTools

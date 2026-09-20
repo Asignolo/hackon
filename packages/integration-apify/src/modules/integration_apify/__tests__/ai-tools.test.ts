@@ -1,5 +1,6 @@
 import {
   aiTools,
+  APIFY_CEIDG_TOOL_ID,
   APIFY_FACEBOOK_TOOL_ID,
   APIFY_INSTAGRAM_TOOL_ID,
   APIFY_MAPS_PLACE_TOOL_ID,
@@ -8,12 +9,13 @@ import {
 } from '../ai-tools'
 
 describe('Apify AI tools', () => {
-  it('exports four stable, read-only, default-off research tools', () => {
+  it('exports five stable, read-only, default-off research tools', () => {
     expect(aiTools.map((tool) => tool.name)).toEqual([
       APIFY_INSTAGRAM_TOOL_ID,
       APIFY_FACEBOOK_TOOL_ID,
       APIFY_MAPS_PLACE_TOOL_ID,
       APIFY_MAPS_REVIEWS_TOOL_ID,
+      APIFY_CEIDG_TOOL_ID,
     ])
     for (const tool of aiTools) {
       expect(tool.isMutation).toBe(false)
