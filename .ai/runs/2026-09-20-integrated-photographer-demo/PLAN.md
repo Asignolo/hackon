@@ -20,8 +20,8 @@ Worktree: `/private/tmp/hackon-integrated-demo`; branch `codex/integrated-photog
 
 - [x] Read handoffs and review four source changes; combine commits in isolated worktree.
 - [x] Connect v3 graph, O2 runtime, authorized normalization/scoring and final assessment.
-- [ ] Run combined unit/type/build gates and controlled external-response integration scenarios.
-- [ ] Review final diff and record exact evidence, configuration and limits.
+- [x] Run combined unit/type/build gates and controlled external-response integration scenarios — 601 unit tests, 6 E2E; external gate failures documented.
+- [x] Review final diff and record exact evidence, configuration and limits — implementation 682dfaae.
 
 ## Validation
 
