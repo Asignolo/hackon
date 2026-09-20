@@ -1,6 +1,6 @@
 # Apify Research Operations
 
-`@open-mercato/integration-apify` is a default-off paid-egress provider. It exposes four closed research tools and never exposes a generic Actor runner, credentials, arbitrary Actor input, or raw datasets.
+`@open-mercato/integration-apify` is a default-off paid-egress provider. It exposes five closed research tools and never exposes a generic Actor runner, credentials, arbitrary Actor input, or raw datasets.
 
 ## Enablement
 
@@ -67,3 +67,9 @@ Health checks and dataset/run reads retain the 256 KiB response cap. Failures di
 For cost, privacy, or schema incidents, revoke `integration_apify.research` first, disable `integration_apify` for affected scopes, and rotate the token if credential exposure is suspected. These steps stop new calls without removing stable tool IDs or historical run audit data. Use the existing AI tool override mechanism only when a global emergency disable is required.
 
 Failures return closed diagnostics with `retryable: false`; agents must not automatically retry a paid start. A network error after the start request may leave a paid run whose ID is unknown, so inspect the Apify workspace manually instead of replaying the request.
+
+## Company lookup by NIP
+
+`integration_apify.scrape_ceidg_company` accepts one checksum-valid Polish NIP and runs the pinned `trev0n/ceidg-scraper` build 3.0.7. It uses the configured Apify token; no separate CEIDG token or actor subscription is required. Public metadata verified on 2026-09-20 lists $0.003 per dataset item plus $0.00005 per start event (per GB, minimum one). Existing charge caps and health checks still apply.
+
+Only matching NIP, company name, REGON, KRS, status, registration date and registry are retained. Missing fields are explicit; a mismatched NIP is an error. Registry data is evidence about the candidate company, not confirmation of portfolio ownership. O2 runs this lookup first when O1 supplies a valid sourced candidate, within its existing four-call budget. Disable the new tool in O2's allowlist to roll back the workflow without deleting research history.

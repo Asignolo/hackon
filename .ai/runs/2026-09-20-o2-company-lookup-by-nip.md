@@ -29,5 +29,5 @@ PR: #9
 ### Phase 1: Company research
 
 - [x] 1.1 Add verified CEIDG provider and tests — 2fa9122c
-- [ ] 1.2 Connect O2 and test compatibility
+- [x] 1.2 Connect O2 and test compatibility — 63434c32
 - [ ] 1.3 Complete validation, review and demo verification
