@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { isCrudHttpError } from '@open-mercato/shared/lib/crud/errors'
 import { asValue, type AwilixContainer } from 'awilix'
 import { LockMode } from '@mikro-orm/core'
 import type { EntityManager } from '@mikro-orm/postgresql'
@@ -21,7 +22,8 @@ import { readPortfolioDiscoveryReferences } from '../data/portfolio-discovery-wo
 import type { EvaluationMaterial } from '../data/evaluation-validators'
 import { materialOperationId } from './material-codec'
 import { readEvaluationMaterial } from './material-store'
-import { preparePortfolioDiscoveryMaterial, PORTFOLIO_DISCOVERY_AGENT_ID } from './portfolio-discovery-contract'
+import { acceptDemoPortfolioDiscoverySources, preparePortfolioDiscoveryMaterial, PORTFOLIO_DISCOVERY_AGENT_ID } from './portfolio-discovery-contract'
+import { DEMO_WORKFLOW_ID } from '../data/demo-workflow-validators'
 import { withDemoOperationLock } from './demo-operation-lock'
 
 export const APIFY_RESEARCH_AGENT_ID = 'photographers.apify_link_researcher_o2'
@@ -46,7 +48,7 @@ async function authorize(container: AwilixContainer, job: ApifyResearchJob) {
 
 export async function dispatchApifyResearchWorkflow(raw: unknown, context: ActivityContext, container: AwilixContainer) {
   const input = apifyResearchArgumentsSchema.parse(raw)
-  if (context.workflowInstance.workflowId !== 'photographers.hidden_potential' || context.branchInstanceId) throw new Error('[internal] Invalid Apify workflow binding')
+  if (!['photographers.hidden_potential', DEMO_WORKFLOW_ID].includes(context.workflowInstance.workflowId) || context.branchInstanceId) throw new Error('[internal] Invalid Apify workflow binding')
   const job = apifyResearchJobSchema.parse({ ...input,
     workflowInstanceId: context.workflowInstance.id, stepId: APIFY_RESEARCH_STEP_ID,
     tenantId: context.workflowInstance.tenantId, organizationId: context.workflowInstance.organizationId, userId: context.userId,
@@ -64,6 +66,7 @@ async function requireEncryption(container: AwilixContainer, job: ApifyResearchJ
     'agent_orchestrator:agent_run': ['input', 'output'],
     'agent_orchestrator:agent_tool_call': ['request_summary', 'response_summary'],
     'photographers:photographer_evaluation_material': ['body'],
+    'audit_logs:action_log': ['command_payload', 'snapshot_before', 'snapshot_after', 'changes_json', 'context_json'],
   })) {
     const probe = Object.fromEntries(fields.map((field) => [field, 'apify-encryption-probe']))
     const sealed = await encryption.encryptEntityPayload(entity, probe, job.tenantId, job.organizationId)
@@ -76,17 +79,22 @@ async function runResearch(job: ApifyResearchJob, instance: WorkflowInstance, co
   const em = container.resolve<EntityManager>('em').fork()
   const ctx = actorContext(container, job)
   const references = readPortfolioDiscoveryReferences(instance.context)
+  if (instance.workflowId === DEMO_WORKFLOW_ID) {
+    const committed = z.object({ result: z.object({ runId: z.string().uuid(), tracesRef: z.string().uuid() }) }).parse(instance.context.o1Result).result
+    if (committed.runId !== job.o1RunId || committed.tracesRef !== job.tracesRef) throw new Error('[internal] Apify committed O1 result mismatch')
+  }
   const traces = await readEvaluationMaterial(job.tracesRef, ctx)
   if (traces.kind !== 'traces' || traces.evaluationId !== references.evaluationId
     || traces.photographerId !== references.photographerId || traces.personId !== references.personId
     || traces.dealId !== references.dealId || traces.registrationId !== references.registrationId
     || traces.data.evaluatedAt !== references.evaluatedAt) throw new Error('[internal] Apify O1 material binding mismatch')
   const o1Run = await findOneWithDecryption(em, AgentRun, { id: job.o1RunId, agentId: PORTFOLIO_DISCOVERY_AGENT_ID,
-    workflowInstanceId: instance.id, status: 'ok', resultKind: 'research', ...scope }, {}, scope)
+    workflowInstanceId: instance.id, stepId: 'o1', status: 'ok', resultKind: 'research', ...scope }, {}, scope)
   if (!o1Run?.completedAt) throw new Error('[internal] Apify O1 run is unavailable')
   const o1 = portfolioDiscoveryResultSchema.parse(o1Run.output)
   const expected = preparePortfolioDiscoveryMaterial(o1, { evaluationId: references.evaluationId,
     evaluatedAt: references.evaluatedAt, observedAt: o1Run.completedAt.toISOString() })
+  if (instance.workflowId === DEMO_WORKFLOW_ID) expected.material = acceptDemoPortfolioDiscoverySources(expected.material)
   const expectedRef = materialOperationId(materialOperationId(materialOperationId(o1Run.id, 'o1:traces'), `${job.tenantId}:${job.organizationId}`), 'manifest')
   if (job.tracesRef !== expectedRef || JSON.stringify(traces.data) !== JSON.stringify(expected.material.data)) throw new Error('[internal] Apify O1 result mismatch')
   const operationId = materialOperationId(job.tracesRef, 'apify-o2:claim')
@@ -94,7 +102,7 @@ async function runResearch(job: ApifyResearchJob, instance: WorkflowInstance, co
   const findMaterial = (operation: string) => findOneWithDecryption(em.fork(), PhotographerEvaluationMaterial, { operationId: operation, ...scope }, {}, scope)
   const requireBinding = (material: Awaited<ReturnType<typeof readEvaluationMaterial>>) => {
     if (material.kind !== 'apify_research' || material.data.o1RunId !== job.o1RunId
-      || material.data.tracesRef !== job.tracesRef || material.data.workflowInstanceId !== instance.id
+      || material.data.tracesRef !== job.tracesRef || material.data.workflowInstanceId !== instance.id || material.data.stepId !== job.stepId || material.data.userId !== job.userId
       || material.evaluationId !== traces.evaluationId || material.photographerId !== traces.photographerId
       || material.personId !== traces.personId || material.dealId !== traces.dealId
       || material.registrationId !== traces.registrationId) throw new Error('[internal] Apify receipt binding mismatch')
@@ -104,7 +112,7 @@ async function runResearch(job: ApifyResearchJob, instance: WorkflowInstance, co
     const result = await readEvaluationMaterial(existingResult.id, ctx)
     requireBinding(result)
     if (result.kind !== 'apify_research' || result.data.state !== 'finished') throw new Error('[internal] Invalid Apify receipt')
-    return { researchRef: result.id, runId: result.data.runId, status: result.data.outcomeStatus ?? 'error' }
+    return { researchRef: result.id, runId: result.data.runId, status: result.data.runStatus === 'ok' ? result.data.outcomeStatus ?? 'error' : 'error' }
   }
   const store = async (operation: string, material: EvaluationMaterial) => {
     const saved = await container.resolve<CommandBus>('commandBus').execute<unknown, { id: string }>('photographers.evaluation.store_material', {
@@ -115,19 +123,16 @@ async function runResearch(job: ApifyResearchJob, instance: WorkflowInstance, co
   }
   const claim = await findMaterial(operationId)
   let snapshot: Snapshot
-  let claimRef: string
   if (claim) {
     const stored = await readEvaluationMaterial(claim.id, ctx)
     requireBinding(stored)
     if (stored.kind !== 'apify_research' || stored.data.state !== 'claimed') throw new Error('[internal] Invalid Apify claim')
     snapshot = stored.data
-    claimRef = stored.id
   } else {
-    await requireEncryption(container, job)
     snapshot = { schemaVersion: 1, evaluationId: references.evaluationId, evaluatedAt: references.evaluatedAt,
       o1RunId: job.o1RunId, tracesRef: job.tracesRef, workflowInstanceId: instance.id, stepId: job.stepId,
       invocationId: operationId, userId: job.userId, state: 'claimed', runId: null, runStatus: null, outcomeStatus: null, payloadRefs: [] }
-    claimRef = await store(operationId, { kind: 'apify_research', data: snapshot })
+    await store(operationId, { kind: 'apify_research', data: snapshot })
   }
   const binding = { workflowInstanceId: snapshot.workflowInstanceId, stepId: snapshot.stepId, invocationId: snapshot.invocationId, agentId: APIFY_RESEARCH_AGENT_ID, ...scope }
   let run = await findOneWithDecryption(em.fork(), AgentRun, binding, {}, scope)
@@ -144,10 +149,9 @@ async function runResearch(job: ApifyResearchJob, instance: WorkflowInstance, co
     }
     run = await findOneWithDecryption(em.fork(), AgentRun, binding, {}, scope)
   }
-  if ((!run || !run.completedAt) && !invocationError) return { researchRef: claimRef, runId: run?.id ?? null, status: 'pending' }
-  if (run && !run.completedAt) return { researchRef: claimRef, runId: run.id, status: 'pending' }
+  if (!run?.completedAt) invocationError ??= '[internal] Apify invocation has no confirmed terminal result; manual reconciliation required, paid calls will not be repeated'
   const parsed = apifyResearchOutcomeSchema.safeParse(run?.output)
-  const outcome = parsed.success ? parsed.data : null
+  const outcome = parsed.success && run?.completedAt && run.status === 'ok' ? parsed.data : null
   const calls = run ? await findWithDecryption(em.fork(), AgentToolCall, { agentRunId: run.id, ...scope }, { orderBy: { createdAt: 'ASC', id: 'ASC' } }, scope) : []
   const payload = JSON.stringify({ outcome, rawOutput: run?.output ?? null, o1,
     error: run?.errorMessage ?? invocationError ?? (outcome ? null : '[internal] Apify outcome is unavailable'),
@@ -165,7 +169,7 @@ async function runResearch(job: ApifyResearchJob, instance: WorkflowInstance, co
     } }))
   }
   const researchRef = await store(resultOperationId, { kind: 'apify_research', data: {
-    ...snapshot, state: 'finished', runId: run?.id ?? null, runStatus: run?.status ?? 'error',
+    ...snapshot, state: 'finished', runId: run?.id ?? null, runStatus: invocationError && !run?.completedAt ? 'error' : run?.status ?? 'error',
     outcomeStatus: outcome?.data.status ?? null, payloadRefs,
   } })
   return { researchRef, runId: run?.id ?? null, status: outcome?.data.status ?? 'error' }
@@ -192,11 +196,11 @@ async function deliverResult(job: ApifyResearchJob, receipt: Receipt, container:
 
 export async function processApifyResearchJob(raw: unknown, container: AwilixContainer) {
   const job = apifyResearchJobSchema.parse(raw)
-  await authorize(container, job)
+  if (job.stepId !== APIFY_RESEARCH_STEP_ID) throw new Error('[internal] Invalid Apify workflow step')
   return withDemoOperationLock(container, `${job.tenantId}:${job.organizationId}:apify-o2:${job.tracesRef}`, async () => {
     const scope = { tenantId: job.tenantId, organizationId: job.organizationId }
     const em = container.resolve<EntityManager>('em').fork()
-    let instance = await findOneWithDecryption(em, WorkflowInstance, { id: job.workflowInstanceId, workflowId: 'photographers.hidden_potential', ...scope }, {}, scope)
+    let instance = await findOneWithDecryption(em, WorkflowInstance, { id: job.workflowInstanceId, workflowId: { $in: ['photographers.hidden_potential', DEMO_WORKFLOW_ID] }, ...scope }, {}, scope)
     if (!instance || ['COMPLETED', 'FAILED', 'CANCELLED'].includes(instance.status)) return
     if (instance.metadata?.initiatedBy !== job.userId) throw new Error('[internal] Apify workflow actor mismatch')
     if (instance.status === 'RUNNING') {
@@ -207,8 +211,21 @@ export async function processApifyResearchJob(raw: unknown, container: AwilixCon
     if (instance.status !== 'PAUSED') throw new Error('[internal] Apify workflow wait is not ready')
     const steps = await findWithDecryption(em, StepInstance, { workflowInstanceId: instance.id, stepId: job.stepId, status: 'ACTIVE', branchInstanceId: null, ...scope }, { limit: 2 }, scope)
     if (steps.length !== 1) throw new Error('[internal] Apify workflow step is ambiguous')
-    const result = await runResearch(job, instance, container)
-    if (result.status === 'pending') throw new Error('[internal] Apify research pending; reconcile existing invocation, never rerun paid calls')
+    let result: Receipt
+    try {
+      await authorize(container, job)
+      await requireEncryption(container, job)
+      result = await runResearch(job, instance, container)
+    } catch (error) {
+      const permanent = error instanceof z.ZodError
+        || (error instanceof Error && error.message.startsWith('[internal] Apify'))
+        || (isCrudHttpError(error) && [400, 403, 404, 409, 422].includes(error.status))
+      if (instance.workflowId !== DEMO_WORKFLOW_ID || !permanent) throw error
+      await container.resolve<typeof WorkflowExecutor>('workflowExecutor').completeWorkflow(em.fork(), container, instance.id, 'FAILED', {
+        failedStepId: job.stepId, error: { code: 'photographers.apify_o2.result_rejected' },
+      })
+      return
+    }
     await deliverResult(job, result, container)
     return result
   })

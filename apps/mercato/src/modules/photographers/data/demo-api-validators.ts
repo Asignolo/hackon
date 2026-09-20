@@ -17,8 +17,8 @@ export const demoExecutionSchema = z.object({
   o1: z.object({ status: z.enum(['waiting', 'completed', 'failed']), runId: z.string().uuid().optional(), tracesRef: z.string().uuid().optional(), nextStage: z.literal('o2'), sourcesAccepted: z.literal(true) }).optional(),
   runIds: z.array(z.string().uuid()),
   proposalId: z.string().uuid().nullable(),
-  materialRefs: z.object({ tracesRef: z.string().uuid().optional(), factsRef: z.string().uuid().optional(), messageSnapshotId: z.string().uuid().optional() }),
-  links: z.object({ person: linkSchema, deal: linkSchema, execution: linkSchema.optional(), workflow: linkSchema.optional(), proposal: linkSchema.optional() }),
+  materialRefs: z.object({ scoreRef: z.string().uuid().optional(), tracesRef: z.string().uuid().optional(), factsRef: z.string().uuid().optional(), messageSnapshotId: z.string().uuid().optional() }),
+  links: z.object({ assessment: linkSchema.optional(), person: linkSchema, deal: linkSchema, execution: linkSchema.optional(), workflow: linkSchema.optional(), proposal: linkSchema.optional() }),
 })
 
 export type DemoExecution = z.infer<typeof demoExecutionSchema>

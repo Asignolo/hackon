@@ -6,6 +6,10 @@ import { calculateEvaluationScore } from '../lib/evaluation-scoring'
 import { DEFAULT_HIDDEN_POTENTIAL_RULES } from '../lib/rules-config'
 import { storeMaterialSchema } from '../data/material-validators'
 import { materialOperationId } from '../lib/material-codec'
+import { readEvaluationMaterial } from '../lib/material-store'
+
+jest.mock('../lib/material-store', () => ({ readEvaluationMaterial: jest.fn() }))
+
 import type { CommandRuntimeContext } from '@open-mercato/shared/lib/commands'
 
 const evaluationId = '10000000-0000-4000-8000-000000000001'
@@ -90,6 +94,7 @@ test('stores linked traces, facts and unchanged calculator output through the co
   const execute = jest.fn(async (_name: string, options: { input: unknown }) => {
     const parsed = storeMaterialSchema.parse(options.input)
     snapshots.push(parsed)
+    if (parsed.snapshot.material.kind === 'facts') jest.mocked(readEvaluationMaterial).mockResolvedValue({ ...parsed.snapshot, ...parsed.snapshot.material, evaluationId } as never)
     return { result: { id: materialOperationId(parsed.operationId, 'stored') } }
   })
   const ctx = { container: { resolve: () => ({ execute }) } } as unknown as CommandRuntimeContext
@@ -119,6 +124,7 @@ test('empty persisted evaluation uses the existing zero score and unknown catego
   const execute = jest.fn(async (_name: string, options: { input: unknown }) => {
     const parsed = storeMaterialSchema.parse(options.input)
     materials.push(parsed)
+    if (parsed.snapshot.material.kind === 'facts') jest.mocked(readEvaluationMaterial).mockResolvedValue({ ...parsed.snapshot, ...parsed.snapshot.material, evaluationId } as never)
     return { result: { id: materialOperationId(parsed.operationId, 'stored') } }
   })
   const ctx = { container: { resolve: () => ({ execute }) } } as unknown as CommandRuntimeContext
@@ -139,4 +145,31 @@ test('failed authorized material write stops the pipeline', async () => {
     rulesSnapshot: DEFAULT_HIDDEN_POTENTIAL_RULES,
   }, full(), ctx)).rejects.toThrow('Denied')
   expect(execute).toHaveBeenCalledTimes(1)
+})
+
+test('calculates from the reread stored facts and refuses changed ownership', async () => {
+  const owners = { registrationId: evaluationId, photographerId: evaluationId, personId: evaluationId, dealId: evaluationId }
+  const materials: Array<ReturnType<typeof storeMaterialSchema.parse>> = []
+  const execute = jest.fn(async (_name: string, options: { input: unknown }) => {
+    const parsed = storeMaterialSchema.parse(options.input)
+    materials.push(parsed)
+    if (parsed.snapshot.material.kind === 'facts') {
+      jest.mocked(readEvaluationMaterial).mockResolvedValue({ ...parsed.snapshot, ...parsed.snapshot.material, evaluationId,
+        data: { ...parsed.snapshot.material.data, facts: [] },
+      } as never)
+    }
+    return { result: { id: materialOperationId(parsed.operationId, 'stored') } }
+  })
+  const ctx = { container: { resolve: () => ({ execute }) } } as unknown as CommandRuntimeContext
+  const input = { mode: 'demo', sourceAssumption: DEMO_O1_SOURCE_ASSUMPTION, ...evaluation, o2ResultRef: evaluationId, owners, rulesSnapshot: DEFAULT_HIDDEN_POTENTIAL_RULES }
+  await storeDemoO2Evaluation(input, full(), ctx)
+  expect(materials[2].snapshot.material).toMatchObject({ kind: 'score', data: { score: 0, category: 'unknown' } })
+  jest.mocked(readEvaluationMaterial).mockImplementation(async () => ({ kind: 'facts', evaluationId, ...owners,
+    photographerId: materialOperationId(evaluationId, 'other'), data: { evaluatedAt, tracesRef: materialOperationId(materialOperationId(evaluationId, `demo-o2:${evaluationId}:traces`), 'stored') },
+  } as never))
+  execute.mockImplementation(async (_name: string, options: { input: unknown }) => {
+    const parsed = storeMaterialSchema.parse(options.input)
+    return { result: { id: materialOperationId(parsed.operationId, 'stored') } }
+  })
+  await expect(storeDemoO2Evaluation(input, full(), ctx)).rejects.toThrow('owner mismatch')
 })

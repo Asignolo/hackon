@@ -10,7 +10,7 @@ import { decodeMaterialSnapshot, encodeMaterialSnapshot, materialOperationId } f
 import { readEvaluationMaterial } from '../lib/material-store'
 import { readApifyResearchResult } from '../lib/apify-research-material'
 import { processApifyResearchJob, dispatchApifyResearchWorkflow, APIFY_RESEARCH_AGENT_ID, APIFY_RESEARCH_STEP_ID } from '../lib/apify-research-runtime'
-import { preparePortfolioDiscoveryMaterial } from '../lib/portfolio-discovery-contract'
+import { acceptDemoPortfolioDiscoverySources, preparePortfolioDiscoveryMaterial } from '../lib/portfolio-discovery-contract'
 import sample from '../agents/apify_link_researcher_o2/SAMPLE.json'
 
 jest.mock('@open-mercato/shared/lib/encryption/find', () => ({ findOneWithDecryption: jest.fn(), findWithDecryption: jest.fn() }))
@@ -18,12 +18,12 @@ jest.mock('@open-mercato/queue', () => ({ createModuleQueue: jest.fn() }))
 jest.mock('../lib/material-store', () => ({ readEvaluationMaterial: jest.fn() }))
 jest.mock('../lib/demo-operation-lock', () => ({ withDemoOperationLock: (_container: unknown, _key: string, action: () => Promise<unknown>) => action() }))
 
-function fixture(diagnostic: string | null = null, biography = 'Kontrolowany opis') {
+function fixture(diagnostic: string | null = null, biography = 'Kontrolowany opis', demo = false, o1Data = sample) {
   const scope = { tenantId: randomUUID(), organizationId: randomUUID() }
   const prepared = { registrationId: randomUUID(), evaluationId: randomUUID(), evaluatedAt: '2026-09-19T12:00:00Z', photographerId: randomUUID(), personId: randomUUID(), dealId: randomUUID(), userId: randomUUID() }
-  const instance = Object.assign(new WorkflowInstance(), { id: randomUUID(), workflowId: 'photographers.hidden_potential', currentStepId: 'o2', status: 'PAUSED', ...scope, context: { o1Preparation: { result: prepared } }, metadata: { initiatedBy: prepared.userId } })
+  const instance = Object.assign(new WorkflowInstance(), { id: randomUUID(), workflowId: demo ? 'photographers.demo-evaluation' : 'photographers.hidden_potential', currentStepId: APIFY_RESEARCH_STEP_ID, status: 'PAUSED', ...scope, context: { o1Preparation: { result: prepared } }, metadata: { initiatedBy: prepared.userId } })
   const completedAt = new Date('2026-09-19T12:01:00Z')
-  const o1Run = { id: randomUUID(), output: { kind: 'research', data: sample }, completedAt }
+  const o1Run = { id: randomUUID(), output: { kind: 'research', data: o1Data }, completedAt }
   const outcome = { kind: 'research', data: { schemaVersion: 1, status: diagnostic ? 'error' : 'partial', results: [{ tool: 'integration_apify.scrape_instagram_profile', url: 'https://www.instagram.com/margografia', confidence: 'confirmed', approvalRequired: true, status: diagnostic ? 'error' : 'partial', actorRunId: diagnostic ? null : 'controlled-actor', observedAt: completedAt.toISOString(), resultJson: JSON.stringify({ status: diagnostic ? 'error' : 'partial', data: diagnostic ? null : { biography, followersCount: 0, verified: false }, unavailableFields: [{ field: 'email', reason: 'not_exposed' }], diagnostics: diagnostic ? [{ code: diagnostic }] : [], sourceUrl: 'https://www.instagram.com/margografia', observedAt: completedAt.toISOString() }), error: null }], skipped: [{ url: 'https://www.facebook.com/margografia/', reason: 'Kontrolowany brak odczytu' }], summary: 'Wynik kontrolowany' } }
   const rows = new Map<string, { id: string; operationId: string; body: string; checksum: string; byteLength: number }>()
   const save = (raw: unknown) => {
@@ -35,9 +35,11 @@ function fixture(diagnostic: string | null = null, biography = 'Kontrolowany opi
     rows.set(id, { id, operationId, ...encoded })
     return id
   }
-  const material = preparePortfolioDiscoveryMaterial(o1Run.output, { evaluationId: prepared.evaluationId, evaluatedAt: prepared.evaluatedAt, observedAt: completedAt.toISOString() }).material
+  let material = preparePortfolioDiscoveryMaterial(o1Run.output, { evaluationId: prepared.evaluationId, evaluatedAt: prepared.evaluatedAt, observedAt: completedAt.toISOString() }).material
+  if (demo) material = acceptDemoPortfolioDiscoverySources(material)
   const owners = { photographerId: prepared.photographerId, personId: prepared.personId, registrationId: prepared.registrationId, dealId: prepared.dealId }
   const tracesRef = save({ operationId: materialOperationId(o1Run.id, 'o1:traces'), snapshot: { ...owners, material } })
+  if (demo) Object.assign(instance.context, { o1Result: { result: { runId: o1Run.id, tracesRef } } })
   jest.mocked(readEvaluationMaterial).mockImplementation(async (id) => {
     const row = rows.get(id)
     if (!row) throw new Error('Missing test material')
@@ -52,10 +54,11 @@ function fixture(diagnostic: string | null = null, biography = 'Kontrolowany opi
   const run = jest.fn().mockImplementation(async () => { persistedRun = { id: randomUUID(), completedAt, status: 'ok', output: outcome }; return outcome })
   const execute = jest.fn().mockImplementation(async (_command: string, options: { input: unknown }) => ({ result: { id: save(options.input) } }))
   const sendSignal = jest.fn()
+  const completeWorkflow = jest.fn()
   const userHasAllFeatures = jest.fn().mockResolvedValue(true)
   const encryptEntityPayload = jest.fn().mockImplementation(async (_entity: string, payload: Record<string, unknown>) => Object.fromEntries(Object.keys(payload).map((key) => [key, 'sealed'])))
   const container = createContainer()
-  container.register({ em: asValue(em), commandBus: asValue({ execute }), rbacService: asValue({ userHasAllFeatures }), tenantEncryptionService: asValue({ isEnabled: () => true, encryptEntityPayload }), agentRuntime: asValue({ run }), workflowExecutor: asValue({ executeWorkflow: jest.fn() }), signalHandler: asValue({ sendSignal }) })
+  container.register({ em: asValue(em), commandBus: asValue({ execute }), rbacService: asValue({ userHasAllFeatures }), tenantEncryptionService: asValue({ isEnabled: () => true, encryptEntityPayload }), agentRuntime: asValue({ run }), workflowExecutor: asValue({ executeWorkflow: jest.fn(), completeWorkflow }), signalHandler: asValue({ sendSignal }) })
   jest.mocked(findOneWithDecryption).mockImplementation(async (_manager, entity, query) => {
     if (entity === WorkflowInstance) return instance as never
     if (entity === AgentRun) return ((query as { id?: string }).id === o1Run.id ? o1Run : persistedRun) as never
@@ -63,9 +66,9 @@ function fixture(diagnostic: string | null = null, biography = 'Kontrolowany opi
     return null
   })
   jest.mocked(findWithDecryption).mockImplementation(async (_manager, entity) => entity === StepInstance ? [Object.assign(new StepInstance(), { id: randomUUID() })] as never : [])
-  const job = { ...scope, workflowInstanceId: instance.id, stepId: 'o2', userId: prepared.userId, o1RunId: o1Run.id, tracesRef }
+  const job = { ...scope, workflowInstanceId: instance.id, stepId: APIFY_RESEARCH_STEP_ID, userId: prepared.userId, o1RunId: o1Run.id, tracesRef }
   const ctx = { container, auth: { sub: prepared.userId, tenantId: scope.tenantId, orgId: scope.organizationId } }
-  return { job, ctx, container, run, execute, outcome, rows, prepared, instance, sendSignal, userHasAllFeatures, encryptEntityPayload, setRun: (value: typeof persistedRun) => { persistedRun = value } }
+  return { job, ctx, container, run, execute, completeWorkflow, outcome, rows, prepared, instance, sendSignal, userHasAllFeatures, encryptEntityPayload, setRun: (value: typeof persistedRun) => { persistedRun = value } }
 }
 
 beforeEach(() => jest.clearAllMocks())
@@ -108,10 +111,13 @@ test('recovers a completed run after material saving fails without rerunning the
 test('never reruns a claimed invocation without a persisted terminal run', async () => {
   const setup = fixture()
   setup.run.mockResolvedValue(undefined)
-  await expect(processApifyResearchJob(setup.job, setup.container)).rejects.toThrow('pending')
-  await expect(processApifyResearchJob(setup.job, setup.container)).rejects.toThrow('pending')
+  const receipt = await processApifyResearchJob(setup.job, setup.container)
+  expect(receipt?.status).toBe('error')
+  expect(await processApifyResearchJob(setup.job, setup.container)).toEqual(receipt)
+  const stored = await readApifyResearchResult(receipt!.researchRef, setup.ctx)
+  expect(stored.payload?.error).toContain('manual reconciliation')
   expect(setup.run).toHaveBeenCalledTimes(1)
-  expect(setup.sendSignal).not.toHaveBeenCalled()
+  expect(setup.sendSignal).toHaveBeenCalled()
 })
 
 test('round trips a multi-part payload without truncating provider resultJson', async () => {
@@ -223,4 +229,88 @@ test('recovers immutable chunks when late trace ingestion changes the payload af
   expect(stored.data.payloadRefs).not.toContain(firstParts[0].id)
   expect(setup.rows.get(firstParts[0].id)?.body).toBe(firstBody)
   expect(setup.run).toHaveBeenCalledTimes(1)
+})
+
+
+test('runs demo O2 only against the committed O1 references', async () => {
+  const setup = fixture(null, 'Kontrolowany opis', true)
+  setup.instance.workflowId = 'photographers.demo-evaluation'
+  Object.assign(setup.instance.context, { o1Result: { result: { runId: setup.job.o1RunId, tracesRef: setup.job.tracesRef } } })
+  expect((await processApifyResearchJob(setup.job, setup.container))?.status).toBe('partial')
+  expect(setup.run).toHaveBeenCalledTimes(1)
+})
+
+test('rejects a demo reference not committed by O1', async () => {
+  const setup = fixture()
+  setup.instance.workflowId = 'photographers.demo-evaluation'
+  Object.assign(setup.instance.context, { o1Result: { result: { runId: randomUUID(), tracesRef: setup.job.tracesRef } } })
+  await processApifyResearchJob(setup.job, setup.container)
+  expect(setup.completeWorkflow).toHaveBeenCalledWith(expect.anything(), setup.container, setup.instance.id, 'FAILED', expect.objectContaining({ failedStepId: APIFY_RESEARCH_STEP_ID }))
+  expect(setup.run).not.toHaveBeenCalled()
+})
+
+test('a failed runtime with a parseable output cannot produce a successful receipt', async () => {
+  const setup = fixture()
+  setup.run.mockImplementation(async () => {
+    setup.setRun({ id: randomUUID(), completedAt: new Date(), status: 'error', output: setup.outcome, errorMessage: 'Controlled failure' })
+  })
+  const receipt = await processApifyResearchJob(setup.job, setup.container)
+  expect(receipt?.status).toBe('error')
+  expect(await processApifyResearchJob(setup.job, setup.container)).toEqual(receipt)
+  expect(setup.run).toHaveBeenCalledTimes(1)
+})
+
+
+test('demo encryption preflight failure is visible as workflow failure without a paid call', async () => {
+  const setup = fixture(null, 'Kontrolowany opis', true)
+  setup.instance.workflowId = 'photographers.demo-evaluation'
+  Object.assign(setup.instance.context, { o1Result: { result: { runId: setup.job.o1RunId, tracesRef: setup.job.tracesRef } } })
+  setup.encryptEntityPayload.mockImplementation(async (_entity: string, payload: Record<string, unknown>) => payload)
+  await processApifyResearchJob(setup.job, setup.container)
+  expect(setup.completeWorkflow).toHaveBeenCalledWith(expect.anything(), setup.container, setup.instance.id, 'FAILED', expect.objectContaining({ failedStepId: APIFY_RESEARCH_STEP_ID }))
+  expect(setup.run).not.toHaveBeenCalled()
+})
+
+
+test.each(['probable', 'unconfirmed'])('demo accepts stored O1 sources while preserving %s confidence in real O2 input', async (confidence) => {
+  const o1Data = { ...sample, links: sample.links.map((link) => ({ ...link, confidence, approvalRequired: true })) }
+  const setup = fixture(null, 'Kontrolowany opis', true, o1Data)
+  const receipt = await processApifyResearchJob(setup.job, setup.container)
+  expect(receipt?.status).toBe('partial')
+  expect(setup.run).toHaveBeenCalledWith(APIFY_RESEARCH_AGENT_ID, { o1: o1Data }, expect.anything())
+  const stored = await readApifyResearchResult(receipt!.researchRef, setup.ctx)
+  expect(stored.payload?.o1).toEqual({ kind: 'research', data: o1Data })
+})
+
+
+test('missing demo audit encryption map fails before an O2 claim or paid invocation', async () => {
+  const setup = fixture(null, 'Kontrolowany opis', true)
+  setup.encryptEntityPayload.mockImplementation(async (entity: string, payload: Record<string, unknown>) => entity === 'audit_logs:action_log' ? payload : Object.fromEntries(Object.keys(payload).map((field) => [field, 'encrypted-value'])))
+  await processApifyResearchJob(setup.job, setup.container)
+  expect(setup.completeWorkflow).toHaveBeenCalledWith(expect.anything(), setup.container, setup.instance.id, 'FAILED', expect.objectContaining({ failedStepId: APIFY_RESEARCH_STEP_ID }))
+  expect(setup.run).not.toHaveBeenCalled()
+  expect(setup.execute).not.toHaveBeenCalled()
+})
+
+test('transient O2 audit encryption backend failures remain retryable', async () => {
+  const setup = fixture(null, 'Kontrolowany opis', true)
+  setup.encryptEntityPayload.mockImplementation(async (entity: string, payload: Record<string, unknown>) => {
+    if (entity === 'audit_logs:action_log') throw new Error('temporary encryption backend interruption')
+    return Object.fromEntries(Object.keys(payload).map((field) => [field, 'encrypted-value']))
+  })
+  await expect(processApifyResearchJob(setup.job, setup.container)).rejects.toThrow('temporary encryption backend interruption')
+  expect(setup.completeWorkflow).not.toHaveBeenCalled()
+  expect(setup.run).not.toHaveBeenCalled()
+})
+
+
+test('disabled encryption fails demo before an encrypted material reader can return 503', async () => {
+  const setup = fixture(null, 'Kontrolowany opis', true)
+  setup.container.register({ tenantEncryptionService: asValue({ isEnabled: () => false, encryptEntityPayload: setup.encryptEntityPayload }) })
+  jest.mocked(readEvaluationMaterial).mockRejectedValue(new Error('material reader 503'))
+  await processApifyResearchJob(setup.job, setup.container)
+  expect(readEvaluationMaterial).not.toHaveBeenCalled()
+  expect(setup.completeWorkflow).toHaveBeenCalledWith(expect.anything(), setup.container, setup.instance.id, 'FAILED', expect.objectContaining({ failedStepId: APIFY_RESEARCH_STEP_ID }))
+  expect(setup.run).not.toHaveBeenCalled()
+  expect(setup.execute).not.toHaveBeenCalled()
 })

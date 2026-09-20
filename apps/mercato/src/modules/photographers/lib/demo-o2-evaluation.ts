@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { CommandBus, CommandRuntimeContext } from '@open-mercato/shared/lib/commands'
 import { factsSnapshotSchema, type EvaluationMaterial } from '../data/evaluation-validators'
 import { materialOwnersSchema } from '../data/material-validators'
+import { readEvaluationMaterial } from './material-store'
 import { calculateEvaluationScore } from './evaluation-scoring'
 import { normalizeDemoO2Facts, DEMO_O1_SOURCE_ASSUMPTION } from './demo-o2-facts'
 import { hiddenPotentialRulesSchema } from './rules-config'
@@ -28,7 +29,12 @@ export async function storeDemoO2Evaluation(rawInput: unknown, outcome: unknown,
   const tracesRef = await save('traces', { kind: 'traces', data: normalized.traces })
   const facts = factsSnapshotSchema.parse({ schemaVersion: 1, evaluationId: input.evaluationId, evaluatedAt: input.evaluatedAt, tracesRef, facts: normalized.facts })
   const factsRef = await save('facts', { kind: 'facts', data: facts })
-  const score = calculateEvaluationScore({ facts, factsRef, rules: input.rulesSnapshot })
+  const savedFacts = await readEvaluationMaterial(factsRef, ctx)
+  if (savedFacts.kind !== 'facts' || savedFacts.evaluationId !== input.evaluationId || savedFacts.data.tracesRef !== tracesRef || savedFacts.data.evaluatedAt !== input.evaluatedAt) throw new Error('[internal] Saved demo facts binding mismatch')
+  for (const field of ['registrationId', 'photographerId', 'personId', 'dealId'] as const) {
+    if (savedFacts[field] !== input.owners[field]) throw new Error('[internal] Saved demo facts owner mismatch')
+  }
+  const score = calculateEvaluationScore({ facts: savedFacts.data, factsRef, rules: input.rulesSnapshot })
   const scoreRef = await save(`score:${score.rulesVersion}`, { kind: 'score', data: score })
   return { tracesRef, factsRef, scoreRef, rulesVersion: score.rulesVersion, reviewRequired: score.flags.length > 0 }
 }

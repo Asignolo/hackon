@@ -96,7 +96,7 @@ test('requires encryption before invoking or exposing registration input', async
   expect(setup.run).not.toHaveBeenCalled()
 })
 
-test.each(['agent_orchestrator:agent_run', 'agent_orchestrator:agent_tool_call', 'photographers:photographer_evaluation_material'])('fails closed when the %s encryption map is absent', async (entityId) => {
+test.each(['agent_orchestrator:agent_run', 'agent_orchestrator:agent_tool_call', 'photographers:photographer_evaluation_material', 'audit_logs:action_log'])('fails closed when the %s encryption map is absent', async (entityId) => {
   const setup = fixture()
   setup.encryptEntityPayload.mockImplementation(async (entity: string, payload: Record<string, unknown>) => entity === entityId ? payload : Object.fromEntries(Object.keys(payload).map((key) => [key, 'encrypted-value'])))
   await expect(processPortfolioDiscoveryJob(setup.job, setup.container)).rejects.toThrow('encryption is unavailable')
@@ -206,4 +206,45 @@ test('a permanently rejected demo result fails the workflow instead of waiting f
   await processPortfolioDiscoveryJob(setup.job, setup.container)
   expect(setup.run).toHaveBeenCalledTimes(1)
   expect(setup.completeWorkflow).toHaveBeenCalledWith(setup.em, setup.container, setup.instance.id, 'FAILED', { failedStepId: 'o1', error: { code: 'photographers.o1.result_rejected' } })
+})
+
+test.each(['encryption', 'permission'])('demo fails visibly when %s is revoked before execution', async (failure) => {
+  const setup = fixture()
+  setup.instance.workflowId = 'photographers.demo-evaluation'
+  setup.instance.context.demo = { ...setup.prepared, requestId: randomUUID(), source: 'registration' }
+  if (failure === 'permission') setup.userHasAllFeatures.mockResolvedValue(false)
+  else setup.encryptEntityPayload.mockImplementation(async (_entity: string, payload: Record<string, unknown>) => payload)
+  await processPortfolioDiscoveryJob(setup.job, setup.container)
+  expect(setup.completeWorkflow).toHaveBeenCalledWith(setup.em, setup.container, setup.instance.id, 'FAILED', { failedStepId: 'o1', error: { code: 'photographers.o1.preflight_rejected' } })
+  expect(setup.run).not.toHaveBeenCalled()
+  expect(setup.sendSignal).not.toHaveBeenCalled()
+})
+
+test('transient demo encryption backend failures remain retryable', async () => {
+  const setup = fixture()
+  setup.instance.workflowId = 'photographers.demo-evaluation'
+  setup.encryptEntityPayload.mockRejectedValue(new Error('temporary database interruption'))
+  await expect(processPortfolioDiscoveryJob(setup.job, setup.container)).rejects.toThrow('temporary database interruption')
+  expect(setup.completeWorkflow).not.toHaveBeenCalled()
+  expect(setup.run).not.toHaveBeenCalled()
+})
+
+test('an actor mismatch cannot mark a demo workflow as failed', async () => {
+  const setup = fixture()
+  setup.instance.workflowId = 'photographers.demo-evaluation'
+  setup.instance.metadata.initiatedBy = randomUUID()
+  setup.userHasAllFeatures.mockResolvedValue(false)
+  await expect(processPortfolioDiscoveryJob(setup.job, setup.container)).rejects.toThrow('actor does not match')
+  expect(setup.completeWorkflow).not.toHaveBeenCalled()
+  expect(setup.run).not.toHaveBeenCalled()
+})
+
+
+test('missing demo audit encryption map fails before the O1 paid invocation', async () => {
+  const setup = fixture()
+  setup.instance.workflowId = 'photographers.demo-evaluation'
+  setup.encryptEntityPayload.mockImplementation(async (entity: string, payload: Record<string, unknown>) => entity === 'audit_logs:action_log' ? payload : Object.fromEntries(Object.keys(payload).map((field) => [field, 'encrypted-value'])))
+  await processPortfolioDiscoveryJob(setup.job, setup.container)
+  expect(setup.completeWorkflow).toHaveBeenCalledWith(setup.em, setup.container, setup.instance.id, 'FAILED', expect.objectContaining({ failedStepId: 'o1' }))
+  expect(setup.run).not.toHaveBeenCalled()
 })

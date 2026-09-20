@@ -127,7 +127,7 @@ test('the job advisory lock never creates an ambient transaction for native comm
 
 test('start recovery reuses the correlated instance without starting or executing a second workflow', async () => {
   const setup = fixture()
-  const existing = { ...setup.instance, version: 2 }
+  const existing = { ...setup.instance, version: 3 }
   jest.mocked(findWithDecryption).mockResolvedValue([existing] as never)
   const executor = { startWorkflow: jest.fn(), executeWorkflow: jest.fn() }
   const result = await startDemoWorkflowOnce(executor as never, setup.container, setup.em as never, { workflowId: DEMO_WORKFLOW_ID, ...setup.scope, correlationKey: setup.instance.correlationKey, initialContext: { demo: setup.prepared } })
@@ -291,7 +291,7 @@ test.each(['approved', 'rejected'] as const)('real signal finalizes %s using the
 
 test.each(['waiting', 'completed', 'failed'] as const)('reports O1 %s separately from the overall evaluation', async (stage) => {
   const setup = fixture()
-  Object.assign(setup.instance, { version: 2, currentStepId: stage === 'completed' ? 'await_o2_integration' : 'o1', status: stage === 'failed' ? 'FAILED' : 'PAUSED' })
+  Object.assign(setup.instance, { version: 3, currentStepId: stage === 'completed' ? 'apify_o2' : 'o1', status: stage === 'failed' ? 'FAILED' : 'PAUSED' })
   if (stage === 'completed') Object.assign(setup.instance.context, { o1Result: { result: { runId: randomUUID(), tracesRef: randomUUID(), status: 'partial' } } })
   setup.container.register({ rbacService: asValue({ userHasAllFeatures: jest.fn(async () => true) }) })
   const ctx = { container: setup.container, auth: { sub: setup.prepared.userId, tenantId: setup.scope.tenantId, orgId: setup.scope.organizationId }, selectedOrganizationId: setup.scope.organizationId, organizationIds: [setup.scope.organizationId], organizationScope: null }
@@ -301,7 +301,7 @@ test.each(['waiting', 'completed', 'failed'] as const)('reports O1 %s separately
 test('a persisted legacy definition cannot silently start synthetic research for a new demo request', async () => {
   const setup = fixture()
   jest.mocked(findWithDecryption).mockResolvedValue([])
-  jest.mocked(getCodeWorkflow).mockReturnValue({ version: 2, definition: { steps: [], transitions: [] } } as never)
+  jest.mocked(getCodeWorkflow).mockReturnValue({ version: 3, definition: { steps: [], transitions: [] } } as never)
   jest.mocked(findWorkflowDefinition).mockResolvedValue({ version: 1, definition: createDemoWorkflowDefinition() } as never)
   const executor = { startWorkflow: jest.fn() }
   await expect(startDemoWorkflowOnce(executor as never, setup.container, setup.em as never, { workflowId: DEMO_WORKFLOW_ID, ...setup.scope, correlationKey: setup.instance.correlationKey, initialContext: { demo: setup.prepared } })).rejects.toThrow('unavailable')
@@ -314,4 +314,29 @@ test('active legacy demo reports unavailable rather than running against the rep
   setup.container.register({ rbacService: asValue({ userHasAllFeatures: jest.fn(async () => true) }) })
   const ctx = { container: setup.container, auth: { sub: setup.prepared.userId, tenantId: setup.scope.tenantId, orgId: setup.scope.organizationId }, selectedOrganizationId: setup.scope.organizationId, organizationIds: [setup.scope.organizationId], organizationScope: null }
   await expect(getPhotographerDemoExecution(setup.prepared.requestId, ctx)).resolves.toMatchObject({ status: 'unavailable' })
+})
+
+test('new demo freezes configured scoring rules once at workflow creation', async () => {
+  const setup = fixture()
+  const { DEFAULT_HIDDEN_POTENTIAL_RULES } = await import('../lib/rules-config')
+  const rules = { ...DEFAULT_HIDDEN_POTENTIAL_RULES, version: 'frozen-test-rules' }
+  setup.container.register({ moduleConfigService: asValue({ getValue: jest.fn(async () => rules) }) })
+  const definition = { steps: [], transitions: [] }
+  jest.mocked(findWithDecryption).mockResolvedValue([])
+  jest.mocked(findWorkflowDefinition).mockResolvedValue({ version: 3, definition } as never)
+  jest.mocked(getCodeWorkflow).mockReturnValue({ version: 3, definition } as never)
+  const executor = { startWorkflow: jest.fn(async () => setup.instance) }
+  await startDemoWorkflowOnce(executor as never, setup.container, setup.em as never, { workflowId: DEMO_WORKFLOW_ID, ...setup.scope, correlationKey: setup.instance.correlationKey, initialContext: { demo: setup.prepared } })
+  expect(executor.startWorkflow).toHaveBeenCalledWith(setup.em, expect.objectContaining({ initialContext: { demo: setup.prepared, demoRules: rules } }))
+})
+
+test('completed v3 demo exposes saved score and never requires a message proposal', async () => {
+  const setup = fixture()
+  const refs = { tracesRef: randomUUID(), factsRef: randomUUID(), scoreRef: randomUUID() }
+  Object.assign(setup.instance, { version: 3, status: 'COMPLETED', currentStepId: 'end' })
+  Object.assign(setup.instance.context, { demoScore: { result: refs } })
+  setup.container.register({ rbacService: asValue({ userHasAllFeatures: jest.fn(async () => true) }) })
+  const ctx = { container: setup.container, auth: { sub: setup.prepared.userId, tenantId: setup.scope.tenantId, orgId: setup.scope.organizationId }, selectedOrganizationId: setup.scope.organizationId, organizationIds: [setup.scope.organizationId], organizationScope: null }
+  await expect(getPhotographerDemoExecution(setup.prepared.requestId, ctx)).resolves.toMatchObject({ status: 'completed', proposalId: null, materialRefs: refs, links: { assessment: expect.stringContaining(setup.prepared.evaluationId) } })
+  expect(readDemoRevocationHistory).not.toHaveBeenCalled()
 })

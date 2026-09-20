@@ -65,3 +65,9 @@ it.each([new ForbiddenError(), new UnauthorizedError()])('maps shared transport 
   jest.mocked(apiCall).mockRejectedValue(error)
   expect(await loadAssessment({ evaluationId, registrationId })).toEqual({ state: 'forbidden' })
 })
+
+ it('maps the saved o2 response into the existing research view', () => {
+  const body = response()
+  body.research = { status: 'partial', summary: 'Saved summary', sources: [{ url: 'https://example.test', status: 'partial', summary: null }] }
+  expect(toAssessmentView(body).researchView).toEqual(body.research)
+})

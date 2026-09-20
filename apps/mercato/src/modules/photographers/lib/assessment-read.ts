@@ -8,6 +8,7 @@ import { WorkflowInstance, StepInstance } from '@open-mercato/core/modules/workf
 import { PhotographerRawData, PhotographerEvaluationMaterial } from '../data/entities'
 import { assessmentInputSchema, assessmentResponseSchema, type AssessmentResponse } from '../data/assessment-validators'
 import { materialResponseSchema } from '../data/material-validators'
+import { readApifyResearchResult } from './apify-research-material'
 import { readEvaluationMaterial } from './material-store'
 import { readRegistrationCrm } from './registration-crm'
 import { requirePhotographerScope } from './scope'
@@ -24,7 +25,7 @@ function object(value: unknown): Record<string, unknown> {
 }
 export function assessmentWorkflowSource(context: Record<string, unknown>, workflowId: string): AssessmentResponse['source'] {
   if (context.source === 'demo_fixture' || object(context.demo).source === 'demo_fixture') return 'demo_fixture'
-  return workflowId === PORTFOLIO_DISCOVERY_WORKFLOW_ID ? 'real' : 'unknown'
+  return [PORTFOLIO_DISCOVERY_WORKFLOW_ID, 'photographers.demo-evaluation'].includes(workflowId) ? 'real' : 'unknown'
 }
 export async function readAssessment(raw: unknown, ctx: CommandRuntimeContext): Promise<AssessmentResponse> {
   const { evaluationId, registrationId } = assessmentInputSchema.parse(raw)
@@ -60,7 +61,7 @@ export async function readAssessment(raw: unknown, ctx: CommandRuntimeContext): 
     owners, source,
     process: { workflowInstanceId: workflow?.id ?? null, status: 'pending', currentStepId: workflow?.currentStepId ?? null, errorCode: null },
     stages: [], materials: { traces: empty(), facts: empty(), score: empty(), summary: empty() },
-    research: { status: 'unavailable', reason: 'contract_pending' },
+    research: { status: 'unavailable', reason: 'not_saved' },
   }
   if (workflows.length > 1) result.process = { ...result.process, status: 'unknown', errorCode: 'ambiguous_workflow' }
   if (workflow) {
@@ -69,8 +70,10 @@ export async function readAssessment(raw: unknown, ctx: CommandRuntimeContext): 
     if (result.process.status === 'failed') result.process.errorCode = 'stage_failed'
   }
   if (source === 'demo_fixture') return assessmentResponseSchema.parse(result)
+  const finalRefs = object(object(workflow?.context.demoScore).result)
   for (const kind of kinds) {
-    const rows = await findWithDecryption(em, PhotographerEvaluationMaterial, { evaluationId, registrationId, kind, ...scope }, { orderBy: { createdAt: 'desc', id: 'desc' }, limit: 1, fields: ['id', 'kind'] }, scope)
+    const finalRef = finalRefs[`${kind}Ref`]
+    const rows = await findWithDecryption(em, PhotographerEvaluationMaterial, { evaluationId, registrationId, kind, ...scope, ...(typeof finalRef === 'string' ? { id: finalRef } : {}) }, { orderBy: { createdAt: 'desc', id: 'desc' }, limit: 1, fields: ['id', 'kind'] }, scope)
     if (!rows.length) continue
     const id = rows[0].id
     try {
@@ -94,6 +97,44 @@ export async function readAssessment(raw: unknown, ctx: CommandRuntimeContext): 
   }
   if (result.materials.score.data && (result.materials.facts.status !== 'available' || result.materials.score.data.factsRef !== result.materials.facts.id)) {
     result.materials.score = { status: 'invalid', id: result.materials.score.id, data: null }
+  }
+  const o1Ref = object(object(workflow?.context.o1Result).result).tracesRef
+  if (typeof o1Ref === 'string') {
+    result.o1 = { status: 'invalid', id: o1Ref, data: null }
+    try {
+      const material = materialResponseSchema.parse(await readEvaluationMaterial(o1Ref, ctx))
+      if (material.kind === 'traces' && material.evaluationId === evaluationId && material.registrationId === registrationId
+        && owners && material.photographerId === owners.photographerId && material.personId === owners.personId && material.dealId === owners.dealId) {
+        result.o1 = { status: 'available', id: o1Ref, data: material.data }
+      }
+    } catch (caught) {
+      if (isCrudHttpError(caught) && [401, 403].includes(caught.status)) throw caught
+      if (!isCrudHttpError(caught) && !(caught instanceof Error && caught.name === 'ZodError')) throw caught
+    }
+  }
+  const researchRows = await findWithDecryption(em, PhotographerEvaluationMaterial, { evaluationId, registrationId, kind: 'apify_research', ...scope, ...(typeof workflow?.context.apifyResearchRef === 'string' ? { id: workflow.context.apifyResearchRef } : {}) }, { orderBy: { createdAt: 'desc', id: 'desc' }, limit: 1, fields: ['id'] }, scope)
+  if (researchRows.length) {
+    try {
+      const research = await readApifyResearchResult(researchRows[0].id, ctx)
+      if (!owners || research.evaluationId !== evaluationId || research.registrationId !== registrationId
+        || research.photographerId !== owners.photographerId || research.personId !== owners.personId || research.dealId !== owners.dealId
+        || !workflow || research.data.workflowInstanceId !== workflow.id) {
+        result.research = { status: 'unavailable', reason: 'binding_mismatch' }
+      } else {
+        const outcome = research.payload?.outcome?.data
+        result.research = {
+          status: research.data.state === 'claimed' ? 'waiting' : research.data.runStatus !== 'ok' || !outcome || ['error', 'invalid_input'].includes(outcome.status) ? 'failed' : outcome.status === 'complete' ? 'completed' : 'partial',
+          summary: outcome?.summary ?? null,
+          sources: outcome ? [
+            ...outcome.results.map((entry) => ({ url: entry.url, status: entry.status === 'complete' ? 'ok' as const : entry.status === 'no_data' ? 'empty' as const : entry.status, summary: entry.error })),
+            ...outcome.skipped.filter((entry) => entry.url !== null).map((entry) => ({ url: entry.url!, status: 'unavailable' as const, summary: entry.reason })),
+          ] : [],
+        }
+      }
+    } catch (caught) {
+      if (isCrudHttpError(caught) && [401, 403].includes(caught.status)) throw caught
+      result.research = { status: 'unavailable', reason: 'invalid_material' }
+    }
   }
   result.stages = result.materials.summary.data?.steps.map(({ stepId, status }) => ({ stepId, status })) ?? []
   if (workflow) {

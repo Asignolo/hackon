@@ -25,7 +25,7 @@ test('TC-PHOTOGRAPHERS-027: scoped pending assessment, read-only page and forbid
     const data = assessmentResponseSchema.parse(await readJsonSafe(response))
     expect(data.process.status).toBe('pending')
     expect(data.materials.score).toMatchObject({ status: 'missing', data: null })
-    expect(data.research).toEqual({ status: 'unavailable', reason: 'contract_pending' })
+    expect(data.research).toEqual({ status: 'unavailable', reason: 'not_saved' })
     const wrongRegistration = await apiRequest(request, 'GET', `/api/photographers/assessments/${evaluationId}?registrationId=${randomUUID()}`, { token: fixture.token })
     expect(wrongRegistration.status()).toBe(404)
     await page.context().addCookies([

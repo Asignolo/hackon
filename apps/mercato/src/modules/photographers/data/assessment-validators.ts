@@ -16,6 +16,12 @@ export const assessmentResponseSchema = z.object({
   process: z.object({ workflowInstanceId: uuid.nullable(), status: z.enum(['pending', 'running', 'partial', 'completed', 'failed', 'unknown']), currentStepId: z.string().nullable(), errorCode: z.string().nullable() }),
   stages: z.array(z.object({ stepId: z.string(), status: z.enum(['done', 'partial', 'unavailable', 'waiting', 'rejected']) })),
   materials: z.object({ traces: slot(tracesSnapshotSchema), facts: slot(factsSnapshotSchema), score: slot(scoreSnapshotSchema), summary: slot(evaluationSummarySchema) }),
-  research: z.object({ status: z.literal('unavailable'), reason: z.literal('contract_pending') }),
+  o1: slot(tracesSnapshotSchema).optional(),
+  research: z.object({
+    status: z.enum(['waiting', 'partial', 'completed', 'failed', 'unavailable']),
+    reason: z.string().optional(),
+    summary: z.string().nullable().optional(),
+    sources: z.array(z.object({ url: z.string(), status: z.enum(['ok', 'partial', 'empty', 'unavailable', 'blocked', 'timeout', 'error']), summary: z.string().nullable() })).optional(),
+  }),
 })
 export type AssessmentResponse = z.infer<typeof assessmentResponseSchema>

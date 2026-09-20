@@ -1,6 +1,6 @@
 # Photographers: trwały adapter istniejącego Apify O2
 
-Status: implemented slice; integration pending. Rozszerza
+Status: integrated with demo workflow v3. Rozszerza
 [spec MVP](2026-09-19-photographer-hidden-potential-mvp.md).
 
 ## Cel i granice
@@ -27,7 +27,7 @@ pozostają zachowane; części zapewniają zapis powyżej limitu jednego materia
 
 Blokada zakresowana organizacją i tracesRef + trwały claim przed runtime + stabilne
 invocationId + unikalność run frameworka. Powtórzenie odczytuje run lub manifest.
-Niejednoznaczne przerwanie pozostaje pending i nigdy nie uruchamia nowego run.
+Niejednoznaczne przerwanie zapisuje błąd wymagający ręcznego wyjaśnienia i nigdy nie uruchamia nowego run.
 Błąd terminalny zachowuje surowe wyjście i ślady; nie fabrykuje OUTCOME.
 Brak konfiguracji i limit budżetu są diagnostykami obecnego narzędzia.
 Szczegóły odzyskiwania i ograniczenia śladów: dokument przekazania.

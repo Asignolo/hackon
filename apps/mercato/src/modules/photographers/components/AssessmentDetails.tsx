@@ -64,7 +64,8 @@ export function ResearchDetails({ research }: { research: ResearchView }) {
 export default function AssessmentDetails({ assessment }: { assessment: AssessmentView }) {
   const t = useT()
   const { registration, owners, process, materials } = assessment
-  const traces = materials.traces.status === 'available' ? materials.traces.data : null
+  const discovery = assessment.o1 ?? materials.traces
+  const traces = discovery.status === 'available' ? discovery.data : null
   const facts = materials.facts.status === 'available' ? materials.facts.data : null
   const score = materials.score.status === 'available' ? materials.score.data : null
   const showMaterials = assessment.source !== 'demo_fixture'
@@ -105,7 +106,7 @@ export default function AssessmentDetails({ assessment }: { assessment: Assessme
               <dd><Source value={trace.value} /></dd>
               {trace.provenance.map((source, index) => <dd key={index} className="space-y-1 text-sm text-muted-foreground"><p className="break-words">{source.value}</p><Source value={source.sourceRef} /><p>{new Date(source.observedAt).toLocaleString()}</p></dd>)}
             </div>)}</dl>
-          </> : <Missing status={materials.traces.status} />}
+          </> : <Missing status={discovery.status} />}
         </Section>
         <ResearchDetails research={assessment.researchView} />
       </div>

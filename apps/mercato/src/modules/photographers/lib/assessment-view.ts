@@ -13,7 +13,7 @@ export type AssessmentView = AssessmentResponse & { researchView: ResearchView }
 export type AssessmentLoadResult = { state: 'ready'; data: AssessmentView } | { state: 'forbidden' | 'notFound' | 'failed' | 'invalid' }
 
 export function toAssessmentView(response: AssessmentResponse): AssessmentView {
-  return { ...response, researchView: { status: 'unavailable', summary: null, sources: [] } }
+  return { ...response, researchView: { status: response.research.status, summary: response.research.summary ?? null, sources: response.research.sources ?? [] } }
 }
 
 export async function loadAssessment(input: unknown, signal?: AbortSignal): Promise<AssessmentLoadResult> {

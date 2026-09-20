@@ -23,6 +23,8 @@ import { materialOperationId } from './material-codec'
 import { DEMO_REVIEW_SIGNAL, DEMO_REVIEW_STEP, DEMO_WORKFLOW_ID, DEMO_WORKFLOW_QUEUE } from './demo-workflow'
 import { demoExecutionSchema } from '../data/demo-api-validators'
 import { z } from 'zod'
+import type { ModuleConfigService } from '@open-mercato/core/modules/configs/lib/module-config-service'
+import { loadHiddenPotentialRules } from './rules-config'
 import { messageReviewEnvelopeSchema } from '../data/proposal-review-validators'
 import { withDemoOperationLock as operationLock } from './demo-operation-lock'
 
@@ -48,7 +50,7 @@ async function authorize(ctx: CommandRuntimeContext, write = false) {
 export async function assertPhotographerDemoAvailable(ctx: CommandRuntimeContext) {
   const scope = await authorize(ctx, true)
   if (!getCodeWorkflow(DEMO_WORKFLOW_ID)?.enabled) return demoError(503, 'unavailable')
-  for (const key of ['workflowExecutor', 'signalHandler', 'workflowFunction:photographers.o1.prepare', 'workflowFunction:photographers.o1.dispatch', 'workflowFunction:photographers.o1.store_result', 'agentRuntime', 'commandBus', 'schedulerService', 'dispositionService', 'guardrailService']) {
+  for (const key of ['workflowExecutor', 'signalHandler', 'workflowFunction:photographers.o1.prepare', 'workflowFunction:photographers.o1.dispatch', 'workflowFunction:photographers.o1.store_result', 'workflowFunction:photographers.apify_o2.dispatch', 'workflowFunction:photographers.demo.score', 'agentRuntime', 'commandBus', 'schedulerService', 'dispositionService', 'guardrailService']) {
     if (!ctx.container.hasRegistration(key)) return demoError(503, 'unavailable')
   }
   for (const id of ['agent_orchestrator.processes.startExecution', 'agent_orchestrator.runs.create', 'agent_orchestrator.proposals.create']) {
@@ -77,7 +79,7 @@ export async function startDemoWorkflowOnce(executor: Executor, container: Awili
   return em.fork().transactional(async (transaction) => {
     await transaction.getConnection().execute('select pg_advisory_xact_lock(hashtextextended(?, 0))', [`photographers:demo:start:${scope.tenantId}:${scope.organizationId}:${options.correlationKey}`], 'all', transaction.getTransactionContext())
     const existing = await findWithDecryption(transaction, WorkflowInstance, { ...scope, workflowId: DEMO_WORKFLOW_ID, correlationKey: options.correlationKey }, { limit: 2 }, scope)
-    if (existing.length > 1 || (existing[0] && existing[0].version !== 2)) return demoError(409, 'invalid_execution')
+    if (existing.length > 1 || (existing[0] && existing[0].version !== 3)) return demoError(409, 'invalid_execution')
     if (existing[0]) {
       const prepared = preparedPhotographerDemoSchema.parse(options.initialContext?.demo)
       if (preparedPhotographerDemoSchema.parse(existing[0].context.demo).requestId !== prepared.requestId) return demoError(409, 'invalid_execution')
@@ -85,8 +87,9 @@ export async function startDemoWorkflowOnce(executor: Executor, container: Awili
     }
     const selected = await findWorkflowDefinition(transaction, { workflowId: DEMO_WORKFLOW_ID, ...scope })
     const expected = getCodeWorkflow(DEMO_WORKFLOW_ID)
-    if (!selected || selected.version !== 2 || JSON.stringify(selected.definition) !== JSON.stringify(expected?.definition)) return demoError(409, 'unavailable')
-    return executor.startWorkflow(transaction, options)
+    if (!selected || selected.version !== 3 || JSON.stringify(selected.definition) !== JSON.stringify(expected?.definition)) return demoError(409, 'unavailable')
+    const rulesSnapshot = await loadHiddenPotentialRules(container.resolve<ModuleConfigService>('moduleConfigService'), scope)
+    return executor.startWorkflow(transaction, { ...options, initialContext: { ...options.initialContext, demoRules: rulesSnapshot } })
   })
 }
 
@@ -175,7 +178,7 @@ export async function getPhotographerDemoExecution(requestId: string, ctx: Comma
       : state === 'CANCELLED' || execution.status === 'cancelled' ? 'cancelled'
         : state === 'PAUSED' && instance?.currentStepId === DEMO_REVIEW_STEP && proposal?.disposition === 'pending' ? 'awaiting_review'
           : instance ? 'running' : 'starting'
-  if (status === 'completed' || status === 'rejected') {
+  if (instance?.version !== 3 && (status === 'completed' || status === 'rejected')) {
     try {
       if (!proposal) return demoError(409, 'invalid_execution')
       const { readDemoRevocationHistory } = await import('./demo-workflow-history')
@@ -201,19 +204,21 @@ export async function getPhotographerDemoExecution(requestId: string, ctx: Comma
       else throw error
     }
   }
-  if (instance?.version === 1 && !['COMPLETED', 'FAILED', 'CANCELLED'].includes(instance.status)) status = 'unavailable'
+  if (instance && instance.version < 3 && !['COMPLETED', 'FAILED', 'CANCELLED'].includes(instance.status)) status = 'unavailable'
   const o1Result = z.object({ result: z.object({ runId: z.string().uuid(), tracesRef: z.string().uuid() }) }).safeParse(instance?.context.o1Result)
   const o1Run = runs.find((run) => run.stepId === 'o1')
-  const o1 = instance?.version === 2 ? {
+  const o1 = instance && instance.version >= 2 ? {
     status: o1Result.success ? 'completed' : status === 'failed' ? 'failed' : 'waiting',
     ...(o1Result.success ? o1Result.data.result : o1Run ? { runId: o1Run.id } : {}),
     nextStage: 'o2', sourcesAccepted: true,
   } : undefined
+  const savedScore = z.object({ result: z.object({ tracesRef: z.string().uuid(), factsRef: z.string().uuid(), scoreRef: z.string().uuid() }) }).safeParse(instance?.context.demoScore)
+  if (instance?.version === 3 && status === 'completed' && !savedScore.success) status = 'failed'
   return demoExecutionSchema.parse({
     requestId, executionId: execution.id, workflowInstanceId: instance?.id ?? null, status, o1,
     registrationId: prepared.registrationId, photographerId: prepared.photographerId, personId: prepared.personId, dealId: prepared.dealId, evaluationId: prepared.evaluationId,
-    runIds: runs.map((run) => run.id), proposalId: proposal?.id ?? null, materialRefs: payload ? { factsRef: payload.factsRef, messageSnapshotId: payload.messageSnapshotId } : (o1Result.success ? { tracesRef: o1Result.data.result.tracesRef } : {}),
-    links: { person: `/backend/customers/people/${prepared.photographerId}`, deal: `/backend/customers/deals/${prepared.dealId}`, execution: `/backend/processes/${execution.id}`, ...(instance ? { workflow: `/backend/instances/${instance.id}` } : {}), ...(proposal ? { proposal: `/backend/caseload/${proposal.id}` } : {}) },
+    runIds: runs.map((run) => run.id), proposalId: proposal?.id ?? null, materialRefs: savedScore.success ? savedScore.data.result : payload ? { factsRef: payload.factsRef, messageSnapshotId: payload.messageSnapshotId } : (o1Result.success ? { tracesRef: o1Result.data.result.tracesRef } : {}),
+    links: { assessment: `/backend/photographers/assessment?evaluationId=${prepared.evaluationId}&registrationId=${prepared.registrationId}`, person: `/backend/customers/people/${prepared.photographerId}`, deal: `/backend/customers/deals/${prepared.dealId}`, execution: `/backend/processes/${execution.id}`, ...(instance ? { workflow: `/backend/instances/${instance.id}` } : {}), ...(proposal ? { proposal: `/backend/caseload/${proposal.id}` } : {}) },
   })
 }
 
@@ -325,7 +330,7 @@ async function processExecution(executionId: string, scope: Scope, container: Aw
   }
   let instance = await findOneWithDecryption(em, WorkflowInstance, { id: execution.workflowInstanceId, workflowId: DEMO_WORKFLOW_ID, ...scope }, {}, scope)
   if (!instance || ['COMPLETED', 'FAILED', 'CANCELLED'].includes(instance.status)) return
-  if (instance.version === 1) return
+  if (instance.version < 3) return
   if (instance.status === 'RUNNING' || instance.status === 'FORKED') {
     await container.resolve<Executor>('workflowExecutor').executeWorkflow(em.fork(), container, instance.id, { userId: prepared.userId })
     instance = await findOneWithDecryption(em.fork(), WorkflowInstance, { id: instance.id, ...scope }, {}, scope)
@@ -337,7 +342,16 @@ async function processExecution(executionId: string, scope: Scope, container: Aw
     await processPortfolioDiscoveryJob({ workflowInstanceId: instance.id, ...scope }, container)
     return
   }
-  if (instance.version === 2) return
+  if (instance.version === 3) {
+    if (instance.currentStepId === 'apify_o2' && instance.status === 'PAUSED') {
+      const { processApifyResearchJob } = await import('./apify-research-runtime')
+      const prepared = await trustedPrepared(instance, container)
+      const committed = z.object({ result: z.object({ runId: z.string().uuid(), tracesRef: z.string().uuid() }) }).parse(instance.context.o1Result).result
+      await processApifyResearchJob({ workflowInstanceId: instance.id, stepId: 'apify_o2', userId: prepared.userId,
+        o1RunId: committed.runId, tracesRef: committed.tracesRef, ...scope }, container)
+    }
+    return
+  }
   const publication = await import('./demo-proposal-publication')
   if (instance.status === 'FORKED') {
     const branches = await findWithDecryption(em.fork(), WorkflowBranchInstance, { workflowInstanceId: instance.id, ...scope }, {}, scope)
@@ -368,7 +382,7 @@ async function processDisposition(proposalId: string, scope: Scope, container: A
   if (!proposal?.workflowInstanceId || !['approved', 'edited', 'rejected'].includes(proposal.disposition)) return
   const instance = await findOneWithDecryption(em, WorkflowInstance, { id: proposal.workflowInstanceId, workflowId: DEMO_WORKFLOW_ID, ...scope }, {}, scope)
   if (!instance || ['COMPLETED', 'FAILED', 'CANCELLED'].includes(instance.status)) return
-  if (instance.version === 1) return
+  if (instance.version < 3) return
   if (instance.status === 'RUNNING') {
     await container.resolve<Executor>('workflowExecutor').executeWorkflow(em.fork(), container, instance.id)
     return

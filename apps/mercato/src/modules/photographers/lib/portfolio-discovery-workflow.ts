@@ -12,7 +12,7 @@ import { PhotographerRawData } from '../data/entities'
 import { portfolioDiscoveryInputSchema } from '../data/portfolio-discovery-validators'
 import { materialOperationId } from './material-codec'
 import { readPortfolioDiscoveryReferences } from '../data/portfolio-discovery-workflow-validators'
-import { preparePortfolioDiscoveryInput, preparePortfolioDiscoveryMaterial, PORTFOLIO_DISCOVERY_AGENT_ID, PORTFOLIO_DISCOVERY_STEP_ID, PORTFOLIO_DISCOVERY_WORKFLOW_ID } from './portfolio-discovery-contract'
+import { acceptDemoPortfolioDiscoverySources, preparePortfolioDiscoveryInput, preparePortfolioDiscoveryMaterial, PORTFOLIO_DISCOVERY_AGENT_ID, PORTFOLIO_DISCOVERY_STEP_ID, PORTFOLIO_DISCOVERY_WORKFLOW_ID } from './portfolio-discovery-contract'
 
 const argumentsSchema = z.object({ runId: z.string().uuid() }).strict()
 
@@ -52,7 +52,7 @@ export async function storePortfolioDiscoveryWorkflowResult(raw: unknown, contex
     observedAt: run.completedAt.toISOString(),
   })
   if (instance.workflowId === DEMO_WORKFLOW_ID) {
-    prepared.material.data.traces = prepared.material.data.traces.map((trace) => ({ ...trace, status: 'confirmed' as const }))
+    prepared.material = acceptDemoPortfolioDiscoverySources(prepared.material)
   }
   const ctx: CommandRuntimeContext = {
     container, auth: { sub: userId, tenantId: scope.tenantId, orgId: scope.organizationId },

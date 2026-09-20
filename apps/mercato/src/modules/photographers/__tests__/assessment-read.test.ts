@@ -21,6 +21,7 @@ const timestamp = '2026-09-19T10:00:00.000Z'
 const scope = { tenantId: evaluationId, organizationId: registrationId }
 let allowed = true
 let workflow: Record<string, unknown> | null
+let researchExists = false
 let traceExists = false
 let factsExist = false
 let scoreExists = false
@@ -33,7 +34,7 @@ function context(): CommandRuntimeContext {
   return { container, auth: { sub: ownerId, tenantId: scope.tenantId, orgId: scope.organizationId }, selectedOrganizationId: scope.organizationId, organizationIds: [scope.organizationId], organizationScope: null }
 }
 beforeEach(() => {
-  jest.clearAllMocks(); allowed = true; workflow = null; traceExists = false; factsExist = false; scoreExists = false; summaryExists = false; duplicateWorkflow = false; steps = []
+  jest.clearAllMocks(); researchExists = false; allowed = true; workflow = null; traceExists = false; factsExist = false; scoreExists = false; summaryExists = false; duplicateWorkflow = false; steps = []
   jest.mocked(findOneWithDecryption).mockResolvedValue({ id: registrationId, firstName: 'Test', lastName: 'Person', email: 'test@example.test', portfolioRaw: 'https://example.test', submittedAt: new Date(timestamp), updatedAt: new Date(timestamp) } as never)
   jest.mocked(readRegistrationCrm).mockResolvedValue({ registrationId, status: 'ready', photographerId: ownerId, personId: ownerId, dealId: ownerId, links: { person: '/person', deal: '/deal' } })
   jest.mocked(findWithDecryption).mockImplementation(async (_em, entity, filter) => {
@@ -41,6 +42,7 @@ beforeEach(() => {
     if (entity === WorkflowInstance) return (workflow ? duplicateWorkflow ? [workflow, workflow] : [workflow] : []) as never
     if (entity === StepInstance) { expect(filter).toEqual(expect.objectContaining({ workflowInstanceId: workflowId })); return steps as never }
     expect(filter).toEqual(expect.objectContaining({ evaluationId, registrationId }))
+    if ((filter as Record<string, unknown>).kind === 'apify_research' && researchExists) return [{ id: workflowId }] as never
     if ((filter as Record<string, unknown>).kind === 'summary' && summaryExists) return [{ id: ownerId }] as never
     if ((filter as Record<string, unknown>).kind === 'facts' && factsExist) return [{ id: registrationId }] as never
     if ((filter as Record<string, unknown>).kind === 'score' && scoreExists) return [{ id: evaluationId }] as never
@@ -61,7 +63,7 @@ test('reads partial saved results and preserves real workflow binding', async ()
   const result = await readAssessment({ evaluationId, registrationId }, context())
   expect(result.process.status).toBe('partial'); expect(result.source).toBe('real')
   expect(result.materials.traces.data?.discoveryStatus).toBe('partial')
-  expect(result.research).toEqual({ status: 'unavailable', reason: 'contract_pending' })
+  expect(result.research).toEqual({ status: 'unavailable', reason: 'not_saved' })
 })
 test.each(['COMPLETED', 'FAILED', 'CANCELLED'])('uses durable workflow %s status', async (status) => {
   workflow = boundWorkflow(status); traceExists = true
@@ -136,4 +138,45 @@ test('actual failed attempt overrides stale completed summary step', async () =>
   const result = await readAssessment({ evaluationId, registrationId }, context())
   expect(result.materials.summary.status).toBe('available')
   expect(result.stages).toEqual([{ stepId: 'o2', status: 'unavailable' }])
+})
+
+function storedResearch(status: 'complete' | 'partial' | 'error', photographerId = ownerId) {
+  researchExists = true
+  const payload = { outcome: { kind: 'research', data: { schemaVersion: 1, status, summary: 'Saved external outcome', results: [{ tool: 'integration_apify.scrape_instagram_profile', url: 'https://instagram.com/photo', confidence: 'confirmed', approvalRequired: false, status, actorRunId: 'actor-run', observedAt: timestamp, resultJson: '{}', error: status === 'error' ? 'not_configured' : null }], skipped: [] } }, rawOutput: null, o1: null, error: null, toolCalls: [] }
+  jest.mocked(readEvaluationMaterial).mockImplementation(async (id) => ({
+    id, evaluationId, registrationId, photographerId, personId: ownerId, dealId: ownerId, schemaVersion: 1, updatedAt: timestamp,
+    ...(id === workflowId ? { kind: 'apify_research' as const, data: { schemaVersion: 1 as const, evaluationId, evaluatedAt: timestamp, o1RunId: ownerId, tracesRef: materialId, workflowInstanceId: workflowId, stepId: 'apify_o2', invocationId: ownerId, userId: ownerId, state: 'finished' as const, runId: ownerId, runStatus: 'ok', outcomeStatus: status, payloadRefs: [materialId] } }
+      : { kind: 'apify_research_part' as const, data: { schemaVersion: 1 as const, evaluationId, evaluatedAt: timestamp, invocationId: ownerId, index: 0, content: JSON.stringify(payload) } }),
+  }))
+}
+test.each([['complete', 'completed'], ['partial', 'partial'], ['error', 'failed']] as const)('reads saved %s o2 manifest and payload parts', async (outcomeStatus, viewStatus) => {
+  workflow = { ...boundWorkflow('PAUSED'), workflowId: 'photographers.demo-evaluation' }
+  storedResearch(outcomeStatus)
+  const result = await readAssessment({ evaluationId, registrationId }, context())
+  expect(result.source).toBe('real')
+  expect(result.research).toMatchObject({ status: viewStatus, summary: 'Saved external outcome', sources: [{ url: 'https://instagram.com/photo' }] })
+  expect(readEvaluationMaterial).toHaveBeenCalledWith(workflowId, expect.anything())
+  expect(readEvaluationMaterial).toHaveBeenCalledWith(materialId, expect.anything())
+})
+test('never exposes saved research for a different photographer', async () => {
+  workflow = boundWorkflow('PAUSED')
+  storedResearch('partial', registrationId)
+  expect((await readAssessment({ evaluationId, registrationId }, context())).research).toEqual({ status: 'unavailable', reason: 'binding_mismatch' })
+})
+
+test('keeps original o1 sources separately from final scoring traces', async () => {
+  workflow = { ...boundWorkflow('COMPLETED'), context: { evaluationId, registrationId, o1Result: { result: { tracesRef: materialId } }, demoScore: { result: { tracesRef: ownerId } } } }
+  const result = await readAssessment({ evaluationId, registrationId }, context())
+  expect(result.o1).toMatchObject({ status: 'available', id: materialId })
+  expect(result.materials.traces.status).toBe('missing')
+})
+test('failed runtime cannot present a valid outcome as successful research', async () => {
+  workflow = boundWorkflow('FAILED')
+  storedResearch('complete')
+  const read = jest.mocked(readEvaluationMaterial).getMockImplementation()!
+  jest.mocked(readEvaluationMaterial).mockImplementation(async (id, ctx) => {
+    const material = await read(id, ctx)
+    return material.kind === 'apify_research' ? { ...material, data: { ...material.data, runStatus: 'error' } } : material
+  })
+  expect((await readAssessment({ evaluationId, registrationId }, context())).research.status).toBe('failed')
 })

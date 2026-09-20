@@ -36,7 +36,10 @@ export function createDemoWorkflowDefinition(): CodeWorkflowDefinitionData {
       { stepId: 'start', stepName: english['photographers.demo.o1.start'], stepType: 'START' },
       { stepId: 'prepare', stepName: english['photographers.demo.o1.prepare'], stepType: 'AUTOMATED' },
       { stepId: 'o1', stepName: english['photographers.demo.o1.research'], stepType: 'WAIT_FOR_SIGNAL', signalConfig: { signalName: 'photographers.o1.ready' } },
-      { stepId: DEMO_O1_BOUNDARY_STEP, stepName: english['photographers.demo.o1.boundary'], stepType: 'WAIT_FOR_SIGNAL', signalConfig: { signalName: 'photographers.demo.o2.integration.ready' } },
+      { stepId: 'prepare_o2', stepName: english['photographers.demo.o1.boundary'], stepType: 'AUTOMATED' },
+      { stepId: 'apify_o2', stepName: english['photographers.demo.o2.research'], stepType: 'WAIT_FOR_SIGNAL', signalConfig: { signalName: 'photographers.apify_o2.ready' } },
+      { stepId: 'normalize', stepName: english['photographers.assessment.facts'], stepType: 'AUTOMATED' },
+      { stepId: 'end', stepName: english['photographers.assessment.score'], stepType: 'END' },
     ],
     transitions: [
       { transitionId: 'start_prepare', fromStepId: 'start', toStepId: 'prepare', trigger: 'auto', activities: [
@@ -45,8 +48,15 @@ export function createDemoWorkflowDefinition(): CodeWorkflowDefinitionData {
       { transitionId: 'prepare_o1', fromStepId: 'prepare', toStepId: 'o1', trigger: 'auto', activities: [
         { activityId: 'dispatch_o1', activityName: 'o1Dispatch', activityType: 'EXECUTE_FUNCTION', async: false, config: { functionName: 'photographers.o1.dispatch', args: {} } },
       ] },
-      { transitionId: 'o1_boundary', fromStepId: 'o1', toStepId: DEMO_O1_BOUNDARY_STEP, trigger: 'auto', activities: [
+      { transitionId: 'o1_boundary', fromStepId: 'o1', toStepId: 'prepare_o2', trigger: 'auto', activities: [
         { activityId: 'store_o1_result', activityName: 'o1Result', activityType: 'EXECUTE_FUNCTION', async: false, config: { functionName: 'photographers.o1.store_result', args: { runId: '{{context.o1RunId}}' } } },
+      ] },
+      { transitionId: 'dispatch_o2', fromStepId: 'prepare_o2', toStepId: 'apify_o2', trigger: 'auto', activities: [
+        { activityId: 'dispatch_apify_o2', activityName: 'apifyDispatch', activityType: 'EXECUTE_FUNCTION', async: false, config: { functionName: 'photographers.apify_o2.dispatch', args: { o1RunId: '{{context.o1Result.result.runId}}', tracesRef: '{{context.o1Result.result.tracesRef}}' } } },
+      ] },
+      { transitionId: 'o2_normalize', fromStepId: 'apify_o2', toStepId: 'normalize', trigger: 'auto' },
+      { transitionId: 'score_end', fromStepId: 'normalize', toStepId: 'end', trigger: 'auto', activities: [
+        { activityId: 'store_demo_score', activityName: 'demoScore', activityType: 'EXECUTE_FUNCTION', async: false, config: { functionName: 'photographers.demo.score', args: { apifyResearchRef: '{{context.apifyResearchRef}}' } } },
       ] },
     ],
   }

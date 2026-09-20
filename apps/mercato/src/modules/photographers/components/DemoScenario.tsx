@@ -119,8 +119,10 @@ function ScopedDemoScenario() {
   return <div className="mx-auto max-w-3xl space-y-6">
     <FormHeader mode="detail" title={t('photographers.demo.title')} subtitle={t('photographers.demo.o1.scope')} />
     <Alert status="information"><AlertTitle>{t('photographers.demo.o1.research')}</AlertTitle><AlertDescription>{t('photographers.demo.o1.scope')}</AlertDescription></Alert>
-    <StepIndicator steps={execution?.o1 || registrationId ? [{ id: 'o1', label: t('photographers.demo.o1.research'), status: execution?.o1?.status === 'completed' ? 'complete' : execution?.o1?.status === 'failed' ? 'error' : 'current' }, { id: 'o2', label: t('photographers.demo.o1.boundary'), status: 'pending' }] : steps} orientation="vertical" />
-    {execution?.o1?.status === 'completed' ? <Alert status="information"><AlertTitle>{t('photographers.demo.o1.boundary')}</AlertTitle><AlertDescription>{t('photographers.demo.o1.scope')}</AlertDescription></Alert> : null}
+    <StepIndicator steps={execution?.o1 || registrationId ? [
+      { id: 'o1', label: t('photographers.demo.o1.research'), status: execution?.o1?.status === 'completed' ? 'complete' : execution?.o1?.status === 'failed' ? 'error' : 'current' },
+      { id: 'assessment', label: t('photographers.demo.o1.boundary'), status: status === 'completed' ? 'complete' : status === 'failed' ? 'error' : execution?.o1?.status === 'completed' ? 'current' : 'pending' },
+    ] : steps} orientation="vertical" />
     {error ? <ErrorMessage label={error} /> : null}
     {busy || (requestId && !execution && !error) ? <LoadingMessage label={t('photographers.demo.loading')} /> : null}
     {status ? <Alert status={status === 'failed' || status === 'unavailable' ? 'error' : status === 'completed' || status === 'rejected' ? 'success' : 'information'}>
@@ -129,6 +131,7 @@ function ScopedDemoScenario() {
     </Alert> : null}
     <div className="flex flex-wrap gap-3">
       {!execution ? <Button type="button" disabled={busy || !ready} onClick={() => void startOrResume(false)}>{t(requestId ? 'photographers.demo.retry_start' : registrationId ? 'photographers.demo.o1.startRegistration' : 'photographers.demo.start')}</Button> : null}
+      {execution ? <Button type="button" asChild><Link href={`/backend/photographers/assessment?evaluationId=${execution.evaluationId}&registrationId=${execution.registrationId}`}>{t('photographers.demo.open_assessment')}</Link></Button> : null}
       {execution?.links.proposal ? <Button type="button" asChild><Link href={execution.links.proposal}>{t('photographers.demo.open_review')}</Link></Button> : null}
       {execution ? <Button type="button" variant="outline" disabled={busy} onClick={() => void refresh()}>{t('photographers.demo.refresh')}</Button> : null}
       {execution && !terminal ? <Button type="button" variant="outline" disabled={busy} onClick={() => void startOrResume(true)}>{t('photographers.demo.resume')}</Button> : null}

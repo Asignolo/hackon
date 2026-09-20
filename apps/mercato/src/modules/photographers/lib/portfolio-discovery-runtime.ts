@@ -42,6 +42,7 @@ async function requireDiscoveryEncryption(container: AwilixContainer, scope: Sco
     'agent_orchestrator:agent_run': ['input', 'output'],
     'agent_orchestrator:agent_tool_call': ['request_summary', 'response_summary'],
     'photographers:photographer_evaluation_material': ['body'],
+    'audit_logs:action_log': ['command_payload', 'snapshot_before', 'snapshot_after', 'changes_json', 'context_json'],
   })) {
     const probe = Object.fromEntries(fields.map((field) => [field, 'o1-encryption-probe']))
     const encrypted = await encryption.encryptEntityPayload(entityId, probe, scope.tenantId, scope.organizationId)
@@ -121,73 +122,83 @@ export async function processPortfolioDiscoveryJob(raw: unknown, container: Awil
     let instance = await findOneWithDecryption(em, WorkflowInstance, { id: workflowInstanceId, workflowId: { $in: [PORTFOLIO_DISCOVERY_WORKFLOW_ID, DEMO_WORKFLOW_ID] }, ...scope }, {}, scope)
     if (!instance || ['COMPLETED', 'FAILED', 'CANCELLED'].includes(instance.status)) return
     const { result: prepared } = preparationReceiptSchema.parse(instance.context.o1Preparation)
-    await authorize(container, scope, prepared.userId)
     if (instance.metadata?.initiatedBy !== prepared.userId) throw new Error('[internal] O1 execution actor does not match')
-    if (instance.status === 'RUNNING') {
-      await container.resolve<typeof WorkflowExecutor>('workflowExecutor').executeWorkflow(em.fork(), container, instance.id, { userId: prepared.userId })
-      instance = await findOneWithDecryption(em.fork(), WorkflowInstance, { id: workflowInstanceId, workflowId: { $in: [PORTFOLIO_DISCOVERY_WORKFLOW_ID, DEMO_WORKFLOW_ID] }, ...scope }, {}, scope)
-    }
-    if (!instance || ['COMPLETED', 'FAILED', 'CANCELLED'].includes(instance.status)) return
-    if (instance.currentStepId !== PORTFOLIO_DISCOVERY_STEP_ID) return
-    if (instance.status !== 'PAUSED') throw new Error('[internal] O1 wait is not ready')
-    const steps = await findWithDecryption(em, StepInstance, { workflowInstanceId: instance.id, stepId: PORTFOLIO_DISCOVERY_STEP_ID, ...scope }, { limit: 2 }, scope)
-    if (steps.length !== 1 || steps[0].status !== 'ACTIVE') throw new Error('[internal] O1 step attempt is ambiguous')
-    const step = steps[0]
-    await requireDiscoveryEncryption(container, scope)
-    const ctx = actorContext(container, scope, prepared.userId)
-    if (instance.workflowId === DEMO_WORKFLOW_ID) {
-      const { preparedPhotographerDemoSchema } = await import('../data/demo-workflow-validators')
-      const { assertPreparedPhotographerDemo } = await import('./demo-preparation')
-      const demo = preparedPhotographerDemoSchema.parse(instance.context.demo)
-      const { requestId: _requestId, source: _source, ...references } = demo
-      if (JSON.stringify(portfolioDiscoveryPreparationSchema.parse(references)) !== JSON.stringify(prepared)) throw new Error('[internal] O1 registration binding changed')
-      await assertPreparedPhotographerDemo(demo, scope, container)
-    } else {
-      const crm = await readRegistrationCrm({ registrationId: prepared.registrationId }, ctx)
-      if (crm.status !== 'ready' || crm.photographerId !== prepared.photographerId || crm.personId !== prepared.personId || crm.dealId !== prepared.dealId) throw new Error('[internal] O1 registration binding changed')
-    }
-    const registration = await findOneWithDecryption(em, PhotographerRawData, { id: prepared.registrationId, customerEntityId: prepared.photographerId, isActive: true, deletedAt: null, ...scope }, {}, scope)
-    if (!registration) throw new Error('[internal] O1 registration is unavailable')
-    const binding = { workflowInstanceId: instance.id, stepId: PORTFOLIO_DISCOVERY_STEP_ID, invocationId: step.id, agentId: PORTFOLIO_DISCOVERY_AGENT_ID, ...scope }
-    let run = await findOneWithDecryption(em.fork(), AgentRun, binding, {}, scope)
-    if (!run) {
-      try {
-        await container.resolve<AgentRuntimeService>('agentRuntime').run(PORTFOLIO_DISCOVERY_AGENT_ID, preparePortfolioDiscoveryInput(registration), { ...scope, userId: prepared.userId, workflowInstanceId: instance.id, stepId: PORTFOLIO_DISCOVERY_STEP_ID, invocationId: step.id, runTimeoutMs: 300_000 })
-      } catch {
-        run = await findOneWithDecryption(em.fork(), AgentRun, binding, {}, scope)
-        if (!run?.completedAt) {
-          if (instance.workflowId === DEMO_WORKFLOW_ID) {
-            await container.resolve<typeof WorkflowExecutor>('workflowExecutor').completeWorkflow(em.fork(), container, instance.id, 'FAILED', { failedStepId: PORTFOLIO_DISCOVERY_STEP_ID, error: { code: 'photographers.o1.invocation_incomplete' } })
-            return
-          }
-          throw new Error('[internal] O1 invocation did not complete')
-        }
+    try {
+      await authorize(container, scope, prepared.userId)
+      if (instance.status === 'RUNNING') {
+        await container.resolve<typeof WorkflowExecutor>('workflowExecutor').executeWorkflow(em.fork(), container, instance.id, { userId: prepared.userId })
+        instance = await findOneWithDecryption(em.fork(), WorkflowInstance, { id: workflowInstanceId, workflowId: { $in: [PORTFOLIO_DISCOVERY_WORKFLOW_ID, DEMO_WORKFLOW_ID] }, ...scope }, {}, scope)
       }
-      run = await findOneWithDecryption(em.fork(), AgentRun, binding, {}, scope)
-    }
-    if (!run || !run.completedAt) {
+      if (!instance || ['COMPLETED', 'FAILED', 'CANCELLED'].includes(instance.status)) return
+      if (instance.currentStepId !== PORTFOLIO_DISCOVERY_STEP_ID) return
+      if (instance.status !== 'PAUSED') throw new Error('[internal] O1 wait is not ready')
+      const steps = await findWithDecryption(em, StepInstance, { workflowInstanceId: instance.id, stepId: PORTFOLIO_DISCOVERY_STEP_ID, ...scope }, { limit: 2 }, scope)
+      if (steps.length !== 1 || steps[0].status !== 'ACTIVE') throw new Error('[internal] O1 step attempt is ambiguous')
+      const step = steps[0]
+      await requireDiscoveryEncryption(container, scope)
+      const ctx = actorContext(container, scope, prepared.userId)
       if (instance.workflowId === DEMO_WORKFLOW_ID) {
-        await container.resolve<typeof WorkflowExecutor>('workflowExecutor').completeWorkflow(em.fork(), container, instance.id, 'FAILED', { failedStepId: PORTFOLIO_DISCOVERY_STEP_ID, error: { code: 'photographers.o1.invocation_incomplete' } })
+        const { preparedPhotographerDemoSchema } = await import('../data/demo-workflow-validators')
+        const { assertPreparedPhotographerDemo } = await import('./demo-preparation')
+        const demo = preparedPhotographerDemoSchema.parse(instance.context.demo)
+        const { requestId: _requestId, source: _source, ...references } = demo
+        if (JSON.stringify(portfolioDiscoveryPreparationSchema.parse(references)) !== JSON.stringify(prepared)) throw new Error('[internal] O1 registration binding changed')
+        await assertPreparedPhotographerDemo(demo, scope, container)
+      } else {
+        const crm = await readRegistrationCrm({ registrationId: prepared.registrationId }, ctx)
+        if (crm.status !== 'ready' || crm.photographerId !== prepared.photographerId || crm.personId !== prepared.personId || crm.dealId !== prepared.dealId) throw new Error('[internal] O1 registration binding changed')
+      }
+      const registration = await findOneWithDecryption(em, PhotographerRawData, { id: prepared.registrationId, customerEntityId: prepared.photographerId, isActive: true, deletedAt: null, ...scope }, {}, scope)
+      if (!registration) throw new Error('[internal] O1 registration is unavailable')
+      const binding = { workflowInstanceId: instance.id, stepId: PORTFOLIO_DISCOVERY_STEP_ID, invocationId: step.id, agentId: PORTFOLIO_DISCOVERY_AGENT_ID, ...scope }
+      let run = await findOneWithDecryption(em.fork(), AgentRun, binding, {}, scope)
+      if (!run) {
+        try {
+          await container.resolve<AgentRuntimeService>('agentRuntime').run(PORTFOLIO_DISCOVERY_AGENT_ID, preparePortfolioDiscoveryInput(registration), { ...scope, userId: prepared.userId, workflowInstanceId: instance.id, stepId: PORTFOLIO_DISCOVERY_STEP_ID, invocationId: step.id, runTimeoutMs: 300_000 })
+        } catch {
+          run = await findOneWithDecryption(em.fork(), AgentRun, binding, {}, scope)
+          if (!run?.completedAt) {
+            if (instance.workflowId === DEMO_WORKFLOW_ID) {
+              await container.resolve<typeof WorkflowExecutor>('workflowExecutor').completeWorkflow(em.fork(), container, instance.id, 'FAILED', { failedStepId: PORTFOLIO_DISCOVERY_STEP_ID, error: { code: 'photographers.o1.invocation_incomplete' } })
+              return
+            }
+            throw new Error('[internal] O1 invocation did not complete')
+          }
+        }
+        run = await findOneWithDecryption(em.fork(), AgentRun, binding, {}, scope)
+      }
+      if (!run || !run.completedAt) {
+        if (instance.workflowId === DEMO_WORKFLOW_ID) {
+          await container.resolve<typeof WorkflowExecutor>('workflowExecutor').completeWorkflow(em.fork(), container, instance.id, 'FAILED', { failedStepId: PORTFOLIO_DISCOVERY_STEP_ID, error: { code: 'photographers.o1.invocation_incomplete' } })
+          return
+        }
+        throw new Error('[internal] O1 run is not complete')
+      }
+      if (run.status !== 'ok' || run.resultKind !== 'research') {
+        await container.resolve<typeof WorkflowExecutor>('workflowExecutor').completeWorkflow(em.fork(), container, instance.id, 'FAILED', { failedStepId: PORTFOLIO_DISCOVERY_STEP_ID, error: { code: 'photographers.o1.run_failed' } })
         return
       }
-      throw new Error('[internal] O1 run is not complete')
-    }
-    if (run.status !== 'ok' || run.resultKind !== 'research') {
-      await container.resolve<typeof WorkflowExecutor>('workflowExecutor').completeWorkflow(em.fork(), container, instance.id, 'FAILED', { failedStepId: PORTFOLIO_DISCOVERY_STEP_ID, error: { code: 'photographers.o1.run_failed' } })
-      return
-    }
-    if (instance.workflowId === DEMO_WORKFLOW_ID && !portfolioDiscoveryResultSchema.safeParse(run.output).success) {
-      await container.resolve<typeof WorkflowExecutor>('workflowExecutor').completeWorkflow(em.fork(), container, instance.id, 'FAILED', { failedStepId: PORTFOLIO_DISCOVERY_STEP_ID, error: { code: 'photographers.o1.invalid_output' } })
-      return
-    }
-    try {
-      await deliverResult(instance, step, run, prepared.userId, container)
+      if (instance.workflowId === DEMO_WORKFLOW_ID && !portfolioDiscoveryResultSchema.safeParse(run.output).success) {
+        await container.resolve<typeof WorkflowExecutor>('workflowExecutor').completeWorkflow(em.fork(), container, instance.id, 'FAILED', { failedStepId: PORTFOLIO_DISCOVERY_STEP_ID, error: { code: 'photographers.o1.invalid_output' } })
+        return
+      }
+      try {
+        await deliverResult(instance, step, run, prepared.userId, container)
+      } catch (error) {
+        const permanent = error instanceof z.ZodError
+          || (error instanceof Error && error.message.startsWith('[internal] O1'))
+          || (isCrudHttpError(error) && [400, 403, 404, 409, 422].includes(error.status))
+        if (instance.workflowId !== DEMO_WORKFLOW_ID || !permanent) throw error
+        await container.resolve<typeof WorkflowExecutor>('workflowExecutor').completeWorkflow(em.fork(), container, instance.id, 'FAILED', { failedStepId: PORTFOLIO_DISCOVERY_STEP_ID, error: { code: 'photographers.o1.result_rejected' } })
+      }
     } catch (error) {
       const permanent = error instanceof z.ZodError
         || (error instanceof Error && error.message.startsWith('[internal] O1'))
         || (isCrudHttpError(error) && [400, 403, 404, 409, 422].includes(error.status))
-      if (instance.workflowId !== DEMO_WORKFLOW_ID || !permanent) throw error
-      await container.resolve<typeof WorkflowExecutor>('workflowExecutor').completeWorkflow(em.fork(), container, instance.id, 'FAILED', { failedStepId: PORTFOLIO_DISCOVERY_STEP_ID, error: { code: 'photographers.o1.result_rejected' } })
+      if (!instance || instance.workflowId !== DEMO_WORKFLOW_ID || instance.currentStepId !== PORTFOLIO_DISCOVERY_STEP_ID || !permanent) throw error
+      await container.resolve<typeof WorkflowExecutor>('workflowExecutor').completeWorkflow(em.fork(), container, instance.id, 'FAILED', {
+        failedStepId: PORTFOLIO_DISCOVERY_STEP_ID, error: { code: 'photographers.o1.preflight_rejected' },
+      })
     }
   })
 }
