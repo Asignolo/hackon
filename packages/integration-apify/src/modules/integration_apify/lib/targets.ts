@@ -72,3 +72,14 @@ export function normalizeGoogleMapsTarget(input: {
   url.search = ''
   return { placeUrl: url.toString(), canonicalUrl: url.toString() }
 }
+
+export function normalizeNipTarget(value: string): { nip: string } {
+  const nip = value.trim().replace(/^PL/i, '').replace(/[\s-]/g, '')
+  if (!/^\d{10}$/.test(nip)) throw new Error('[internal] Invalid NIP format.')
+  const weights = [6, 5, 7, 2, 3, 4, 5, 6, 7]
+  const checksum = weights.reduce((sum, weight, index) => sum + weight * Number(nip[index]), 0) % 11
+  if (/^(\d)\1{9}$/.test(nip) || checksum !== Number(nip[9])) {
+    throw new Error('[internal] Invalid NIP checksum.')
+  }
+  return { nip }
+}

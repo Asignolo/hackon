@@ -11,7 +11,7 @@ describe('Apify Agent Orchestrator discovery smoke', () => {
       moduleId: 'integration_apify',
       tools: aiTools,
     }])
-    expect(registered).toBe(4)
+    expect(registered).toBe(5)
     expect(toolRegistry.listToolsByModule('integration_apify')).toEqual(aiTools.map((tool) => tool.name))
     for (const tool of aiTools) {
       expect(toolRegistry.getTool(tool.name)).toMatchObject({

@@ -9,7 +9,7 @@ export type UnavailableField = {
 export type ApifyResearchResult<T> = {
   ok: boolean
   status: 'complete' | 'partial' | 'no_data' | 'error'
-  platform: 'instagram' | 'facebook' | 'google_maps'
+  platform: 'instagram' | 'facebook' | 'google_maps' | 'ceidg'
   canonicalUrl: string | null
   sourceUrl: string | null
   observedAt: string

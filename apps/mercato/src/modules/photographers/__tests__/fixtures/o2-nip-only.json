@@ -1,0 +1,18 @@
+{
+  "nip": [
+    {
+      "originalValue": "123-456-32-18",
+      "value": "1234563218",
+      "checksumValid": true,
+      "confidence": "probable",
+      "approvalRequired": true,
+      "sources": [
+        {
+          "url": "https://studio.example/contact",
+          "method": "page_read",
+          "evidence": "Synthetic test fixture only; not a real observation."
+        }
+      ]
+    }
+  ]
+}
